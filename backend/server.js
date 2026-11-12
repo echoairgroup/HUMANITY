@@ -359,7 +359,10 @@ async function readCache() {
 async function refreshWaterIndicator() {
   const params = new URLSearchParams();
   params.append('service_type[]', 'Drinking water');
+  // JMP reports Basic and Safely managed as separate, mutually exclusive
+  // service levels. Their sum is the published "at least basic" measure.
   params.append('service_level[]', 'Basic service');
+  params.append('service_level[]', 'Safely managed service');
   params.append('residence[]', 'total');
   params.set('year_from', '2000');
   params.set('year_to', String(CURRENT_YEAR));
@@ -375,8 +378,11 @@ async function refreshWaterIndicator() {
     const year = Number(row.year);
     const value = toNumber(row.value);
     if (!/^[A-Z]{3}$/.test(code) || value === null || !Number.isFinite(year)) continue;
+
     if (!values[code] || year > values[code].year) {
       values[code] = { value, year, footnote: '' };
+    } else if (year === values[code].year) {
+      values[code].value += value;
     }
   }
 
@@ -386,8 +392,11 @@ async function refreshWaterIndicator() {
 
   const worldParams = new URLSearchParams();
   worldParams.append('region_type[]', 'world');
+  worldParams.append('region[]', 'World');
   worldParams.append('service_type[]', 'Drinking water');
   worldParams.append('service_level[]', 'Basic service');
+  worldParams.append('service_level[]', 'Safely managed service');
+  worldParams.append('residence[]', 'total');
   worldParams.set('year_from', '2000');
   worldParams.set('year_to', String(CURRENT_YEAR));
   worldParams.set('format', 'json');
@@ -396,19 +405,32 @@ async function refreshWaterIndicator() {
   try {
     const worldPath = '/household/estimates/region?' + worldParams.toString();
     const worldPayload = await fetchJMP(worldPath);
-    const worldRows = worldPayload.results
-      .filter(row => row.region_type === 'world' && row.residence_type === 'total')
-      .sort((a, b) => Number(b.year) - Number(a.year));
-    if (worldRows.length) {
-      const latest = worldRows[0];
-      const value = toNumber(latest.value);
-      const year = Number(latest.year);
-      if (value !== null && Number.isFinite(year)) {
-        values.WLD = { value, year, footnote: '' };
+    let latestYear = 0;
+    let latestValue = 0;
+
+    for (const row of worldPayload.results) {
+      if (row.region_type !== 'world' || row.region !== 'World' || row.residence_type !== 'total') continue;
+      const year = Number(row.year);
+      const value = toNumber(row.value);
+      if (!Number.isFinite(year) || value === null) continue;
+
+      if (year > latestYear) {
+        latestYear = year;
+        latestValue = value;
+      } else if (year === latestYear) {
+        latestValue += value;
       }
+    }
+
+    if (latestYear && Number.isFinite(latestValue)) {
+      values.WLD = { value: Math.min(100, latestValue), year: latestYear, footnote: '' };
     }
   } catch (error) {
     console.warn('World drinking-water aggregate unavailable: ' + error.message);
+  }
+
+  for (const observation of Object.values(values)) {
+    observation.value = Math.min(100, observation.value);
   }
 
   await saveCache('values_water', values, JMP_BASE + countryPath);
@@ -416,7 +438,7 @@ async function refreshWaterIndicator() {
     key: 'water',
     observations: Object.keys(values).length,
     world: Boolean(values.WLD),
-    provider: 'WHO/UNICEF Joint Monitoring Programme'
+    provider: 'WHO/UNICEF Joint Monitoring Programme · at least basic (basic + safely managed)'
   };
 }
 
@@ -595,7 +617,7 @@ function buildBootstrap(records) {
   return {
     data: { countries, values, world, history },
     meta: {
-      provider: 'World Bank Indicators API v2',
+      provider: 'World Bank Indicators API v2 · WHO/UNICEF Joint Monitoring Programme',
       cacheStatus: cacheIsStale(records) ? 'stale' : 'fresh',
       updatedAt,
       cachedDatasets: Object.keys(records).length,
@@ -665,7 +687,7 @@ async function handleRequest(request, response) {
         lastRefresh,
         lastRefreshError,
         databaseTime: db.rows[0].database_time,
-        upstream: 'World Bank Indicators API v2'
+        upstream: 'World Bank Indicators API v2 · WHO/UNICEF JMP'
       });
     } catch (error) {
       sendJSON(response, 503, {
