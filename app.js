@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const API_ROOT = 'https://api.worldbank.org/v2';
+  const API_ROOT = 'https://humanity-api.onrender.com/api';
   const CACHE_PREFIX = 'humanity-worldbank-v1:';
   const CACHE_TTL = 24 * 60 * 60 * 1000;
   const PAGE_SIZE = 18;
@@ -154,31 +154,93 @@
   }
 
   async function loadData() {
-    setDataStatus('loading', 'Connecting to data');
-    let tasks = [];
-    let failures = 0;
+    setDataStatus('loading', 'Connecting to HUMANITY');
     try {
-      const countryPromise = loadCountries().then(countries => { state.countries = countries; }).catch(error => { failures++; throw error; });
-      const latestPromises = INDICATORS.map(indicator => loadLatestIndicator(indicator).catch(error => { failures++; return { key: indicator.key, error }; }));
-      const historyPromises = ['population', 'life'].map(key => {
-        const indicator = INDICATORS.find(item => item.key === key);
-        return loadWorldHistory(indicator).catch(error => { failures++; return { key, error }; });
-      });
-      tasks = await Promise.allSettled([countryPromise, ...latestPromises, ...historyPromises]);
-      const hasAnyData = state.countries.length > 0 || Object.values(state.values).some(series => Object.keys(series).length > 0);
-      if (!hasAnyData) throw new Error('No data could be loaded');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
+      let response;
+      try {
+        response = await fetch(API_ROOT + '/bootstrap', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        throw new Error(detail.error || ('HUMANITY API returned HTTP ' + response.status));
+      }
+
+      const payload = await response.json();
+      if (!payload.ok || !payload.data || !Array.isArray(payload.data.countries)) {
+        throw new Error('The HUMANITY API returned an incomplete data package.');
+      }
+
+      state.countries = payload.data.countries;
+      state.values = payload.data.values || {};
+      state.world = payload.data.world || {};
+      state.history = payload.data.history || {};
       state.dataReady = true;
-      const hasFresh = tasks.some(item => item.status === 'fulfilled' && item.value && item.value.cached === false);
-      const hasStale = tasks.some(item => item.status === 'fulfilled' && item.value && item.value.stale);
-      state.dataSource = hasStale ? 'cached' : (hasFresh ? 'live' : 'cached');
-      if (failures > 0 && hasAnyData) setDataStatus('ok', 'Partial data available');
-      else setDataStatus('ok', state.dataSource === 'cached' ? 'Saved data loaded' : 'World Bank connected');
+      state.dataSource = payload.meta && payload.meta.cacheStatus === 'stale' ? 'cached' : 'live';
+
+      try {
+        localStorage.setItem('humanity-bootstrap-cache', JSON.stringify({
+          savedAt: Date.now(),
+          payload
+        }));
+      } catch (_) { /* Browser storage can be disabled or full. */ }
+
+      const datasets = payload.meta && payload.meta.cachedDatasets
+        ? payload.meta.cachedDatasets
+        : 0;
+      const expected = payload.meta && payload.meta.expectedDatasets
+        ? payload.meta.expectedDatasets
+        : 9;
+
+      if (payload.meta && payload.meta.cacheStatus === 'stale') {
+        setDataStatus('ok', 'Saved data · updating');
+      } else if (datasets < expected) {
+        setDataStatus('ok', 'Live data · partial coverage');
+      } else {
+        setDataStatus('ok', 'World data connected');
+      }
+
       renderAll();
+      if (datasets < expected) {
+        showToast('Some indicators are still being refreshed. Available observations are shown with their reporting years.');
+      }
     } catch (error) {
       console.error('HUMANITY data load failed:', error);
-      setDataStatus('error', 'Data unavailable');
-      showToast('The data service could not be reached. Please try again later.');
-      renderAll();
+
+      let restored = false;
+      try {
+        const cached = JSON.parse(localStorage.getItem('humanity-bootstrap-cache') || 'null');
+        if (cached && cached.payload && cached.payload.data &&
+            Array.isArray(cached.payload.data.countries) &&
+            cached.payload.data.countries.length) {
+          state.countries = cached.payload.data.countries;
+          state.values = cached.payload.data.values || {};
+          state.world = cached.payload.data.world || {};
+          state.history = cached.payload.data.history || {};
+          state.dataReady = true;
+          state.dataSource = 'cached';
+          restored = true;
+        }
+      } catch (_) { /* Ignore corrupt or unavailable browser cache. */ }
+
+      if (restored) {
+        setDataStatus('ok', 'Offline · saved data');
+        showToast('The live data service could not be reached. Showing the last saved dataset.');
+        renderAll();
+      } else {
+        setDataStatus('error', 'Data service unavailable');
+        showToast('HUMANITY could not connect to its data service. Please reload in a moment.');
+        renderAll();
+      }
     }
   }
 
