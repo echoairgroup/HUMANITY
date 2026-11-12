@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a19">
+  <meta name="description" content="Explore the numbers shaping our shared world. HUMANITY turns trusted global data into clear stories, comparisons and context.">
+  <meta property="og:title" content="HUMANITY — Understand our world">
+  <meta property="og:description" content="A clearer picture of humanity, through open global data.">
+  <meta property="og:type" content="website">
+  <title>HUMANITY — Understand our world</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="preconnect" href="https://api.worldbank.org" crossorigin>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <header class="site-header">
+      <a class="brand" href="#overview" aria-label="HUMANITY home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="17.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 21h34M21 3.5c5 4.8 7.5 10.6 7.5 17.5S26 33.7 21 38.5C16 33.7 13.5 27.9 13.5 21S16 8.3 21 3.5Z" stroke="currentColor" stroke-width="1.25"/><path d="M8 10.5c7.5 4.1 18.5 4.1 26 0M8 31.5c7.5-4.1 18.5-4.1 26 0" stroke="currentColor" stroke-width="1.1"/></svg>
+        </span>
+        <span class="brand-word">HUMANITY<span class="brand-period">.</span><small>UNDERSTAND OUR WORLD</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#overview" data-nav="overview" class="nav-link active">Overview</a>
+        <a href="#explore" data-nav="explore" class="nav-link">Explore</a>
+        <a href="#compare" data-nav="compare" class="nav-link">Compare</a>
+        <a href="#stories" data-nav="stories" class="nav-link">Stories</a>
+        <a href="#about" data-nav="about" class="nav-link">About</a>
+      </nav>
+      <div class="header-right">
+        <span class="data-status" id="data-status"><span class="status-dot"></span><span>Connecting to data</span></span>
+        <button class="icon-button mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open navigation" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="page active" id="page-overview" data-page="overview">
+        <section class="hero section-wrap">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> A GLOBAL PICTURE, BUILT FROM DATA</div>
+            <h1>The world is complex.<br><em>Understanding it</em><br>shouldn't be.</h1>
+            <p class="hero-lede">A living picture of our shared planet — its people, progress and pressure points. Explore the numbers, see how countries compare, and discover the stories behind them.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#explore">Explore the data <span aria-hidden="true">↗</span></a>
+              <a class="text-link" href="#about">How this works <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="hero-footnote"><span class="mini-orbit" aria-hidden="true"></span> OPEN DATA · GLOBAL CONTEXT · NO SIGN-UP</div>
+          </div>
+          <div class="hero-art" aria-label="Abstract illustration of a connected globe">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+            <div class="globe-core">
+              <div class="globe-grid"></div>
+              <svg viewBox="0 0 420 420" role="img" aria-hidden="true">
+                <defs><radialGradient id="globeFill" cx="34%" cy="28%"><stop offset="0" stop-color="#d8e8c7"/><stop offset=".55" stop-color="#769b80"/><stop offset="1" stop-color="#315d50"/></radialGradient><clipPath id="globeClip"><circle cx="210" cy="210" r="154"/></clipPath></defs>
+                <circle cx="210" cy="210" r="154" fill="url(#globeFill)"/>
+                <g clip-path="url(#globeClip)" fill="#183b35" opacity=".9">
+                  <path d="m76 126 26-21 36 2 20 16-4 24-28 13-11 31-18 8-13-20-24-7-12-23 15-23Z"/>
+                  <path d="m149 203 30-9 26 17 9 29-15 34-4 37-19 34-18-14-7-37-18-34 4-25-16-18 28-14Z"/>
+                  <path d="m222 94 31-18 44 11 11 17-8 17-35 7-17 25-27-4-15-20 16-35Z"/>
+                  <path d="m264 166 31-13 42 14 18 28-12 24-33 5-19 22-24-7-16-26 13-23-10-24Z"/>
+                  <path d="m298 266 28-7 26 19-8 26-27 10-23-21 4-27Z"/>
+                  <path d="m114 80 24-10 20 9-7 19-24 5-13-23Z"/>
+                </g>
+                <circle cx="210" cy="210" r="154" fill="none" stroke="#e8f0df" stroke-width="2" opacity=".65"/>
+                <path d="M64 210h292M210 56c44 42 66 93 66 154s-22 112-66 154M210 56c-44 42-66 93-66 154s22 112 66 154" fill="none" stroke="#e4efe0" stroke-width="1.3" opacity=".35"/>
+              </svg>
+            </div>
+            <div class="orbit-label label-population"><span class="label-point"></span><span>PEOPLE</span><strong id="globe-population">—</strong></div>
+            <div class="orbit-label label-progress"><span class="label-point"></span><span>PROGRESS</span><strong>MEASURED</strong></div>
+            <div class="orbit-label label-planet"><span class="label-point"></span><span>ONE PLANET</span><strong>SHARED FUTURE</strong></div>
+            <div class="art-caption">ONE WORLD. BILLIONS OF STORIES.</div>
+          </div>
+        </section>
+
+        <section class="section-wrap metrics-section" aria-labelledby="global-snapshot-title">
+          <div class="section-heading heading-row">
+            <div><div class="eyebrow">THE GLOBAL SNAPSHOT</div><h2 id="global-snapshot-title">Humanity, by the numbers.</h2></div>
+            <div class="updated-note" id="updated-note">Latest available observations</div>
+          </div>
+          <div class="metric-grid" id="world-metrics">
+            <article class="metric-card metric-card-main"><div class="metric-top"><span>WORLD POPULATION</span><span class="metric-icon">◎</span></div><div class="metric-value skeleton-text">Loading</div><div class="metric-bottom"><span>People on Earth</span><span class="metric-year">—</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>LIFE EXPECTANCY</span><span class="metric-icon">⌁</span></div><div class="metric-value skeleton-text">Loading</div><div class="metric-bottom"><span>Years at birth</span><span class="metric-year">—</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>INTERNET ACCESS</span><span class="metric-icon">⌘</span></div><div class="metric-value skeleton-text">Loading</div><div class="metric-bottom"><span>Of world population</span><span class="metric-year">—</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>GDP PER PERSON</span><span class="metric-icon">↗</span></div><div class="metric-value skeleton-text">Loading</div><div class="metric-bottom"><span>Current US dollars</span><span class="metric-year">—</span></div></article>
+          </div>
+          <p class="data-footnote">These are the latest published observations, not live counters. Each indicator can have a different reporting year.</p>
+        </section>
+
+        <section class="section-wrap trends-section">
+          <div class="section-heading heading-row"><div><div class="eyebrow">THE LONG VIEW</div><h2>Progress has a timeline.</h2><p class="section-intro">A few decades can change the shape of a world. Follow the direction, not just the headline.</p></div><a class="text-link desktop-link" href="#explore">Explore all indicators <span>→</span></a></div>
+          <div class="chart-grid">
+            <article class="chart-card"><div class="chart-card-head"><div><div class="chart-kicker">01 / PEOPLE</div><h3>A growing world</h3><p>Global population · people</p></div><span class="chart-mark">↗</span></div><div class="chart-area" id="chart-population"><div class="chart-loading">Preparing population timeline…</div></div><div class="chart-foot"><span>World Bank · Population, total</span><span id="chart-population-range">2000–latest</span></div></article>
+            <article class="chart-card"><div class="chart-card-head"><div><div class="chart-kicker">02 / WELLBEING</div><h3>Living longer</h3><p>Life expectancy at birth · years</p></div><span class="chart-mark">↗</span></div><div class="chart-area" id="chart-life"><div class="chart-loading">Preparing life expectancy timeline…</div></div><div class="chart-foot"><span>World Bank · Life expectancy</span><span id="chart-life-range">2000–latest</span></div></article>
+          </div>
+        </section>
+
+        <section class="section-wrap discover-section">
+          <div class="section-heading heading-row"><div><div class="eyebrow">A WORLD OF DIFFERENCE</div><h2>Same planet. Different realities.</h2><p class="section-intro">Country averages reveal patterns, but they never tell the whole story. Start exploring the differences.</p></div><a class="button button-outline" href="#explore">Open country explorer <span>↗</span></a></div>
+          <div class="country-preview-grid" id="country-preview"><div class="preview-placeholder">Country snapshots will appear when the data is ready.</div></div>
+        </section>
+
+        <section class="callout-band section-wrap"><div><div class="eyebrow">LOOK CLOSER</div><h2>Numbers are the beginning.<br><em>Context is the point.</em></h2></div><a href="#stories" class="button button-light">Discover the stories <span>↗</span></a></section>
+      </section>
+
+      <section class="page section-wrap interior-page" id="page-explore" data-page="explore" hidden>
+        <div class="page-heading"><div class="eyebrow">COUNTRY EXPLORER / 01</div><h1>Explore the <em>world.</em></h1><p>Look beyond borders. Search countries, filter by region, and see how different measures compare.</p></div>
+        <div class="explore-controls">
+          <label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg><input type="search" id="country-search" placeholder="Search a country…" autocomplete="off"><kbd>/</kbd></label>
+          <label class="select-wrap"><span>REGION</span><select id="region-filter"><option value="all">All regions</option><option>Sub-Saharan Africa</option><option>East Asia & Pacific</option><option>Europe & Central Asia</option><option>Latin America & Caribbean</option><option>Middle East & North Africa</option><option>North America</option><option>South Asia</option></select></label>
+          <label class="select-wrap"><span>SORT BY</span><select id="country-sort"><option value="population">Population</option><option value="life">Life expectancy</option><option value="internet">Internet access</option><option value="gdp">GDP per person</option><option value="name">Country name</option></select></label>
+          <button class="button button-outline export-button" id="export-csv">Export CSV <span>↓</span></button>
+        </div>
+        <div class="explore-summary"><span id="country-count">Loading countries…</span><span>Country-level indicators · Latest available year</span></div>
+        <div class="table-wrap"><table class="country-table"><thead><tr><th scope="col">COUNTRY / ECONOMY</th><th scope="col">REGION</th><th scope="col" class="numeric">POPULATION</th><th scope="col" class="numeric">LIFE EXPECTANCY</th><th scope="col" class="numeric">INTERNET</th><th scope="col" class="numeric">GDP / PERSON</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody id="country-table-body"><tr><td colspan="7" class="table-message">Connecting to the World Bank data service…</td></tr></tbody></table></div>
+        <div class="table-footer"><span id="table-range">—</span><button class="text-link" id="load-more" hidden>Load more countries <span>↓</span></button></div>
+        <aside class="country-detail" id="country-detail" aria-live="polite" aria-label="Country details" hidden>
+          <div class="detail-backdrop" id="detail-backdrop"></div><div class="detail-panel"><button class="icon-button detail-close" id="detail-close" aria-label="Close country details">×</button><div id="country-detail-content"></div></div>
+        </aside>
+      </section>
+
+      <section class="page section-wrap interior-page" id="page-compare" data-page="compare" hidden>
+        <div class="page-heading"><div class="eyebrow">COUNTRY COMPARISON / 02</div><h1>Put things in <em>perspective.</em></h1><p>Choose up to three countries and compare the same indicators side by side. Every value keeps its reporting year attached.</p></div>
+        <div class="compare-selectors" id="compare-selectors">
+          <label class="compare-select-card"><span class="compare-number">01</span><span class="compare-label">FIRST COUNTRY</span><select id="compare-a"><option value="USA">United States</option></select></label>
+          <label class="compare-select-card"><span class="compare-number">02</span><span class="compare-label">SECOND COUNTRY</span><select id="compare-b"><option value="IND">India</option></select></label>
+          <label class="compare-select-card"><span class="compare-number">03</span><span class="compare-label">THIRD COUNTRY</span><select id="compare-c"><option value="BRA">Brazil</option></select></label>
+        </div>
+        <div class="compare-heading"><div><div class="eyebrow">THE INDICATORS</div><h2>What the data says.</h2></div><span class="compare-hint">Select a different country in any column to update the view.</span></div>
+        <div class="compare-results" id="compare-results"><div class="table-message">Country data is loading. The comparison will be ready shortly.</div></div>
+        <div class="comparison-note"><span class="note-symbol">i</span><p>Comparisons use each country's latest available observation. Years may differ between countries and indicators, so compare both the value and the year before drawing conclusions.</p></div>
+      </section>
+
+      <section class="page section-wrap interior-page" id="page-stories" data-page="stories" hidden>
+        <div class="page-heading"><div class="eyebrow">DATA STORIES / 03</div><h1>Look past the <em>numbers.</em></h1><p>Data becomes useful when it helps us ask better questions. These short reads turn global indicators into starting points for exploration.</p></div>
+        <div class="story-feature"><div class="story-index">FIELD NOTE 001 <span>GLOBAL POPULATION</span></div><div class="story-feature-grid"><div><h2>Eight billion lives.<br><em>One shared home.</em></h2><p>Population is more than a big number. It shapes the demand for housing, energy, food, education and opportunity — and the pressures we manage together.</p><a class="text-link" href="#explore">Explore population by country <span>→</span></a></div><div class="story-stat"><span>WORLD POPULATION</span><strong id="story-population">—</strong><small id="story-population-year">Latest available observation</small></div></div></div>
+        <div class="story-grid" id="story-grid">
+          <article class="story-card"><span class="story-category">01 / WELLBEING</span><h3>How long can a life be?</h3><p>Life expectancy is a broad signal of health and living conditions. It can hide deep inequalities within and between countries.</p><a class="text-link" href="#explore">Explore the indicator <span>→</span></a></article>
+          <article class="story-card"><span class="story-category">02 / CONNECTION</span><h3>Who is connected?</h3><p>Internet access can open doors to information, work and education. The global average can hide who is still offline.</p><a class="text-link" href="#explore">Explore the indicator <span>→</span></a></article>
+          <article class="story-card"><span class="story-category">03 / CLIMATE</span><h3>Emissions are not evenly shared.</h3><p>Per-person emissions show how climate pressure differs across economies. They are one measure, not a complete account of responsibility.</p><a class="text-link" href="#explore">Explore the indicator <span>→</span></a></article>
+        </div>
+        <p class="editorial-disclaimer">HUMANITY's stories are educational context, not policy recommendations. Read the underlying source, check the reporting year, and consider what each indicator leaves out.</p>
+      </section>
+
+      <section class="page section-wrap interior-page" id="page-about" data-page="about" hidden>
+        <div class="page-heading"><div class="eyebrow">ABOUT HUMANITY / 04</div><h1>Understand more.<br><em>Assume less.</em></h1><p>HUMANITY is an independent exploration of the data that describes our shared world. Its purpose is simple: make global evidence easier to find, compare and question.</p></div>
+        <div class="about-layout"><div class="about-main"><div class="eyebrow">OUR PRINCIPLES</div><h2>Clarity without false certainty.</h2><p>Global statistics are useful, but they are not the whole truth. A national average can hide differences by income, age, gender, region and opportunity. We show the measure, its source and its year so you can understand what a number does — and does not — tell you.</p><p>HUMANITY is designed as a public-facing data explorer. It is not affiliated with the World Bank, the United Nations or any national government.</p><div class="principle-list"><div><span>01</span><div><strong>Show the source.</strong><p>Every indicator links back to its data provider and definition.</p></div></div><div><span>02</span><div><strong>Show the year.</strong><p>Latest available does not mean current. Reporting years can differ.</p></div></div><div><span>03</span><div><strong>Show the limits.</strong><p>Indicators are approximations of complex realities, not rankings of human worth.</p></div></div></div></div>
+          <aside class="source-panel"><div class="eyebrow">DATA PARTNER</div><h3>World Bank<br><em>Open Data</em></h3><p>Country and global indicators are retrieved from the World Bank's public Indicators API. The API offers programmatic access to thousands of time series and does not require an API key.</p><a class="button button-primary source-button" href="https://data.worldbank.org/" target="_blank" rel="noopener noreferrer">Visit World Bank Data ↗</a><div class="source-meta"><span>DATA ACCESS</span><strong>Public API · v2</strong><span>API DOCUMENTATION</span><a href="https://datahelpdesk.worldbank.org/knowledgebase/articles/889392" target="_blank" rel="noopener noreferrer">Read the documentation ↗</a></div></aside></div>
+        <div class="indicator-directory"><div class="eyebrow">INDICATOR DIRECTORY</div><h2>What we measure.</h2><div class="indicator-list" id="indicator-directory"></div></div>
+        <div class="about-bottom"><div><div class="eyebrow">A NOTE ON INTERPRETATION</div><h2>One measure never tells the whole story.</h2></div><p>Use these numbers as a starting point for curiosity, not as a final verdict on a country or its people. Check the source notes, look at trends over time, and seek out the local context behind the averages.</p></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main"><a class="brand footer-brand" href="#overview"><span class="brand-mark"><svg viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="17.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 21h34M21 3.5c5 4.8 7.5 10.6 7.5 17.5S26 33.7 21 38.5C16 33.7 13.5 27.9 13.5 21S16 8.3 21 3.5Z" stroke="currentColor" stroke-width="1.25"/></svg></span><span class="brand-word">HUMANITY<span class="brand-period">.</span><small>UNDERSTAND OUR WORLD</small></span></a><p>For a world worth understanding.</p><div class="footer-links"><a href="#about">About & methodology</a><a href="https://data.worldbank.org/" target="_blank" rel="noopener noreferrer">Data source ↗</a><a href="#overview">Back to top ↑</a></div></div>
+      <div class="footer-bottom"><span>© <span id="current-year">2026</span> HUMANITY. An independent data project.</span><span>BUILT FOR CURIOSITY, NOT CERTAINTY.</span></div>
+    </footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "HUMANITY — Understand our world",
+  "short_name": "HUMANITY",
+  "description": "Explore trusted global data, compare countries and discover the stories behind the numbers.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f2ec",
+  "theme_color": "#101a19",
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
