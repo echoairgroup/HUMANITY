@@ -4,7 +4,14 @@
   "private": true,
   "description": "Server-side data API and Neon cache for HUMANITY.",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=20" },
-  "dependencies": { "pg": "^8.13.1" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "adm-zip": "^0.5.16"
+  }
 }
