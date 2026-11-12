@@ -8,6 +8,9 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const API_BASE = 'https://api.worldbank.org/v2';
+const CURRENT_YEAR = new Date().getUTCFullYear();
+const REQUEST_TIMEOUT_MS = 20000;
+const MAX_RETRIES = 3;
 const ALLOWED_ORIGINS = new Set(
   (process.env.ALLOWED_ORIGINS || 'https://echoairgroup.github.io')
     .split(',')
@@ -33,12 +36,14 @@ const pool = new Pool({
   connectionString: DATABASE_URL,
   max: 5,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000
+  connectionTimeoutMillis: 10000,
+  keepAlive: true
 });
 
 let refreshPromise = null;
 let lastRefresh = null;
 let lastRefreshError = null;
+let lastRefreshResults = [];
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -47,7 +52,7 @@ function sleep(ms) {
 function parseRows(payload) {
   if (!Array.isArray(payload) || !Array.isArray(payload[1])) {
     const message = Array.isArray(payload) && payload[0] && payload[0].message
-      ? payload[0].message[0] && payload[0].message[0].value
+      ? payload[0].message.map(item => item.value).filter(Boolean).join('; ')
       : 'Unexpected World Bank API response';
     throw new Error(message || 'Unexpected World Bank API response');
   }
@@ -58,18 +63,24 @@ async function fetchWorldBank(path) {
   const url = API_BASE + path;
   let lastError;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
     try {
       const response = await fetch(url, {
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'HUMANITY-Global-Data-Platform/1.0'
+          'User-Agent': 'HUMANITY-Global-Data-Platform/1.1'
         },
-        signal: AbortSignal.timeout(25000)
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
       });
 
       if (!response.ok) {
-        throw new Error('World Bank API returned HTTP ' + response.status);
+        const detail = await response.text().catch(() => '');
+        const error = new Error(
+          'World Bank API returned HTTP ' + response.status +
+          (detail ? ': ' + detail.slice(0, 180) : '')
+        );
+        error.status = response.status;
+        throw error;
       }
 
       const payload = await response.json();
@@ -77,7 +88,11 @@ async function fetchWorldBank(path) {
       return payload;
     } catch (error) {
       lastError = error;
-      if (attempt < 3) await sleep(600 * attempt);
+      const retryable = !error.status || [408, 425, 429, 500, 502, 503, 504].includes(error.status);
+      if (!retryable || attempt === MAX_RETRIES) break;
+      const delay = Math.min(1200 * (2 ** (attempt - 1)), 5000);
+      console.warn('World Bank request retry ' + attempt + '/' + MAX_RETRIES + ': ' + error.message);
+      await sleep(delay);
     }
   }
 
@@ -126,89 +141,51 @@ function mapLatestValues(payload) {
       year: Number.isFinite(year) ? year : null,
       footnote: row.obs_status || ''
     };
-    if (!output[code] || (year && year > (output[code].year || 0))) {
+    if (!output[code] || (Number.isFinite(year) && year > (output[code].year || 0))) {
       output[code] = observation;
     }
   }
   return output;
 }
 
-function mapAllLatestValues(payload) {
-  const keyByCode = Object.fromEntries(INDICATORS.map(item => [item.code, item.key]));
-  const output = Object.fromEntries(INDICATORS.map(item => [item.key, {}]));
+function mapHistory(payload) {
+  return parseRows(payload)
+    .map(row => ({
+      year: Number(row.date),
+      value: toNumber(row.value)
+    }))
+    .filter(point => Number.isFinite(point.year) && point.value !== null)
+    .sort((a, b) => a.year - b.year);
+}
 
-  for (const row of parseRows(payload)) {
-    const indicatorCode = row.indicator && row.indicator.id;
-    const key = keyByCode[indicatorCode];
-    const countryCode = row.countryiso3code || (row.country && row.country.id);
-    const value = toNumber(row.value);
-    if (!key || !countryCode || value === null) continue;
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let cursor = 0;
 
-    const year = Number(row.date);
-    const observation = {
-      value,
-      year: Number.isFinite(year) ? year : null,
-      footnote: row.obs_status || ''
-    };
-
-    if (!output[key][countryCode] ||
-        (year && year > (output[key][countryCode].year || 0))) {
-      output[key][countryCode] = observation;
+  async function runWorker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      try {
+        results[index] = { status: 'fulfilled', value: await worker(items[index], index) };
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason };
+      }
     }
   }
 
-  return output;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker())
+  );
+  return results;
 }
 
-function mapHistory(payload) {
-  return parseRows(payload)
-    .map(row => ({
-      year: Number(row.date),
-      value: toNumber(row.value)
-    }))
-    .filter(point => Number.isFinite(point.year) && point.value !== null)
-    .sort((a, b) => a.year - b.year);
-}
-
-function mapAllHistory(payload) {
-  const keyByCode = Object.fromEntries(INDICATORS.map(item => [item.code, item.key]));
-  const output = { population: [], life: [] };
-
-  for (const row of parseRows(payload)) {
-    const code = row.indicator && row.indicator.id;
-    const key = keyByCode[code];
-    if (key !== 'population' && key !== 'life') continue;
-
-    const year = Number(row.date);
-    const value = toNumber(row.value);
-    if (!Number.isFinite(year) || value === null) continue;
-    output[key].push({ year, value });
-  }
-
-  for (const key of Object.keys(output)) {
-    output[key].sort((a, b) => a.year - b.year);
-  }
-
-  return output;
-}
-
-
-function mapHistory(payload) {
-  return parseRows(payload)
-    .map(row => ({
-      year: Number(row.date),
-      value: toNumber(row.value)
-    }))
-    .filter(point => Number.isFinite(point.year) && point.value !== null)
-    .sort((a, b) => a.year - b.year);
-}
-
-async function saveCache(key, payload) {
+async function saveCache(key, payload, sourceUrl = API_BASE) {
   const sql = 'INSERT INTO humanity_cache (cache_key, payload, fetched_at, source_url) ' +
     'VALUES ($1, $2::jsonb, NOW(), $3) ' +
     'ON CONFLICT (cache_key) DO UPDATE SET payload = EXCLUDED.payload, ' +
     'fetched_at = NOW(), source_url = EXCLUDED.source_url';
-  await pool.query(sql, [key, JSON.stringify(payload), API_BASE]);
+  await pool.query(sql, [key, JSON.stringify(payload), sourceUrl]);
 }
 
 async function readCache() {
@@ -225,99 +202,95 @@ async function readCache() {
   return records;
 }
 
+async function refreshOneIndicator(indicator) {
+  // One indicator per request. The World Bank Indicators endpoint accepts a
+  // single indicator code here; a semicolon-separated list is not a batch API.
+  const path = '/country/all/indicator/' + indicator.code +
+    '?format=json&mrnev=1&per_page=1000';
+  const payload = await fetchWorldBank(path);
+  const values = mapLatestValues(payload);
+
+  if (!Object.keys(values).length) {
+    throw new Error('World Bank returned no observations for ' + indicator.key);
+  }
+
+  // The aggregate may be absent from the all-country response on some runs.
+  if (!values.WLD) {
+    try {
+      const worldPayload = await fetchWorldBank(
+        '/country/WLD/indicator/' + indicator.code +
+        '?format=json&mrnev=1&per_page=100'
+      );
+      const world = mapLatestValues(worldPayload).WLD;
+      if (world) values.WLD = world;
+    } catch (error) {
+      console.warn('World aggregate unavailable for ' + indicator.key + ': ' + error.message);
+    }
+  }
+
+  await saveCache('values_' + indicator.key, values, API_BASE + path);
+  return {
+    key: indicator.key,
+    observations: Object.keys(values).length,
+    world: Boolean(values.WLD)
+  };
+}
+
+async function refreshOneHistory(indicator) {
+  const path = '/country/WLD/indicator/' + indicator.code +
+    '?format=json&date=2000:' + CURRENT_YEAR + '&per_page=100';
+  const payload = await fetchWorldBank(path);
+  const points = mapHistory(payload);
+  await saveCache('history_' + indicator.key, points, API_BASE + path);
+  return { key: 'history_' + indicator.key, observations: points.length };
+}
+
 async function refreshAll() {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
     const startedAt = new Date().toISOString();
-    const codes = INDICATORS.map(item => item.code).join(';');
     const jobs = [
-      fetchWorldBank('/country?format=json&per_page=400').then(async payload => {
-        const countries = mapCountries(payload);
-        if (!countries.length) throw new Error('World Bank returned no country records');
-        await saveCache('countries', countries);
-        return 'countries';
-      }),
-      fetchWorldBank(
-        '/country/all/indicator/' + codes +
-        '?format=json&mrnev=1&per_page=10000&source=2'
-      ).then(async payload => {
-        const grouped = mapAllLatestValues(payload);
-
-        // Keep the multi-indicator request as the normal fast path. If a provider
-        // omits one series, retry only that series rather than discarding the rest.
-        for (const indicator of INDICATORS) {
-          if (Object.keys(grouped[indicator.key]).length > 0) continue;
-          try {
-            const fallback = await fetchWorldBank(
-              '/country/all/indicator/' + indicator.code +
-              '?format=json&mrnev=1&per_page=2000&source=2'
-            );
-            grouped[indicator.key] = mapLatestValues(fallback);
-          } catch (error) {
-            console.warn('Indicator fallback failed for ' + indicator.key + ': ' + error.message);
-          }
+      {
+        name: 'countries',
+        run: async () => {
+          const path = '/country?format=json&per_page=400';
+          const countries = mapCountries(await fetchWorldBank(path));
+          if (!countries.length) throw new Error('World Bank returned no country records');
+          await saveCache('countries', countries, API_BASE + path);
+          return { key: 'countries', observations: countries.length };
         }
-
-        for (const indicator of INDICATORS) {
-          const values = grouped[indicator.key] || {};
-          await saveCache('values_' + indicator.key, values);
-          if (!values.WLD && Object.keys(values).length > 0) {
-            try {
-              const worldPayload = await fetchWorldBank(
-                '/country/WLD/indicator/' + indicator.code +
-                '?format=json&mrnev=1&per_page=20&source=2'
-              );
-              const world = mapLatestValues(worldPayload).WLD;
-              if (world) values.WLD = world;
-              await saveCache('values_' + indicator.key, values);
-            } catch (error) {
-              console.warn('World aggregate fallback failed for ' + indicator.key + ': ' + error.message);
-            }
-          }
-        }
-
-        return 'indicators';
-      }),
-      fetchWorldBank(
-        '/country/WLD/indicator/' + INDICATORS[0].code + ';' + INDICATORS[1].code +
-        '?format=json&date=2000:2026&per_page=200&source=2'
-      ).then(async payload => {
-        const grouped = mapAllHistory(payload);
-
-        for (const key of ['population', 'life']) {
-          if (grouped[key].length > 0) continue;
-          const indicator = INDICATORS.find(item => item.key === key);
-          try {
-            const fallback = await fetchWorldBank(
-              '/country/WLD/indicator/' + indicator.code +
-              '?format=json&date=2000:2026&per_page=100&source=2'
-            );
-            grouped[key] = mapHistory(fallback);
-          } catch (error) {
-            console.warn('History fallback failed for ' + key + ': ' + error.message);
-          }
-        }
-
-        for (const key of ['population', 'life']) {
-          await saveCache('history_' + key, grouped[key]);
-        }
-        return 'history';
-      })
+      },
+      ...INDICATORS.map(indicator => ({
+        name: indicator.key,
+        run: () => refreshOneIndicator(indicator)
+      })),
+      ...['population', 'life'].map(key => ({
+        name: 'history_' + key,
+        run: () => refreshOneHistory(INDICATORS.find(item => item.key === key))
+      }))
     ];
 
-    const results = await Promise.allSettled(jobs);
-    const successful = results
-      .filter(result => result.status === 'fulfilled')
-      .map(result => result.value);
-    const failed = results
-      .filter(result => result.status === 'rejected')
-      .map(result => result.reason && result.reason.message
-        ? result.reason.message
-        : 'Unknown upstream error');
+    const results = await mapWithConcurrency(jobs, 4, job => job.run());
+    const successful = [];
+    const failed = [];
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        successful.push(result.value);
+      } else {
+        failed.push({
+          dataset: jobs[index].name,
+          error: result.reason && result.reason.message
+            ? result.reason.message
+            : 'Unknown upstream error'
+        });
+      }
+    });
 
     lastRefresh = new Date().toISOString();
-    lastRefreshError = failed.length ? failed.join('; ').slice(0, 1000) : null;
+    lastRefreshResults = successful;
+    lastRefreshError = failed.length ? failed : null;
 
     console.log(JSON.stringify({
       event: 'data_refresh',
@@ -327,8 +300,8 @@ async function refreshAll() {
       failed
     }));
 
-    if (!successful.includes('countries')) {
-      throw new Error('Country metadata refresh failed: ' + (failed[0] || 'unknown error'));
+    if (!successful.some(item => item.key === 'countries')) {
+      throw new Error('Country metadata refresh failed.');
     }
 
     return { successful, failed, finishedAt: lastRefresh };
@@ -341,7 +314,6 @@ async function refreshAll() {
   }
 }
 
-
 function cacheIsStale(records) {
   const latest = Object.values(records)
     .map(record => new Date(record.fetchedAt).getTime())
@@ -353,6 +325,7 @@ function cacheIsStale(records) {
 function buildBootstrap(records) {
   const countries = records.countries ? records.countries.payload : [];
   const values = {};
+
   for (const indicator of INDICATORS) {
     const record = records['values_' + indicator.key];
     values[indicator.key] = record ? record.payload : {};
@@ -360,9 +333,8 @@ function buildBootstrap(records) {
 
   const world = {};
   for (const indicator of INDICATORS) {
-    if (values[indicator.key] && values[indicator.key].WLD) {
-      world[indicator.key] = values[indicator.key].WLD;
-    }
+    const observation = values[indicator.key] && values[indicator.key].WLD;
+    if (observation) world[indicator.key] = observation;
   }
 
   const history = {
@@ -377,6 +349,11 @@ function buildBootstrap(records) {
     ? new Date(Math.min(...timestamps)).toISOString()
     : null;
 
+  const indicatorCount = INDICATORS.filter(indicator =>
+    records['values_' + indicator.key] &&
+    Object.keys(records['values_' + indicator.key].payload || {}).length > 0
+  ).length;
+
   return {
     data: { countries, values, world, history },
     meta: {
@@ -385,6 +362,8 @@ function buildBootstrap(records) {
       updatedAt,
       cachedDatasets: Object.keys(records).length,
       expectedDatasets: 9,
+      availableIndicators: indicatorCount,
+      totalIndicators: INDICATORS.length,
       lastRefresh,
       lastRefreshError
     }
@@ -393,11 +372,16 @@ function buildBootstrap(records) {
 
 function setCorsHeaders(request, response) {
   const origin = request.headers.origin;
-  if (origin && (ALLOWED_ORIGINS.has(origin) || origin.startsWith('http://localhost:'))) {
+  if (origin && (
+    ALLOWED_ORIGINS.has(origin) ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:')
+  )) {
     response.setHeader('Access-Control-Allow-Origin', origin);
     response.setHeader('Vary', 'Origin');
     response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+    response.setHeader('Access-Control-Max-Age', '86400');
   }
 }
 
@@ -430,13 +414,18 @@ async function handleRequest(request, response) {
     try {
       const db = await pool.query('SELECT NOW() AS database_time');
       const records = await readCache();
+      const summary = buildBootstrap(records).meta;
       sendJSON(response, 200, {
         ok: true,
         service: 'HUMANITY Data API',
         database: 'connected',
-        cachedDatasets: Object.keys(records).length,
-        expectedDatasets: 9,
-        updatedAt: lastRefresh,
+        cachedDatasets: summary.cachedDatasets,
+        expectedDatasets: summary.expectedDatasets,
+        availableIndicators: summary.availableIndicators,
+        totalIndicators: summary.totalIndicators,
+        cacheStatus: summary.cacheStatus,
+        lastRefresh,
+        lastRefreshError,
         databaseTime: db.rows[0].database_time,
         upstream: 'World Bank Indicators API v2'
       });
@@ -454,26 +443,31 @@ async function handleRequest(request, response) {
   if (url.pathname === '/api/bootstrap') {
     try {
       let records = await readCache();
-      const missingCoreData = !records.countries ||
-        !INDICATORS.some(indicator => records['values_' + indicator.key]);
+      const missingData = !records.countries ||
+        INDICATORS.some(indicator => !records['values_' + indicator.key]) ||
+        !records.history_population ||
+        !records.history_life;
 
-      if (missingCoreData) {
+      if (missingData) {
         try {
           await refreshAll();
           records = await readCache();
         } catch (error) {
-          console.error('Initial data load failed:', error.message);
+          console.error('Initial data refresh failed:', error.message);
         }
       } else if (cacheIsStale(records) && !refreshPromise) {
-        refreshAll().catch(error => console.error('Background refresh failed:', error.message));
+        refreshAll().catch(error =>
+          console.error('Background refresh failed:', error.message)
+        );
       }
 
       const result = buildBootstrap(records);
-      if (!result.data.countries.length ||
-          !Object.values(result.data.values).some(series => Object.keys(series || {}).length)) {
+      const hasIndicatorData = result.meta.availableIndicators > 0;
+
+      if (!result.data.countries.length || !hasIndicatorData) {
         sendJSON(response, 503, {
           ok: false,
-          error: 'No cached data is available yet. The upstream data source could not be reached.',
+          error: 'Global indicator data is not available yet. The data service is retrying the source.',
           meta: result.meta
         });
         return;
