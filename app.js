@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const API_ROOT = 'https://humanity-api.onrender.com/api';
+  const API_ROOT = 'https://humanity-api-jyk5.onrender.com/api';
   const CACHE_PREFIX = 'humanity-worldbank-v1:';
   const CACHE_TTL = 24 * 60 * 60 * 1000;
   const PAGE_SIZE = 18;
