@@ -31,7 +31,6 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
   max: 5,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000
@@ -134,6 +133,66 @@ function mapLatestValues(payload) {
   return output;
 }
 
+function mapAllLatestValues(payload) {
+  const keyByCode = Object.fromEntries(INDICATORS.map(item => [item.code, item.key]));
+  const output = Object.fromEntries(INDICATORS.map(item => [item.key, {}]));
+
+  for (const row of parseRows(payload)) {
+    const indicatorCode = row.indicator && row.indicator.id;
+    const key = keyByCode[indicatorCode];
+    const countryCode = row.countryiso3code || (row.country && row.country.id);
+    const value = toNumber(row.value);
+    if (!key || !countryCode || value === null) continue;
+
+    const year = Number(row.date);
+    const observation = {
+      value,
+      year: Number.isFinite(year) ? year : null,
+      footnote: row.obs_status || ''
+    };
+
+    if (!output[key][countryCode] ||
+        (year && year > (output[key][countryCode].year || 0))) {
+      output[key][countryCode] = observation;
+    }
+  }
+
+  return output;
+}
+
+function mapHistory(payload) {
+  return parseRows(payload)
+    .map(row => ({
+      year: Number(row.date),
+      value: toNumber(row.value)
+    }))
+    .filter(point => Number.isFinite(point.year) && point.value !== null)
+    .sort((a, b) => a.year - b.year);
+}
+
+function mapAllHistory(payload) {
+  const keyByCode = Object.fromEntries(INDICATORS.map(item => [item.code, item.key]));
+  const output = { population: [], life: [] };
+
+  for (const row of parseRows(payload)) {
+    const code = row.indicator && row.indicator.id;
+    const key = keyByCode[code];
+    if (key !== 'population' && key !== 'life') continue;
+
+    const year = Number(row.date);
+    const value = toNumber(row.value);
+    if (!Number.isFinite(year) || value === null) continue;
+    output[key].push({ year, value });
+  }
+
+  for (const key of Object.keys(output)) {
+    output[key].sort((a, b) => a.year - b.year);
+  }
+
+  return output;
+}
+
+
 function mapHistory(payload) {
   return parseRows(payload)
     .map(row => ({
@@ -171,55 +230,83 @@ async function refreshAll() {
 
   refreshPromise = (async () => {
     const startedAt = new Date().toISOString();
-    const results = await Promise.allSettled([
+    const codes = INDICATORS.map(item => item.code).join(';');
+    const jobs = [
       fetchWorldBank('/country?format=json&per_page=400').then(async payload => {
         const countries = mapCountries(payload);
         if (!countries.length) throw new Error('World Bank returned no country records');
         await saveCache('countries', countries);
         return 'countries';
       }),
-      ...INDICATORS.map(indicator =>
-        fetchWorldBank(
-          '/country/all/indicator/' + indicator.code +
-          '?format=json&mrnev=1&per_page=2000'
-        ).then(async payload => {
-          const values = mapLatestValues(payload);
+      fetchWorldBank(
+        '/country/all/indicator/' + codes +
+        '?format=json&mrnev=1&per_page=10000&source=2'
+      ).then(async payload => {
+        const grouped = mapAllLatestValues(payload);
 
-          if (!values.WLD) {
+        // Keep the multi-indicator request as the normal fast path. If a provider
+        // omits one series, retry only that series rather than discarding the rest.
+        for (const indicator of INDICATORS) {
+          if (Object.keys(grouped[indicator.key]).length > 0) continue;
+          try {
+            const fallback = await fetchWorldBank(
+              '/country/all/indicator/' + indicator.code +
+              '?format=json&mrnev=1&per_page=2000&source=2'
+            );
+            grouped[indicator.key] = mapLatestValues(fallback);
+          } catch (error) {
+            console.warn('Indicator fallback failed for ' + indicator.key + ': ' + error.message);
+          }
+        }
+
+        for (const indicator of INDICATORS) {
+          const values = grouped[indicator.key] || {};
+          await saveCache('values_' + indicator.key, values);
+          if (!values.WLD && Object.keys(values).length > 0) {
             try {
               const worldPayload = await fetchWorldBank(
                 '/country/WLD/indicator/' + indicator.code +
-                '?format=json&mrnev=1&per_page=20'
+                '?format=json&mrnev=1&per_page=20&source=2'
               );
               const world = mapLatestValues(worldPayload).WLD;
               if (world) values.WLD = world;
+              await saveCache('values_' + indicator.key, values);
             } catch (error) {
-              console.warn('World aggregate unavailable for ' + indicator.key + ': ' + error.message);
+              console.warn('World aggregate fallback failed for ' + indicator.key + ': ' + error.message);
             }
           }
+        }
 
-          if (!Object.keys(values).length) {
-            throw new Error('No observations returned for ' + indicator.code);
+        return 'indicators';
+      }),
+      fetchWorldBank(
+        '/country/WLD/indicator/' + INDICATORS[0].code + ';' + INDICATORS[1].code +
+        '?format=json&date=2000:2026&per_page=200&source=2'
+      ).then(async payload => {
+        const grouped = mapAllHistory(payload);
+
+        for (const key of ['population', 'life']) {
+          if (grouped[key].length > 0) continue;
+          const indicator = INDICATORS.find(item => item.key === key);
+          try {
+            const fallback = await fetchWorldBank(
+              '/country/WLD/indicator/' + indicator.code +
+              '?format=json&date=2000:2026&per_page=100&source=2'
+            );
+            grouped[key] = mapHistory(fallback);
+          } catch (error) {
+            console.warn('History fallback failed for ' + key + ': ' + error.message);
           }
+        }
 
-          await saveCache('values_' + indicator.key, values);
-          return 'values_' + indicator.key;
-        })
-      ),
-      ...['population', 'life'].map(key => {
-        const indicator = INDICATORS.find(item => item.key === key);
-        return fetchWorldBank(
-          '/country/WLD/indicator/' + indicator.code +
-          '?format=json&date=2000:2026&per_page=100'
-        ).then(async payload => {
-          const history = mapHistory(payload);
-          if (!history.length) throw new Error('No world history returned for ' + key);
-          await saveCache('history_' + key, history);
-          return 'history_' + key;
-        });
+        for (const key of ['population', 'life']) {
+          await saveCache('history_' + key, grouped[key]);
+        }
+        return 'history';
       })
-    ]);
+    ];
 
+    const results = await Promise.allSettled(jobs);
     const successful = results
       .filter(result => result.status === 'fulfilled')
       .map(result => result.value);
@@ -253,6 +340,7 @@ async function refreshAll() {
     refreshPromise = null;
   }
 }
+
 
 function cacheIsStale(records) {
   const latest = Object.values(records)
