@@ -6,9 +6,10 @@ A responsive, multi-section global data explorer built as a static website. It i
 
 - **Overview:** global snapshot cards, long-range population and life-expectancy charts, and country highlights.
 - **Explore:** searchable and sortable country table, region filter, country detail panels and CSV export.
-- **Compare:** side-by-side comparison of up to three countries across six indicators.
+- **Compare:** side-by-side comparison of up to three countries across the full 26-indicator catalogue.
 - **Stories:** editorial context to help visitors think critically about population, wellbeing, connectivity and emissions.
-- **About:** indicator definitions, methodology notes and direct source links.
+- **Games:** five playable modes — Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective. Ten rounds per challenge, scoring, streaks and device-local personal bests.
+- **About:** 26 indicator definitions, methodology notes and direct source links.
 - Responsive layouts, keyboard accessibility, reduced-motion support, metadata, a web app manifest and a small offline shell cache.
 
 ## Data and freshness
