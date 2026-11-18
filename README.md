@@ -10,7 +10,7 @@ A responsive, multi-section global data explorer built as a static website. It i
 - **Stories:** editorial context to help visitors think critically about population, wellbeing, connectivity and emissions.
 - **Games / HUMANITY Arcade:** Atlas Expedition (shared daily five-clue world-map challenge plus unlimited practice), Mystery Country (daily and practice clue ladder), Atlas Party (live public/private rooms with up to eight players, nickname-only guest entry, three lives, timed turns, rematches and a shared party leaderboard), plus Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective.
 - **About:** 26 indicator definitions, methodology notes and direct source links.
-- Responsive layouts, keyboard accessibility, reduced-motion support, metadata, a web app manifest and a small offline shell cache.
+- Responsive layouts, keyboard accessibility, reduced-motion support, softly animated page transitions, real Natural Earth continent outlines on both illustrated globes, metadata, a web app manifest and a small offline shell cache.
 
 ## Data and freshness
 
