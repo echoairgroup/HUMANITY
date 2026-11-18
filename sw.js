@@ -1,6 +1,6 @@
 'use strict';
-const CACHE_NAME = 'humanity-shell-v5';
-const SHELL = ['./', './index.html', './styles.css', './app.js', './arcade.js', './favicon.svg', './manifest.webmanifest'];
+const CACHE_NAME = 'humanity-shell-v6';
+const SHELL = ['./', './index.html', './styles.css', './app.js', './globe.js', './arcade.js', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
