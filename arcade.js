@@ -9,7 +9,7 @@
   const nf = new Intl.NumberFormat('en-US');
   const state = {
     countries: [], byCode: new Map(), byName: new Map(), map: null, geo: null, geoLayer: null,
-    layers: new Map(), selectedCode: null, selectedLayer: null, revealed: new Set(),
+    layers: new Map(), mapMarker: null, selectedCode: null, selectedLayer: null, revealed: new Set(),
     expedition: null, expeditionMode: 'daily', clueIndex: 0, answers: [], distance: 0,
     pending: false, finished: false, mystery: null, mysteryMode: 'daily', mysteryGuesses: 0,
     socket: null, pendingAction: null, room: null, roomCode: null, playerId: null,
@@ -143,6 +143,20 @@
     state.selectedLayer = layer || state.layers.get(country.code) || null;
     state.geoLayer?.setStyle(countryStyle);
     if (state.selectedLayer) state.selectedLayer.setStyle(countryStyle(state.selectedLayer.feature));
+    const boundsCenter = state.selectedLayer?.getBounds?.().getCenter?.();
+    const coordinates = boundsCenter ||
+      (Number.isFinite(Number(country.latitude)) && Number.isFinite(Number(country.longitude))
+        ? L.latLng(Number(country.latitude), Number(country.longitude)) : null);
+    if (state.map && coordinates) {
+      const pinIcon = L.divIcon({
+        className: 'atlas-map-pin',
+        html: '<span>✦</span>',
+        iconSize: [34, 42],
+        iconAnchor: [17, 38]
+      });
+      if (state.mapMarker) state.mapMarker.setLatLng(coordinates);
+      else state.mapMarker = L.marker(coordinates, { icon: pinIcon, interactive: false, keyboard: false }).addTo(state.map);
+    }
     $('#atlas-selected-name').textContent = country.name;
     $('#atlas-selected-country').classList.add('has-selection');
     $('#atlas-confirm').disabled = false;
@@ -185,6 +199,8 @@
   function clearSelection() {
     state.selectedCode = null;
     state.selectedLayer = null;
+    if (state.mapMarker && state.map) state.map.removeLayer(state.mapMarker);
+    state.mapMarker = null;
     state.geoLayer?.setStyle(countryStyle);
     $('#atlas-selected-name').textContent = 'Nothing selected yet';
     $('#atlas-selected-country').classList.remove('has-selection');
