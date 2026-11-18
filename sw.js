@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_NAME = 'humanity-shell-v7';
+const CACHE_NAME = 'humanity-shell-v8';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './globe.js', './arcade.js', './nation.js', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', event => {
