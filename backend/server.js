@@ -6,7 +6,7 @@ const { Pool } = require('pg');
 const PORT = Number(process.env.PORT || 10000);
 const DATABASE_URL = process.env.DATABASE_URL;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
-const REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const API_BASE = 'https://api.worldbank.org/v2';
 const JMP_BASE = 'https://api.washdata.org/v1';
 const CURRENT_YEAR = new Date().getUTCFullYear();
@@ -22,11 +22,31 @@ const ALLOWED_ORIGINS = new Set(
 
 const INDICATORS = [
   { key: 'population', code: 'SP.POP.TOTL' },
+  { key: 'population_growth', code: 'SP.POP.GROW' },
+  { key: 'urban_share', code: 'SP.URB.TOTL.IN.ZS' },
+  { key: 'rural_share', code: 'SP.RUR.TOTL.ZS' },
   { key: 'life', code: 'SP.DYN.LE00.IN' },
+  { key: 'fertility', code: 'SP.DYN.TFRT.IN' },
+  { key: 'birth_rate', code: 'SP.DYN.CBRT.IN' },
+  { key: 'death_rate', code: 'SP.DYN.CDRT.IN' },
+  { key: 'infant_mortality', code: 'SP.DYN.IMRT.IN' },
+  { key: 'under5_mortality', code: 'SH.DYN.MORT' },
+  { key: 'health_spend', code: 'SH.XPD.CHEX.PC.CD' },
+  { key: 'literacy', code: 'SE.ADT.LITR.ZS' },
+  { key: 'secondary_enrollment', code: 'SE.SEC.ENRR' },
+  { key: 'unemployment', code: 'SL.UEM.TOTL.ZS' },
   { key: 'internet', code: 'IT.NET.USER.ZS' },
+  { key: 'mobile_subscriptions', code: 'IT.CEL.SETS.P2' },
   { key: 'gdp', code: 'NY.GDP.PCAP.CD' },
+  { key: 'gdp_growth', code: 'NY.GDP.MKTP.KD.ZG' },
+  { key: 'inflation', code: 'FP.CPI.TOTL.ZG' },
+  { key: 'exports_gdp', code: 'NE.EXP.GNFS.ZS' },
   { key: 'co2', code: 'EN.GHG.CO2.PC.CE.AR5' },
-  { key: 'water', code: 'SH.H2O.BASW.ZS' }
+  { key: 'water', code: 'SH.H2O.BASW.ZS' },
+  { key: 'electricity_access', code: 'EG.ELC.ACCS.ZS' },
+  { key: 'renewables_share', code: 'EG.FEC.RNEW.ZS' },
+  { key: 'pm25', code: 'EN.ATM.PM25.MC.M3' },
+  { key: 'forest_area', code: 'AG.LND.FRST.ZS' }
 ];
 
 if (!DATABASE_URL) {
@@ -621,7 +641,7 @@ function buildBootstrap(records) {
       cacheStatus: cacheIsStale(records) ? 'stale' : 'fresh',
       updatedAt,
       cachedDatasets: Object.keys(records).length,
-      expectedDatasets: 9,
+      expectedDatasets: 1 + INDICATORS.length + 2,
       availableIndicators: indicatorCount,
       totalIndicators: INDICATORS.length,
       lastRefresh,
@@ -704,7 +724,10 @@ async function handleRequest(request, response) {
     try {
       let records = await readCache();
       const missingIndicators = !records.countries ||
-        INDICATORS.some(indicator => !records['values_' + indicator.key]);
+        INDICATORS.some(indicator => {
+          const record = records['values_' + indicator.key];
+          return !record || !record.payload || Object.keys(record.payload).length === 0;
+        });
       const hasUsableData = Boolean(records.countries) &&
         INDICATORS.some(indicator => records['values_' + indicator.key] &&
           Object.keys(records['values_' + indicator.key].payload || {}).length > 0);
