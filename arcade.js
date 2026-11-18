@@ -481,7 +481,7 @@
       $('#party-start').disabled=room.players.length<2||room.players.some(p=>!p.ready);
     } else if (playing) {
       $('#party-category-title').textContent=room.category?.title||'Find a country…';
-      $('#party-used-list').innerHTML=room.usedAnswers.length?room.usedAnswers.map(a=>'<span>'+esc(a.name)+'</span>').join(''):'No countries named yet.';
+      $('#party-used-list').innerHTML=room.usedAnswers.length?room.usedAnswers.map(code=>'<span>'+esc(state.byCode.get(code)?.name || code)+'</span>').join(''):'No countries named yet.';
       renderTimer(room.timerRemaining??state.timerMs,room.currentHolderId);
     } else if (finished) {
       $('#party-phase-label').textContent='PARTY COMPLETE';
