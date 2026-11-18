@@ -12,7 +12,7 @@
     layers: new Map(), mapMarker: null, selectedCode: null, selectedLayer: null, revealed: new Set(),
     expedition: null, expeditionMode: 'daily', clueIndex: 0, answers: [], distance: 0,
     pending: false, finished: false, mystery: null, mysteryMode: 'daily', mysteryGuesses: 0,
-    socket: null, pendingAction: null, room: null, roomCode: null, playerId: null,
+    socket: null, pendingAction: null, pendingActionSent: false, room: null, roomCode: null, playerId: null,
     resumeToken: null, reconnectAttempt: 0, reconnectTimer: null, timerMs: 30000, timerDurationMs: 30000, activeTab: 'expedition'
   };
 
@@ -397,34 +397,129 @@
     } catch (error) { toast(error.message||'The mystery could not check that guess.'); button.disabled=false; }
   }
 
-  function connectParty(action=null) {
-    if (action) state.pendingAction=action;
-    if (state.socket && [WebSocket.OPEN,WebSocket.CONNECTING].includes(state.socket.readyState)) return;
+  function setPartyConnectionStatus(label, status = 'offline') {
+    const element = $('#party-server-state');
+    if (!element) return;
+    element.textContent = '● ' + label;
+    element.dataset.status = status;
+    element.classList.toggle('is-connected', status === 'connected');
+    element.classList.toggle('is-connecting', status === 'connecting');
+    element.classList.toggle('is-error', status === 'error');
+  }
+
+  function connectParty(action = null) {
+    if (action) {
+      state.pendingAction = action;
+      state.pendingActionSent = false;
+      state.reconnectAttempt = 0;
+    }
+    if (!window.WebSocket) {
+      setPartyConnectionStatus('WEBSOCKETS UNAVAILABLE', 'error');
+      toast('Live rooms are not supported by this browser.');
+      return;
+    }
+    if (state.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(state.socket.readyState)) return;
+
+    setPartyConnectionStatus('CONNECTING TO GAME SERVER…', 'connecting');
     try {
-      const socket=new WebSocket(SOCKET_URL);
-      state.socket=socket;
-      socket.addEventListener('open',()=>{
-        state.reconnectAttempt=0;
-        if (state.pendingAction) {
-          const pending=state.pendingAction; state.pendingAction=null;
-          socket.send(JSON.stringify(pending));
-        } else if (state.roomCode && state.resumeToken) {
-          socket.send(JSON.stringify({type:'reconnect',code:state.roomCode,resumeToken:state.resumeToken}));
+      const socket = new WebSocket(SOCKET_URL);
+      state.socket = socket;
+      let openTimer = null;
+      let acknowledgementTimer = null;
+
+      socket.addEventListener('open', () => {
+        clearTimeout(openTimer);
+        state.reconnectAttempt = 0;
+        setPartyConnectionStatus('GAME SERVER CONNECTED', 'connected');
+
+        try {
+          if (state.pendingAction && !state.pendingActionSent) {
+            socket.send(JSON.stringify(state.pendingAction));
+            state.pendingActionSent = true;
+            acknowledgementTimer = setTimeout(() => {
+              if (state.socket === socket && state.pendingAction && state.pendingActionSent && !state.roomCode) {
+                setPartyConnectionStatus('NO ROOM RESPONSE', 'error');
+                toast('The server connected but did not confirm your room. Please try again.');
+                state.pendingAction = null;
+                state.pendingActionSent = false;
+                socket.close(4002, 'Room response timeout');
+              }
+            }, 10000);
+          } else if (state.roomCode && state.resumeToken) {
+            socket.send(JSON.stringify({
+              type: 'reconnect',
+              code: state.roomCode,
+              resumeToken: state.resumeToken
+            }));
+          }
+        } catch (error) {
+          setPartyConnectionStatus('SEND FAILED', 'error');
+          toast('Your room request could not be sent. Try again.');
+          socket.close();
         }
         loadPublicRooms();
       });
-      socket.addEventListener('message',event=>{
-        try { handlePartyMessage(JSON.parse(event.data)); } catch (_) { /* Ignore malformed server messages. */ }
+
+      socket.addEventListener('message', event => {
+        let message;
+        try {
+          message = JSON.parse(event.data);
+        } catch (_) {
+          return;
+        }
+        if (message.type === 'joined') clearTimeout(acknowledgementTimer);
+        handlePartyMessage(message);
       });
-      socket.addEventListener('close',()=>{
-        if (state.roomCode && state.resumeToken && state.reconnectAttempt<7) {
-          const wait=Math.min(12000,800*Math.pow(2,state.reconnectAttempt++));
+
+      socket.addEventListener('close', () => {
+        clearTimeout(openTimer);
+        clearTimeout(acknowledgementTimer);
+        if (state.socket === socket) state.socket = null;
+
+        if (state.roomCode && state.resumeToken && state.reconnectAttempt < 7) {
+          setPartyConnectionStatus('RECONNECTING…', 'connecting');
+          const delay = Math.min(12000, 800 * Math.pow(2, state.reconnectAttempt));
+          state.reconnectAttempt += 1;
           clearTimeout(state.reconnectTimer);
-          state.reconnectTimer=setTimeout(()=>connectParty(),wait);
+          state.reconnectTimer = setTimeout(() => connectParty(), delay);
+          return;
+        }
+
+        if (state.pendingAction && !state.roomCode && state.reconnectAttempt < 2) {
+          setPartyConnectionStatus('RETRYING CONNECTION…', 'connecting');
+          const delay = 900 * (state.reconnectAttempt + 1);
+          state.reconnectAttempt += 1;
+          state.pendingActionSent = false;
+          clearTimeout(state.reconnectTimer);
+          state.reconnectTimer = setTimeout(() => connectParty(), delay);
+          return;
+        }
+
+        if (state.pendingAction && !state.roomCode) {
+          state.pendingAction = null;
+          state.pendingActionSent = false;
+          setPartyConnectionStatus('CONNECTION FAILED', 'error');
+          toast('Atlas Party could not reach the game server. Check your connection and try again.');
+        } else {
+          setPartyConnectionStatus('DISCONNECTED · JOIN TO RECONNECT', 'offline');
         }
       });
-      socket.addEventListener('error',()=>toast('Atlas Party connection was interrupted.'));
-    } catch (_) { toast('Atlas Party could not connect to the game server.'); }
+
+      socket.addEventListener('error', () => {
+        setPartyConnectionStatus('CHECKING CONNECTION…', 'error');
+      });
+
+      openTimer = setTimeout(() => {
+        if (state.socket === socket && socket.readyState === WebSocket.CONNECTING) {
+          socket.close(4000, 'Connection timed out');
+        }
+      }, 12000);
+    } catch (error) {
+      setPartyConnectionStatus('CONNECTION FAILED', 'error');
+      state.pendingAction = null;
+      state.pendingActionSent = false;
+      toast('Atlas Party could not open a connection.');
+    }
   }
 
   function partySend(message) {
@@ -435,6 +530,9 @@
   function handlePartyMessage(message) {
     if (message.type==='connected') return;
     if (message.type==='joined') {
+      state.pendingAction = null;
+      state.pendingActionSent = false;
+      setPartyConnectionStatus('ROOM CONNECTED · LIVE', 'connected');
       state.roomCode=message.roomCode; state.playerId=message.playerId; state.resumeToken=message.resumeToken;
       localStorage.setItem('humanity-atlas-party-resume',JSON.stringify({
         code:message.roomCode,playerId:message.playerId,resumeToken:message.resumeToken
@@ -456,7 +554,13 @@
     if (message.type==='public_rooms_changed') { if(state.activeTab==='party') loadPublicRooms(); return; }
     if (message.type==='removed'||message.type==='room_closed') { toast(message.message||'You left this room.'); resetParty(); return; }
     if (message.type==='left_room') { resetParty(); return; }
-    if (message.type==='error') toast(message.message||'That action could not be completed.');
+    if (message.type==='error') {
+      if (state.pendingAction) {
+        state.pendingAction = null;
+        state.pendingActionSent = false;
+      }
+      toast(message.message||'That action could not be completed.');
+    }
   }
 
   function renderPartyTimer(milliseconds, holderId, durationMs=state.timerDurationMs) {
@@ -578,6 +682,7 @@
   }
 
   function initParty() {
+    setPartyConnectionStatus('CONNECT WHEN YOU JOIN', 'offline');
     $('#party-create-private').addEventListener('click',()=>createRoom('private'));
     $('#party-create-public').addEventListener('click',()=>createRoom('public'));
     $('#party-join-form').addEventListener('submit',e=>{e.preventDefault();joinRoom($('#party-room-code').value);});
