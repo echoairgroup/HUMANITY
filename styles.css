@@ -47,3 +47,102 @@
 }
 
 .indicator-list{display:block;background:transparent;border:0}
+
+
+/* HUMANITY Arcade */
+.games-intro-band{display:flex;align-items:center;justify-content:space-between;gap:25px;padding:17px 21px;background:var(--forest);color:#eef2e9;margin:0 0 34px}
+.games-intro-band>div{display:flex;align-items:center;gap:10px;font:9px var(--mono);letter-spacing:.12em;white-space:nowrap}
+.games-live-dot{display:inline-block;width:7px;height:7px;background:var(--lime);border-radius:50%;box-shadow:0 0 0 4px rgba(172,227,54,.12)}
+.games-intro-band p{color:#c3d0c2;font-size:11px;line-height:1.55;margin:0}
+.game-library-heading{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:0 0 17px}
+.game-library-heading h2{font:32px/1.05 var(--serif);font-weight:400;letter-spacing:-.035em;margin:8px 0 0}
+.game-round-label{font:8px var(--mono);letter-spacing:.12em;color:#909a90;padding-bottom:3px}
+.game-mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.game-mode-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:238px;padding:21px 21px 17px;background:#f9faf4;border:1px solid #e0e5dc;color:var(--ink);cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
+.game-mode-card:hover{transform:translateY(-3px);border-color:#a8bba2;box-shadow:0 12px 28px rgba(28,52,41,.08)}
+.game-mode-card:focus-visible,.game-choice:focus-visible,.duel-country:focus-visible{outline:3px solid #91ad7e;outline-offset:3px}
+.game-mode-icon{display:grid;place-items:center;width:43px;height:43px;background:#e9eee3;color:#55735b;font:24px var(--serif);margin-bottom:18px}
+.game-mode-title{font:26px/1.08 var(--serif);letter-spacing:-.035em}
+.game-mode-description{font-size:11px;color:#758077;line-height:1.65;margin-top:8px;max-width:310px}
+.game-mode-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;margin-top:auto;padding-top:18px;font:8px var(--mono);color:#909b91}
+.game-mode-footer strong{color:#647d67;font-weight:500;letter-spacing:.08em;white-space:nowrap}
+.game-mode-best{display:flex;justify-content:space-between;align-items:center;width:100%;border-top:1px solid #e7ebe3;margin-top:13px;padding-top:11px;font:8px var(--mono);letter-spacing:.08em;color:#9ba49a}
+.game-mode-best b{font:11px var(--mono);color:#496d58}
+.game-mode-loading{grid-column:1/-1;padding:40px;text-align:center;background:#f8f9f3;color:#8d988e;font-size:12px}
+.game-session{margin-top:28px;scroll-margin-top:25px}
+.game-session-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 0;border-bottom:1px solid #dce2d8}
+.game-back-button{border:0;background:none;color:#6c7b6e;cursor:pointer;font-size:11px;padding:7px 0}
+.game-back-button:hover{color:var(--ink)}
+.game-session-title{font:20px var(--serif);color:var(--ink)}
+.game-hud{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#dce2d8;border:1px solid #dce2d8;margin-top:16px}
+.game-hud-stat{background:#f8f9f3;padding:12px 16px}
+.game-hud-stat span{display:block;font:8px var(--mono);letter-spacing:.12em;color:#8c978c}
+.game-hud-stat strong{display:block;font:20px var(--mono);color:#385a45;margin-top:6px}
+.game-progress-track{height:4px;background:#e5e9e0;margin:12px 0 16px;overflow:hidden}
+.game-progress-track span{display:block;width:10%;height:100%;background:#8eae78;transition:width .22s ease}
+.game-play-card{background:#f8f9f3;border:1px solid #e0e5dc;min-height:345px;padding:clamp(20px,4vw,42px)}
+.game-question-eyebrow{font:9px var(--mono);letter-spacing:.14em;color:#a16f57;margin-bottom:16px}
+.game-country-heading{display:flex;align-items:center;gap:17px;margin-bottom:25px}
+.game-country-flag{font-size:43px;line-height:1}
+.game-country-heading h2{font:34px/1 var(--serif);font-weight:400;letter-spacing:-.04em;margin:0}
+.game-country-heading p{font:9px var(--mono);color:#89948a;margin:7px 0 0}
+.game-question-text{font:clamp(25px,3.4vw,38px)/1.12 var(--serif);font-weight:400;letter-spacing:-.035em;color:var(--ink);margin:0 0 12px;max-width:760px}
+.game-question-text em{color:#638264}
+.game-question-note{font-size:11px;line-height:1.65;color:#7b877d;margin:0 0 22px}
+.game-source-note{margin-top:16px;font:8px/1.7 var(--mono);color:#99a297}
+.population-guess-form{max-width:650px;margin-top:25px}
+.population-guess-form>label{display:block;font:8px var(--mono);letter-spacing:.13em;color:#8b968b;margin-bottom:8px}
+.population-input-row{display:flex;gap:10px}
+.population-input-row input{flex:1;min-width:0;border:1px solid #d9e0d5;background:#fffefa;padding:0 15px;height:50px;font:16px var(--mono);color:var(--ink);outline:none}
+.population-input-row input:focus{border-color:#8ba77e;box-shadow:0 0 0 3px rgba(139,167,126,.14)}
+.population-input-row .button{white-space:nowrap}
+.duel-options{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:27px 0 18px}
+.duel-country{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:185px;padding:22px 15px;background:#fffefa;border:1px solid #dfe5da;cursor:pointer;color:var(--ink);transition:border-color .16s,background .16s}
+.duel-country:hover{border-color:#94ad8b;background:#f4f7ef}
+.duel-country .game-country-flag{font-size:44px}
+.duel-country strong{font:23px var(--serif);font-weight:400}
+.duel-country small{font:8px var(--mono);color:#909a90}
+.duel-reveal{font:10px var(--mono);color:#648067;min-height:13px}
+.flag-question{display:grid;place-items:center;min-height:150px;font-size:clamp(76px,12vw,112px);line-height:1;margin:5px 0 25px;background:#fffefa;border:1px solid #e1e6dd}
+.capital-question{display:flex;align-items:center;min-height:94px;padding:18px 22px;margin:22px 0;background:#fffefa;border-left:3px solid #86a27d;font:clamp(25px,4vw,38px) var(--serif);color:#47634d}
+.game-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.game-choice{display:flex;align-items:center;justify-content:flex-start;gap:10px;min-height:52px;padding:13px 15px;border:1px solid #dfe5da;background:#fffefa;color:#39483d;text-align:left;cursor:pointer;font-size:11px;transition:background .15s,border-color .15s}
+.game-choice:hover:not(:disabled){background:#eef3e9;border-color:#9caf96}
+.game-choice small{display:block;margin-left:auto;font:8px var(--mono);color:#969f95}
+.game-choice:disabled,.duel-country:disabled{cursor:default;opacity:.85}
+.game-choice.is-correct,.duel-country.is-correct{border-color:#789c72;background:#eef5e9}
+.game-choice.is-incorrect,.duel-country.is-incorrect{border-color:#c78e7b;background:#fbf0eb}
+.game-feedback{margin-top:24px;padding:18px 19px;border:1px solid #dce3d7;background:#f0f4ec}
+.game-feedback.incorrect{background:#f8f0eb;border-color:#ead9d0}
+.game-feedback-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.game-feedback-top strong{font:24px var(--serif);color:#456d4a}
+.game-feedback.incorrect .game-feedback-top strong{color:#a36550}
+.game-feedback-top span{font:9px var(--mono);color:#6f826d}
+.game-feedback p{font-size:11px;line-height:1.65;color:#6f7b70;margin:8px 0 15px}
+.game-empty,.game-finish{text-align:center;max-width:610px;margin:25px auto;padding:20px 10px}
+.game-empty h2,.game-finish h2{font:34px var(--serif);font-weight:400;margin:10px 0}
+.game-empty p,.game-finish p{font-size:12px;line-height:1.7;color:#7a867c;margin:10px auto 22px}
+.game-finish-score{font:clamp(54px,10vw,82px)/1 var(--mono);letter-spacing:-.09em;color:#587b55;margin:14px 0}
+.game-finish-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.games-footnote{display:flex;align-items:flex-start;gap:12px;max-width:950px;margin:25px 0 0;padding:15px 17px;background:#e9ede5;color:#7c887e}
+.games-footnote p{font-size:10px;line-height:1.65;margin:0}
+.games-footnote-mark{display:grid;place-items:center;flex:none;width:18px;height:18px;border:1px solid #9daa98;border-radius:50%;font:10px var(--serif)}
+@media(max-width:900px){
+  .game-mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .games-intro-band{align-items:flex-start;flex-direction:column;gap:9px}
+  .game-library-heading{align-items:flex-start;flex-direction:column;gap:8px}
+  .game-mode-grid{grid-template-columns:1fr}
+  .game-mode-card{min-height:205px}
+  .game-hud-stat{padding:10px}
+  .game-hud-stat strong{font-size:17px}
+  .game-play-card{padding:20px 15px;min-height:315px}
+  .population-input-row{flex-direction:column}
+  .population-input-row .button{width:100%}
+  .duel-country{min-height:150px;padding:16px 8px}
+  .duel-country strong{font-size:19px}
+  .game-choice-grid{grid-template-columns:1fr}
+  .flag-question{min-height:120px}
+  .game-feedback-top{align-items:flex-start;flex-direction:column;gap:5px}
+}
