@@ -751,7 +751,11 @@ function createArcade({ server, pool, allowedOrigins }) {
     }
     const context = sockets.get(socket) || {};
     const now = Date.now();
-    if (context.lastActionAt && now - context.lastActionAt < 80) return;
+    const actionNeedsThrottle = message.type !== 'start_game' && message.type !== 'leave_room';
+    if (actionNeedsThrottle && context.lastActionAt && now - context.lastActionAt < 80) {
+      replyError(socket, 'That action arrived too quickly. Please try once more.');
+      return;
+    }
     context.lastActionAt = now;
     sockets.set(socket, context);
 
