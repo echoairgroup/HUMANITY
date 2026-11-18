@@ -7,12 +7,32 @@
   const PAGE_SIZE = 18;
 
   const INDICATORS = [
-    { key: 'population', code: 'SP.POP.TOTL', name: 'Population, total', short: 'Population', unit: 'people', description: 'The total number of people living in a country or area. Population estimates and census methods can vary by country.', source: 'https://data.worldbank.org/indicator/SP.POP.TOTL', format: 'population' },
-    { key: 'life', code: 'SP.DYN.LE00.IN', name: 'Life expectancy at birth, total (years)', short: 'Life expectancy', unit: 'years', description: 'The number of years a newborn would live if patterns of mortality at the time of birth stayed the same throughout their life.', source: 'https://data.worldbank.org/indicator/SP.DYN.LE00.IN', format: 'years' },
-    { key: 'internet', code: 'IT.NET.USER.ZS', name: 'Individuals using the Internet (% of population)', short: 'Internet use', unit: '% of population', description: 'The percentage of people who used the Internet from any location in the last three months, as defined by the source.', source: 'https://data.worldbank.org/indicator/IT.NET.USER.ZS', format: 'percent' },
-    { key: 'gdp', code: 'NY.GDP.PCAP.CD', name: 'GDP per capita (current US$)', short: 'GDP per person', unit: 'current US dollars', description: 'Gross domestic product divided by midyear population. It is an economic average, not a measure of individual income or how wealth is distributed.', source: 'https://data.worldbank.org/indicator/NY.GDP.PCAP.CD', format: 'currency' },
-    { key: 'co2', code: 'EN.GHG.CO2.PC.CE.AR5', name: 'Carbon dioxide (CO₂) emissions excluding LULUCF per capita', short: 'CO₂ per person', unit: 't CO₂e per person', description: 'Annual CO₂ emissions from agriculture, energy, waste and industrial sectors, expressed as CO₂-equivalent per person and excluding land-use change and forestry.', source: 'https://data.worldbank.org/indicator/EN.GHG.CO2.PC.CE.AR5', format: 'decimal' },
-    { key: 'water', code: 'SH.H2O.BASW.ZS', name: 'People using at least basic drinking water services (% of population)', short: 'Basic drinking water', unit: '% of population', description: 'The share of people using at least basic drinking-water services. This combines basic service with safely managed service; the latter is included because it also meets the basic-service threshold.', source: 'https://washdata.org/data/api', format: 'percent' }
+    { key: 'population', code: 'SP.POP.TOTL', name: 'Population, total', short: 'Population', unit: 'people', category: 'People', description: 'The total resident population, measured as a midyear estimate. The live counter projects this baseline forward using the latest annual population growth rate.', source: 'https://data.worldbank.org/indicator/SP.POP.TOTL', format: 'population' },
+    { key: 'population_growth', code: 'SP.POP.GROW', name: 'Population growth (annual %)', short: 'Population growth', unit: '% per year', category: 'People', description: 'The exponential annual growth rate of the midyear population, reflecting births, deaths and net migration.', source: 'https://data.worldbank.org/indicator/SP.POP.GROW', format: 'percent' },
+    { key: 'urban_share', code: 'SP.URB.TOTL.IN.ZS', name: 'Urban population (% of total population)', short: 'Urban population', unit: '% of population', category: 'People', description: 'The share of people living in areas classified as urban by national statistical offices.', source: 'https://data.worldbank.org/indicator/SP.URB.TOTL.IN.ZS', format: 'percent' },
+    { key: 'rural_share', code: 'SP.RUR.TOTL.ZS', name: 'Rural population (% of total population)', short: 'Rural population', unit: '% of population', category: 'People', description: 'The share of people living in areas classified as rural by national statistical offices.', source: 'https://data.worldbank.org/indicator/SP.RUR.TOTL.ZS', format: 'percent' },
+    { key: 'life', code: 'SP.DYN.LE00.IN', name: 'Life expectancy at birth, total (years)', short: 'Life expectancy', unit: 'years', category: 'Health', description: 'The number of years a newborn would live if patterns of mortality at the time of birth stayed the same throughout their life.', source: 'https://data.worldbank.org/indicator/SP.DYN.LE00.IN', format: 'years' },
+    { key: 'fertility', code: 'SP.DYN.TFRT.IN', name: 'Fertility rate, total (births per woman)', short: 'Fertility rate', unit: 'births per woman', category: 'People', description: 'The number of children that would be born to a woman if she lived to the end of her childbearing years and bore children at current age-specific fertility rates.', source: 'https://data.worldbank.org/indicator/SP.DYN.TFRT.IN', format: 'fertility' },
+    { key: 'birth_rate', code: 'SP.DYN.CBRT.IN', name: 'Birth rate, crude (per 1,000 people)', short: 'Birth rate', unit: 'births per 1,000 people', category: 'People', description: 'The annual number of live births per 1,000 people, based on midyear population.', source: 'https://data.worldbank.org/indicator/SP.DYN.CBRT.IN', format: 'per1000' },
+    { key: 'death_rate', code: 'SP.DYN.CDRT.IN', name: 'Death rate, crude (per 1,000 people)', short: 'Death rate', unit: 'deaths per 1,000 people', category: 'Health', description: 'The annual number of deaths per 1,000 people, based on midyear population.', source: 'https://data.worldbank.org/indicator/SP.DYN.CDRT.IN', format: 'per1000' },
+    { key: 'infant_mortality', code: 'SP.DYN.IMRT.IN', name: 'Mortality rate, infant (per 1,000 live births)', short: 'Infant mortality', unit: 'per 1,000 live births', category: 'Health', description: 'The probability of a child dying between birth and the first birthday, expressed per 1,000 live births.', source: 'https://data.worldbank.org/indicator/SP.DYN.IMRT.IN', format: 'per1000' },
+    { key: 'under5_mortality', code: 'SH.DYN.MORT', name: 'Mortality rate, under-5 (per 1,000 live births)', short: 'Under-5 mortality', unit: 'per 1,000 live births', category: 'Health', description: 'The probability of a child dying before reaching age five, expressed per 1,000 live births.', source: 'https://data.worldbank.org/indicator/SH.DYN.MORT', format: 'per1000' },
+    { key: 'health_spend', code: 'SH.XPD.CHEX.PC.CD', name: 'Current health expenditure per capita (current US$)', short: 'Health spending per person', unit: 'current US dollars', category: 'Health', description: 'Current health expenditure divided by the population. This is an average and does not show how spending is distributed.', source: 'https://data.worldbank.org/indicator/SH.XPD.CHEX.PC.CD', format: 'currency' },
+    { key: 'literacy', code: 'SE.ADT.LITR.ZS', name: 'Literacy rate, adult total (% of people ages 15 and above)', short: 'Adult literacy', unit: '% of people aged 15+', category: 'Education', description: 'The share of people aged 15 and above who can read and write with understanding a short, simple statement about their everyday life.', source: 'https://data.worldbank.org/indicator/SE.ADT.LITR.ZS', format: 'percent' },
+    { key: 'secondary_enrollment', code: 'SE.SEC.ENRR', name: 'School enrollment, secondary (% gross)', short: 'Secondary enrollment', unit: '% gross enrollment', category: 'Education', description: 'The ratio of total secondary enrollment, regardless of age, to the population of the age group that officially corresponds to secondary education.', source: 'https://data.worldbank.org/indicator/SE.SEC.ENRR', format: 'percent' },
+    { key: 'unemployment', code: 'SL.UEM.TOTL.ZS', name: 'Unemployment, total (% of total labor force)', short: 'Unemployment', unit: '% of labor force', category: 'Economy', description: 'The share of the labor force without work but available for and seeking employment, using modeled ILO estimates.', source: 'https://data.worldbank.org/indicator/SL.UEM.TOTL.ZS', format: 'percent' },
+    { key: 'internet', code: 'IT.NET.USER.ZS', name: 'Individuals using the Internet (% of population)', short: 'Internet use', unit: '% of population', category: 'Connectivity', description: 'The percentage of people who used the Internet from any location in the last three months, as defined by the source.', source: 'https://data.worldbank.org/indicator/IT.NET.USER.ZS', format: 'percent' },
+    { key: 'mobile_subscriptions', code: 'IT.CEL.SETS.P2', name: 'Mobile cellular subscriptions (per 100 people)', short: 'Mobile subscriptions', unit: 'subscriptions per 100 people', category: 'Connectivity', description: 'Mobile cellular telephone subscriptions per 100 people. A person may have more than one subscription.', source: 'https://data.worldbank.org/indicator/IT.CEL.SETS.P2', format: 'per100' },
+    { key: 'gdp', code: 'NY.GDP.PCAP.CD', name: 'GDP per capita (current US$)', short: 'GDP per person', unit: 'current US dollars', category: 'Economy', description: 'Gross domestic product divided by midyear population. It is an economic average, not a measure of individual income or how wealth is distributed.', source: 'https://data.worldbank.org/indicator/NY.GDP.PCAP.CD', format: 'currency' },
+    { key: 'gdp_growth', code: 'NY.GDP.MKTP.KD.ZG', name: 'GDP growth (annual %)', short: 'GDP growth', unit: '% per year', category: 'Economy', description: 'Annual percentage growth rate of GDP at market prices based on constant local currency.', source: 'https://data.worldbank.org/indicator/NY.GDP.MKTP.KD.ZG', format: 'percent' },
+    { key: 'inflation', code: 'FP.CPI.TOTL.ZG', name: 'Inflation, consumer prices (annual %)', short: 'Inflation', unit: '% per year', category: 'Economy', description: 'The annual percentage change in the cost to the average consumer of acquiring a basket of goods and services.', source: 'https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG', format: 'percent' },
+    { key: 'exports_gdp', code: 'NE.EXP.GNFS.ZS', name: 'Exports of goods and services (% of GDP)', short: 'Exports of GDP', unit: '% of GDP', category: 'Economy', description: 'The value of goods and services sold abroad, expressed as a share of gross domestic product.', source: 'https://data.worldbank.org/indicator/NE.EXP.GNFS.ZS', format: 'percent' },
+    { key: 'co2', code: 'EN.GHG.CO2.PC.CE.AR5', name: 'Carbon dioxide (CO₂) emissions excluding LULUCF per capita', short: 'CO₂ per person', unit: 't CO₂e per person', category: 'Environment', description: 'Annual CO₂ emissions from agriculture, energy, waste and industrial sectors, expressed as CO₂-equivalent per person and excluding land-use change and forestry.', source: 'https://data.worldbank.org/indicator/EN.GHG.CO2.PC.CE.AR5', format: 'decimal' },
+    { key: 'water', code: 'SH.H2O.BASW.ZS', name: 'People using at least basic drinking water services (% of population)', short: 'Basic drinking water', unit: '% of population', category: 'Health', description: 'The share of people using at least basic drinking-water services. This combines basic service with safely managed service; the latter is included because it also meets the basic-service threshold.', source: 'https://washdata.org/data/api', format: 'percent' },
+    { key: 'electricity_access', code: 'EG.ELC.ACCS.ZS', name: 'Access to electricity (% of population)', short: 'Electricity access', unit: '% of population', category: 'Infrastructure', description: 'The share of the population with access to electricity. Access does not by itself measure reliability or affordability.', source: 'https://data.worldbank.org/indicator/EG.ELC.ACCS.ZS', format: 'percent' },
+    { key: 'renewables_share', code: 'EG.FEC.RNEW.ZS', name: 'Renewable energy consumption (% of total final energy consumption)', short: 'Renewable energy', unit: '% of final energy', category: 'Environment', description: 'The share of total final energy consumption that comes from renewable sources.', source: 'https://data.worldbank.org/indicator/EG.FEC.RNEW.ZS', format: 'percent' },
+    { key: 'pm25', code: 'EN.ATM.PM25.MC.M3', name: 'PM2.5 air pollution, mean annual exposure (micrograms per cubic meter)', short: 'PM2.5 exposure', unit: 'µg/m³', category: 'Environment', description: 'Population-weighted average exposure to fine particulate matter. It is an environmental indicator, not a direct reading from every location.', source: 'https://data.worldbank.org/indicator/EN.ATM.PM25.MC.M3', format: 'pm25' },
+    { key: 'forest_area', code: 'AG.LND.FRST.ZS', name: 'Forest area (% of land area)', short: 'Forest area', unit: '% of land area', category: 'Environment', description: 'The share of a country or area covered by forest according to the source definition.', source: 'https://data.worldbank.org/indicator/AG.LND.FRST.ZS', format: 'percent' }
   ];
 
   const state = {
@@ -22,6 +42,9 @@
     history: {},
     dataReady: false,
     dataSource: 'none',
+    meta: {},
+    isLoadingData: false,
+    lastFetchAt: 0,
     visibleCount: PAGE_SIZE,
     selectedCountry: null,
     toastTimer: null
@@ -154,7 +177,9 @@
   }
 
   async function loadData() {
-    setDataStatus('loading', 'Connecting to HUMANITY');
+    if (state.isLoadingData) return;
+    state.isLoadingData = true;
+    if (!state.dataReady) setDataStatus('loading', 'Connecting to HUMANITY');
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 90000);
@@ -184,6 +209,7 @@
       state.values = payload.data.values || {};
       state.world = payload.data.world || {};
       state.history = payload.data.history || {};
+      state.meta = payload.meta || {};
       state.dataReady = true;
       state.dataSource = payload.meta && payload.meta.cacheStatus === 'stale' ? 'cached' : 'live';
 
@@ -199,14 +225,14 @@
         : 0;
       const expected = payload.meta && payload.meta.expectedDatasets
         ? payload.meta.expectedDatasets
-        : 9;
+        : (1 + INDICATORS.length + 2);
 
       if (payload.meta && payload.meta.cacheStatus === 'stale') {
-        setDataStatus('ok', 'Saved data · updating');
+        setDataStatus('ok', 'Cached snapshot · ' + (payload.meta.availableIndicators || 0) + '/' + INDICATORS.length + ' indicators');
       } else if (datasets < expected) {
-        setDataStatus('ok', 'Live data · partial coverage');
+        setDataStatus('ok', 'Live feed · ' + (payload.meta.availableIndicators || 0) + '/' + INDICATORS.length + ' indicators');
       } else {
-        setDataStatus('ok', 'World data connected');
+        setDataStatus('ok', 'Live feed · ' + (payload.meta.availableIndicators || INDICATORS.length) + ' indicators');
       }
 
       renderAll();
@@ -226,6 +252,7 @@
           state.values = cached.payload.data.values || {};
           state.world = cached.payload.data.world || {};
           state.history = cached.payload.data.history || {};
+          state.meta = cached.payload.meta || {};
           state.dataReady = true;
           state.dataSource = 'cached';
           restored = true;
@@ -241,6 +268,10 @@
         showToast('HUMANITY could not connect to its data service. Please reload in a moment.');
         renderAll();
       }
+    } finally {
+      state.isLoadingData = false;
+      state.lastFetchAt = Date.now();
+      updateLivePopulationDisplays();
     }
   }
 
@@ -265,47 +296,124 @@
     const indicator = INDICATORS.find(item => item.key === key);
     switch (indicator?.format) {
       case 'population': return compactMode ? compact.format(number) : fmt.format(Math.round(number));
-      case 'years': return `${number.toFixed(1)} yrs`;
-      case 'percent': return `${number.toFixed(1)}%`;
-      case 'currency': return compactMode ? money.format(number) : money.format(number);
-      case 'decimal': return `${number.toFixed(2)} t`;
+      case 'years': return number.toFixed(1) + ' yrs';
+      case 'percent': return number.toFixed(1) + '%';
+      case 'currency': return money.format(number);
+      case 'decimal': return number.toFixed(2) + ' t';
+      case 'fertility': return number.toFixed(2) + ' births/woman';
+      case 'per1000': return number.toFixed(1) + ' / 1,000';
+      case 'per100': return number.toFixed(1) + ' / 100 people';
+      case 'pm25': return number.toFixed(1) + ' µg/m³';
       default: return fmt.format(number);
     }
   }
 
   function formatCell(value, key) {
     if (!value) return '<span class="muted-value">—</span>';
-    const number = value.value;
-    const indicator = INDICATORS.find(item => item.key === key);
-    let formatted = '—';
-    if (indicator?.format === 'population') formatted = compact.format(number);
-    else if (indicator?.format === 'years') formatted = `${number.toFixed(1)} yrs`;
-    else if (indicator?.format === 'percent') formatted = `${number.toFixed(1)}%`;
-    else if (indicator?.format === 'currency') formatted = money.format(number);
-    else if (indicator?.format === 'decimal') formatted = `${number.toFixed(2)} t`;
-    return `${formatted}<span class="year-mini">${value.year ?? ''}</span>`;
+    return formatValue(value, key) + '<span class="year-mini">' + (value.year ?? '') + '</span>';
+  }
+
+  function estimatedPopulation(code, now = Date.now()) {
+    const baseline = valueFor(code, 'population');
+    if (!baseline || !Number.isFinite(baseline.value) || !Number.isFinite(baseline.year)) return null;
+
+    const growth = valueFor(code, 'population_growth');
+    const compatibleGrowth = growth &&
+      Number.isFinite(growth.value) &&
+      Number.isFinite(growth.year) &&
+      Math.abs(growth.year - baseline.year) <= 2;
+
+    if (!compatibleGrowth) {
+      return { value: baseline.value, year: baseline.year, growthRate: null, isProjected: false };
+    }
+
+    // World Bank population totals are midyear (1 July) estimates.
+    // SP.POP.GROW is an exponential annual growth rate, so use P(t)=P0*e^(r*t).
+    const referenceTime = Date.UTC(baseline.year, 6, 1);
+    const elapsedYears = (now - referenceTime) / 31557600000;
+    const annualRate = growth.value / 100;
+    const projected = baseline.value * Math.exp(annualRate * elapsedYears);
+
+    if (!Number.isFinite(projected) || projected <= 0) {
+      return { value: baseline.value, year: baseline.year, growthRate: null, isProjected: false };
+    }
+
+    return {
+      value: projected,
+      year: baseline.year,
+      growthRate: growth.value,
+      growthYear: growth.year,
+      isProjected: elapsedYears > 0
+    };
+  }
+
+  function updateLivePopulationDisplays() {
+    const now = Date.now();
+    $$('[data-live-population]').forEach(node => {
+      const estimate = estimatedPopulation(node.dataset.livePopulation, now);
+      node.textContent = estimate ? fmt.format(Math.round(estimate.value)) : '—';
+      if (estimate?.isProjected) {
+        node.setAttribute('aria-label', fmt.format(Math.round(estimate.value)) + ' estimated inhabitants');
+      }
+    });
+
+    const world = estimatedPopulation('WLD', now);
+    const globe = $('#globe-population');
+    if (globe) globe.textContent = world ? compact.format(world.value) : 'DATA UNAVAILABLE';
+
+    const story = $('#story-population');
+    if (story) story.textContent = world ? compact.format(world.value) : '—';
+
+    if (state.selectedCountry) {
+      const selected = estimatedPopulation(state.selectedCountry, now);
+      const detail = $('#country-live-population');
+      if (detail) detail.textContent = selected ? fmt.format(Math.round(selected.value)) : '—';
+    }
   }
 
   function renderWorldMetrics() {
     const specs = [
-      { key: 'population', label: 'WORLD POPULATION', sub: 'People on Earth', icon: '◎', primary: true },
+      { key: 'population', label: 'LIVE WORLD POPULATION', sub: 'Estimated inhabitants · updates every second', icon: '◎', primary: true, live: true },
+      { key: 'population_growth', label: 'POPULATION GROWTH', sub: 'Annual change', icon: '↗' },
       { key: 'life', label: 'LIFE EXPECTANCY', sub: 'Years at birth', icon: '⌁' },
       { key: 'internet', label: 'INTERNET ACCESS', sub: 'Of world population', icon: '⌘' },
-      { key: 'gdp', label: 'GDP PER PERSON', sub: 'Current US dollars', icon: '↗' }
+      { key: 'gdp', label: 'GDP PER PERSON', sub: 'Current US dollars', icon: '↗' },
+      { key: 'co2', label: 'CO₂ PER PERSON', sub: 'Tonnes CO₂e per person', icon: '◌' },
+      { key: 'water', label: 'BASIC DRINKING WATER', sub: 'At least basic service', icon: '≈' },
+      { key: 'electricity_access', label: 'ELECTRICITY ACCESS', sub: 'Of world population', icon: 'ϟ' }
     ];
     const container = $('#world-metrics');
     container.innerHTML = specs.map(spec => {
-      const value = worldValue(spec.key);
-      let display = formatValue(value, spec.key, true);
-      if (spec.key === 'life' && value) display = `${value.value.toFixed(1)} years`;
-      return `<article class="metric-card ${spec.primary ? 'metric-card-main' : ''}"><div class="metric-top"><span>${spec.label}</span><span class="metric-icon">${spec.icon}</span></div><div class="metric-value">${display}</div><div class="metric-bottom"><span>${spec.sub}</span><span class="metric-year">${value?.year ?? '—'}</span></div></article>`;
+      const estimate = spec.live ? estimatedPopulation('WLD') : null;
+      const value = spec.live ? estimate : worldValue(spec.key);
+      const display = spec.live
+        ? (estimate ? fmt.format(Math.round(estimate.value)) : '—')
+        : formatValue(value, spec.key, true);
+      const yearLabel = value ? (spec.live ? 'BASE ' + value.year : value.year) : '—';
+      return '<article class="metric-card ' + (spec.primary ? 'metric-card-main' : '') + '">' +
+        '<div class="metric-top"><span>' + spec.label + '</span><span class="metric-icon">' + spec.icon + '</span></div>' +
+        '<div class="metric-value" ' + (spec.live ? 'data-live-population="WLD"' : '') + '>' + display + '</div>' +
+        '<div class="metric-bottom"><span>' + spec.sub + '</span><span class="metric-year">' + yearLabel + '</span></div>' +
+      '</article>';
     }).join('');
+
     const population = worldValue('population');
-    $('#globe-population').textContent = population ? compact.format(population.value) : 'DATA LOADING';
-    $('#story-population').textContent = population ? compact.format(population.value) : '—';
-    $('#story-population-year').textContent = population ? `World Bank observation · ${population.year}` : 'Latest available observation';
-    const yearValues = specs.map(spec => worldValue(spec.key)?.year).filter(Boolean);
-    $('#updated-note').textContent = yearValues.length ? `Latest observations · ${Math.min(...yearValues)}–${Math.max(...yearValues)}` : 'Latest available observations';
+    const growth = worldValue('population_growth');
+    $('#story-population-year').textContent = population
+      ? 'Midyear baseline · ' + population.year + (growth ? ' · annual growth ' + growth.value.toFixed(2) + '%' : '')
+      : 'Latest available observation';
+
+    const years = INDICATORS.map(indicator => worldValue(indicator.key)?.year).filter(Boolean);
+    const synced = state.meta?.updatedAt ? new Date(state.meta.updatedAt) : null;
+    const syncLabel = synced && !Number.isNaN(synced.getTime())
+      ? synced.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'waiting for first sync';
+    $('#updated-note').textContent = INDICATORS.length + ' indicators · cache checked ' + syncLabel +
+      (years.length ? ' · years ' + Math.min(...years) + '–' + Math.max(...years) : '');
+
+    const story = $('#story-population');
+    if (story) story.setAttribute('data-live-population', 'WLD');
+    updateLivePopulationDisplays();
   }
 
   function chartMarkup(points, key, id) {
@@ -342,20 +450,60 @@
     if (life.length) $('#chart-life-range').textContent = `${life[0].year}–${life[life.length - 1].year}`;
   }
 
+  function renderCountrySortOptions() {
+    const select = $('#country-sort');
+    if (!select) return;
+    const current = select.value || 'population';
+    const options = [
+      '<option value="population">Live population estimate</option>',
+      ...INDICATORS.filter(indicator => indicator.key !== 'population')
+        .map(indicator => '<option value="' + indicator.key + '">' + escapeHTML(indicator.short) + '</option>'),
+      '<option value="name">Country name</option>'
+    ];
+    select.innerHTML = options.join('');
+    select.value = INDICATORS.some(indicator => indicator.key === current) || current === 'name'
+      ? current
+      : 'population';
+  }
+
   function getCountriesSorted(key = 'population') {
     const metricKey = key === 'name' ? null : key;
     const countries = [...state.countries];
-    if (metricKey) countries.sort((a, b) => (valueFor(b.code, metricKey)?.value ?? -Infinity) - (valueFor(a.code, metricKey)?.value ?? -Infinity));
-    else countries.sort((a, b) => a.name.localeCompare(b.name));
+    if (metricKey) {
+      countries.sort((a, b) => {
+        const aValue = metricKey === 'population'
+          ? estimatedPopulation(a.code)?.value
+          : valueFor(a.code, metricKey)?.value;
+        const bValue = metricKey === 'population'
+          ? estimatedPopulation(b.code)?.value
+          : valueFor(b.code, metricKey)?.value;
+        return (bValue ?? -Infinity) - (aValue ?? -Infinity);
+      });
+    } else {
+      countries.sort((a, b) => a.name.localeCompare(b.name));
+    }
     return countries;
   }
+
 
   function renderPreview() {
     const best = getCountriesSorted('population').filter(country => valueFor(country.code, 'population')).slice(0, 4);
     const container = $('#country-preview');
-    if (!best.length) { container.innerHTML = '<div class="preview-placeholder">Country snapshots will appear when the data is ready.</div>'; return; }
-    container.innerHTML = best.map(country => `<a class="country-preview-card" href="#explore" data-preview-country="${country.code}"><div class="preview-top"><span class="flag">${flagEmoji(country.iso2)}</span><span class="preview-region">${escapeHTML(country.region)}</span></div><div class="preview-name">${escapeHTML(country.name)}</div><div class="preview-pop">${formatValue(valueFor(country.code, 'population'), 'population', true)} people</div></a>`).join('');
+    if (!best.length) {
+      container.innerHTML = '<div class="preview-placeholder">Country snapshots will appear when the data is ready.</div>';
+      return;
+    }
+    container.innerHTML = best.map(country => {
+      const estimate = estimatedPopulation(country.code);
+      return '<a class="country-preview-card" href="#explore" data-preview-country="' + country.code + '">' +
+        '<div class="preview-top"><span class="flag">' + flagEmoji(country.iso2) + '</span><span class="preview-region">' + escapeHTML(country.region) + '</span></div>' +
+        '<div class="preview-name">' + escapeHTML(country.name) + '</div>' +
+        '<div class="preview-pop"><span data-live-population="' + country.code + '">' + (estimate ? fmt.format(Math.round(estimate.value)) : '—') + '</span> estimated people</div>' +
+      '</a>';
+    }).join('');
+    updateLivePopulationDisplays();
   }
+
 
   function escapeHTML(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -374,7 +522,7 @@
   function renderCountryTable() {
     const tbody = $('#country-table-body');
     if (!state.countries.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="table-message">Country data is not available. Check your connection and reload the page.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="table-message">Country data is not available. Check your connection and reload the page.</td></tr>';
       $('#country-count').textContent = 'No country data';
       $('#table-range').textContent = 'Data unavailable';
       $('#load-more').hidden = true;
@@ -382,15 +530,30 @@
     }
     const filtered = getFilteredCountries();
     const visible = filtered.slice(0, state.visibleCount);
-    $('#country-count').textContent = `${fmt.format(filtered.length)} economies found`;
-    $('#table-range').textContent = `Showing ${visible.length} of ${filtered.length}`;
+    $('#country-count').textContent = fmt.format(filtered.length) + ' economies · ' + INDICATORS.length + ' indicators';
+    $('#table-range').textContent = 'Showing ' + visible.length + ' of ' + filtered.length;
     $('#load-more').hidden = visible.length >= filtered.length;
     if (!visible.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="table-message">No countries match that search. Try another name or region.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="table-message">No countries match that search. Try another name or region.</td></tr>';
       return;
     }
-    tbody.innerHTML = visible.map(country => `<tr><td><button class="country-name-button" data-country="${country.code}"><span class="table-flag">${flagEmoji(country.iso2)}</span>${escapeHTML(country.name)}</button></td><td>${escapeHTML(country.region)}</td><td class="numeric">${formatCell(valueFor(country.code, 'population'), 'population')}</td><td class="numeric">${formatCell(valueFor(country.code, 'life'), 'life')}</td><td class="numeric">${formatCell(valueFor(country.code, 'internet'), 'internet')}</td><td class="numeric">${formatCell(valueFor(country.code, 'gdp'), 'gdp')}</td><td><button class="table-action" data-compare-country="${country.code}" aria-label="Add ${escapeHTML(country.name)} to comparison">Compare +</button></td></tr>`).join('');
+    tbody.innerHTML = visible.map(country => {
+      const population = estimatedPopulation(country.code);
+      const growth = valueFor(country.code, 'population_growth');
+      return '<tr>' +
+        '<td><button class="country-name-button" data-country="' + country.code + '"><span class="table-flag">' + flagEmoji(country.iso2) + '</span>' + escapeHTML(country.name) + '</button></td>' +
+        '<td>' + escapeHTML(country.region) + '</td>' +
+        '<td class="numeric live-population-cell" data-live-population="' + country.code + '" title="Estimated population based on the latest midyear baseline and annual growth rate">' + (population ? fmt.format(Math.round(population.value)) : '—') + '</td>' +
+        '<td class="numeric">' + (growth ? growth.value.toFixed(2) + '%<span class="year-mini">' + growth.year + '</span>' : '<span class="muted-value">—</span>') + '</td>' +
+        '<td class="numeric">' + formatCell(valueFor(country.code, 'life'), 'life') + '</td>' +
+        '<td class="numeric">' + formatCell(valueFor(country.code, 'internet'), 'internet') + '</td>' +
+        '<td class="numeric">' + formatCell(valueFor(country.code, 'gdp'), 'gdp') + '</td>' +
+        '<td><button class="table-action" data-compare-country="' + country.code + '" aria-label="Add ' + escapeHTML(country.name) + ' to comparison">Compare +</button></td>' +
+      '</tr>';
+    }).join('');
+    updateLivePopulationDisplays();
   }
+
 
   function renderCompareSelectors() {
     if (!state.countries.length) return;
@@ -409,38 +572,76 @@
     const codes = ['compare-a', 'compare-b', 'compare-c'].map(id => $('#' + id)?.value).filter(Boolean);
     const countries = codes.map(code => state.countries.find(country => country.code === code)).filter(Boolean);
     if (!countries.length) return;
-    const metrics = ['population', 'life', 'internet', 'gdp', 'co2', 'water'];
-    const head = `<thead><tr><th>INDICATOR</th>${countries.map(country => `<th class="compare-country-head">${flagEmoji(country.iso2)} ${escapeHTML(country.name)}<small>${escapeHTML(country.region)}</small></th>`).join('')}</tr></thead>`;
-    const body = metrics.map(key => {
-      const indicator = INDICATORS.find(item => item.key === key);
-      return `<tr><td>${escapeHTML(indicator.short)}</td>${countries.map(country => {
-        const value = valueFor(country.code, key);
-        return `<td><span class="compare-value">${value ? formatValue(value, key, key === 'population' || key === 'gdp') : '—'}</span><span class="compare-year">${value ? `Reported ${value.year}` : 'No observation available'}</span></td>`;
-      }).join('')}</tr>`;
+
+    const head = '<thead><tr><th>INDICATOR</th>' +
+      countries.map(country => '<th class="compare-country-head">' + flagEmoji(country.iso2) + ' ' + escapeHTML(country.name) + '<small>' + escapeHTML(country.region) + '</small></th>').join('') +
+      '</tr></thead>';
+
+    const body = INDICATORS.map(indicator => {
+      return '<tr><td>' + escapeHTML(indicator.short) + '</td>' + countries.map(country => {
+        const value = valueFor(country.code, indicator.key);
+        if (indicator.key === 'population') {
+          const estimate = estimatedPopulation(country.code);
+          return '<td><span class="compare-value">' + (estimate ? fmt.format(Math.round(estimate.value)) : '—') + '</span><span class="compare-year">' +
+            (estimate ? 'Live estimate · baseline ' + estimate.year : 'No population estimate') + '</span></td>';
+        }
+        return '<td><span class="compare-value">' +
+          (value ? formatValue(value, indicator.key, indicator.format === 'currency') : '—') +
+          '</span><span class="compare-year">' + (value ? 'Reported ' + value.year : 'No observation available') + '</span></td>';
+      }).join('') + '</tr>';
     }).join('');
-    $('#compare-results').innerHTML = `<table class="compare-table">${head}<tbody>${body}</tbody></table>`;
+
+    $('#compare-results').innerHTML = '<table class="compare-table">' + head + '<tbody>' + body + '</tbody></table>';
   }
+
 
   function openCountry(code) {
     const country = state.countries.find(item => item.code === code);
     if (!country) return;
     state.selectedCountry = code;
-    const metrics = ['population', 'life', 'internet', 'gdp', 'co2', 'water'];
-    const statCards = metrics.map(key => {
-      const indicator = INDICATORS.find(item => item.key === key);
-      const value = valueFor(code, key);
-      return `<div class="detail-stat"><span>${escapeHTML(indicator.short.toUpperCase())}</span><strong>${value ? formatValue(value, key, key === 'population' || key === 'gdp') : '—'}</strong><small>${value ? `Reported ${value.year}` : 'No observation available'}</small></div>`;
+
+    const population = valueFor(code, 'population');
+    const growth = valueFor(code, 'population_growth');
+    const estimate = estimatedPopulation(code);
+    const livePanel = '<section class="live-population-panel">' +
+      '<div class="live-population-heading"><span class="live-indicator-dot"></span><span>LIVE POPULATION ESTIMATE</span><span class="live-update-label">UPDATES EVERY SECOND</span></div>' +
+      '<strong id="country-live-population">' + (estimate ? fmt.format(Math.round(estimate.value)) : '—') + '</strong>' +
+      '<small>' + (population ? 'Based on the ' + population.year + ' midyear population estimate' : 'Population baseline unavailable') +
+      (growth ? ' and ' + growth.value.toFixed(2) + '% annual growth (' + growth.year + ')' : '') + '</small></section>';
+
+    const statCards = INDICATORS.map(indicator => {
+      const value = valueFor(code, indicator.key);
+      if (indicator.key === 'population') {
+        return '<div class="detail-stat"><span>' + escapeHTML(indicator.short.toUpperCase()) + '</span><strong>' +
+          (population ? fmt.format(Math.round(population.value)) : '—') + '</strong><small>' +
+          (population ? 'Official midyear baseline · ' + population.year : 'No observation available') + '</small></div>';
+      }
+      return '<div class="detail-stat"><span>' + escapeHTML(indicator.short.toUpperCase()) + '</span><strong>' +
+        (value ? formatValue(value, indicator.key, indicator.format === 'currency') : '—') + '</strong><small>' +
+        (value ? 'Reported ' + value.year : 'No observation available') + '</small></div>';
     }).join('');
-    const worldPop = worldValue('population');
-    const pop = valueFor(code, 'population');
+
+    const worldPop = estimatedPopulation('WLD');
     let context = 'Country-level averages are a starting point. They can hide substantial differences within a country.';
-    if (pop && worldPop) {
-      const share = pop.value / worldPop.value * 100;
-      context = `${escapeHTML(country.name)} represents approximately ${share.toFixed(2)}% of the global population, using the latest available population observations (${pop.year} for this country; ${worldPop.year} for the world). Country-level averages can hide substantial differences within a country.`;
+    if (estimate && worldPop && worldPop.value > 0) {
+      const share = estimate.value / worldPop.value * 100;
+      context = escapeHTML(country.name) + ' represents approximately ' + share.toFixed(2) +
+        '% of the estimated global population. The live figure is a projection from published midyear population and growth-rate data, not a real-time census.';
     }
-    $('#country-detail-content').innerHTML = `<div class="detail-flag">${flagEmoji(country.iso2)}</div><h2>${escapeHTML(country.name)}</h2><div class="detail-subtitle">${escapeHTML(country.region)} · ${escapeHTML(country.income)}</div><div class="detail-stat-grid">${statCards}</div><p class="detail-note">${context}</p><div class="detail-actions"><button class="button button-primary" id="detail-compare">Compare this country ↗</button><a class="button button-outline" href="https://data.worldbank.org/country/${country.code.toLowerCase()}" target="_blank" rel="noopener noreferrer">More from World Bank ↗</a></div><div class="detail-source">Source: World Bank Indicators API. Values are the latest available observations for each indicator, not necessarily the same year.</div>`;
+
+    $('#country-detail-content').innerHTML = '<div class="detail-flag">' + flagEmoji(country.iso2) + '</div>' +
+      '<h2>' + escapeHTML(country.name) + '</h2>' +
+      '<div class="detail-subtitle">' + escapeHTML(country.region) + ' · ' + escapeHTML(country.income) + '</div>' +
+      livePanel + '<div class="detail-stat-grid">' + statCards + '</div>' +
+      '<p class="detail-note">' + context + '</p>' +
+      '<div class="detail-actions"><button class="button button-primary" id="detail-compare">Compare this country ↗</button>' +
+      '<a class="button button-outline" href="https://data.worldbank.org/country/' + country.code.toLowerCase() + '" target="_blank" rel="noopener noreferrer">More from World Bank ↗</a></div>' +
+      '<div class="detail-source">Sources: World Bank Indicators API and WHO/UNICEF JMP. Published indicators have different reporting years. The population counter is an estimate, not a live census.</div>';
+
     $('#country-detail').hidden = false;
     document.body.style.overflow = 'hidden';
+    updateLivePopulationDisplays();
+
     $('#detail-compare').addEventListener('click', () => {
       const target = ['compare-a', 'compare-b', 'compare-c'].find(id => ![...$$('#compare-selectors select')].some(select => select.value === code && select.id !== id));
       const chosen = target || 'compare-a';
@@ -451,14 +652,24 @@
     });
   }
 
+
   function closeCountry() {
     $('#country-detail').hidden = true;
     document.body.style.overflow = '';
   }
 
   function renderIndicatorDirectory() {
-    $('#indicator-directory').innerHTML = INDICATORS.map(indicator => `<article class="indicator-item"><span class="indicator-code">${indicator.code}</span><strong>${escapeHTML(indicator.short)}</strong><p>${escapeHTML(indicator.description)}</p><a href="${indicator.source}" target="_blank" rel="noopener noreferrer">View source definition ↗</a></article>`).join('');
+    const categories = [...new Set(INDICATORS.map(indicator => indicator.category))];
+    $('#indicator-directory').innerHTML = categories.map(category => {
+      const cards = INDICATORS.filter(indicator => indicator.category === category).map(indicator =>
+        '<article class="indicator-item"><span class="indicator-code">' + indicator.code + '</span>' +
+        '<strong>' + escapeHTML(indicator.short) + '</strong><p>' + escapeHTML(indicator.description) + '</p>' +
+        '<a href="' + indicator.source + '" target="_blank" rel="noopener noreferrer">View source definition ↗</a></article>'
+      ).join('');
+      return '<section class="indicator-category"><h3>' + escapeHTML(category) + '</h3><div class="indicator-category-grid">' + cards + '</div></section>';
+    }).join('');
   }
+
 
   function exportCSV() {
     if (!state.countries.length) { showToast('Country data is not available yet.'); return; }
@@ -517,6 +728,7 @@
     renderPreview();
     renderCountryTable();
     renderCompareSelectors();
+    renderCountrySortOptions();
     renderIndicatorDirectory();
     $('#current-year').textContent = new Date().getFullYear();
   }
@@ -584,12 +796,25 @@
     }
   }
 
+  function initLiveUpdates() {
+    updateLivePopulationDisplays();
+    window.setInterval(updateLivePopulationDisplays, 1000);
+    window.setInterval(() => {
+      if (!document.hidden) loadData();
+    }, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      updateLivePopulationDisplays();
+      if (!document.hidden && Date.now() - state.lastFetchAt > 2 * 60 * 1000) loadData();
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initInteractions();
     renderIndicatorDirectory();
     $('#current-year').textContent = new Date().getFullYear();
     initPWA();
+    initLiveUpdates();
     loadData();
   });
 })();
