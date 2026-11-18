@@ -489,3 +489,8 @@
 @media(prefers-reduced-motion:reduce){
   .arcade-globe-svg,.party-compass-orbit,.party-compass-token{animation:none!important}
 }
+
+
+.atlas-map-pin{background:transparent;border:0}
+.atlas-map-pin span{display:grid;place-items:center;width:32px;height:32px;border:2px solid #fffaf0;border-radius:50% 50% 50% 3px;background:#cf9461;color:#fffaf0;font-size:17px;line-height:1;box-shadow:0 4px 9px rgba(58,76,59,.25);transform:rotate(-45deg)}
+.atlas-map-pin span::first-letter{transform:rotate(45deg)}
