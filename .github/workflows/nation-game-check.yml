@@ -30,5 +30,7 @@ jobs:
         run: |
           node --check nation.js
           node --check arcade.js
-      - name: Test country simulation and integration
+          node --check app.js
+          node --check sw.js
+      - name: Test country simulation, campaign tools and integration
         run: node --test backend/nation-game.test.js
