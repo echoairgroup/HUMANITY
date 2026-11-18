@@ -1,0 +1,34 @@
+name: Nation Builder checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nation.js'
+      - 'backend/nation-game.test.js'
+      - '.github/workflows/nation-game-check.yml'
+      - 'index.html'
+      - 'arcade.js'
+      - 'sw.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nation-game:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check out HUMANITY
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check nation.js
+          node --check arcade.js
+      - name: Test country simulation and integration
+        run: node --test backend/nation-game.test.js
