@@ -13,7 +13,7 @@
     expedition: null, expeditionMode: 'daily', clueIndex: 0, answers: [], distance: 0,
     pending: false, finished: false, mystery: null, mysteryMode: 'daily', mysteryGuesses: 0,
     socket: null, pendingAction: null, room: null, roomCode: null, playerId: null,
-    resumeToken: null, reconnectAttempt: 0, reconnectTimer: null, timerMs: 30000, activeTab: 'expedition'
+    resumeToken: null, reconnectAttempt: 0, reconnectTimer: null, timerMs: 30000, timerDurationMs: 30000, activeTab: 'expedition'
   };
 
   const norm = value => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
@@ -428,7 +428,12 @@
       return;
     }
     if (message.type==='room_state') { state.room=message.room; renderPartyRoom(); return; }
-    if (message.type==='timer') { state.timerMs=message.remainingMs; renderPartyTimer(message.remainingMs,message.holderId); return; }
+    if (message.type==='timer') {
+      state.timerMs=message.remainingMs;
+      state.timerDurationMs=message.durationMs||state.timerDurationMs;
+      renderPartyTimer(message.remainingMs,message.holderId,message.durationMs);
+      return;
+    }
     if (message.type==='answer_accepted') { toast(message.nickname+' found '+message.country+' · +'+message.points+' points'); return; }
     if (message.type==='fuse_popped') { toast(message.nickname+' lost a life when the atlas ran out!'); return; }
     if (message.type==='game_over') { renderPartyResults(message); return; }
@@ -438,10 +443,12 @@
     if (message.type==='error') toast(message.message||'That action could not be completed.');
   }
 
-  function renderTimer(milliseconds, holderId) {
-    const remaining=Math.max(0,Math.min(30000,Number(milliseconds)||0));
+  function renderPartyTimer(milliseconds, holderId, durationMs=state.timerDurationMs) {
+    const duration=Math.max(1,Number(durationMs)||30000);
+    const remaining=Math.max(0,Math.min(duration,Number(milliseconds)||0));
+    state.timerDurationMs=duration;
     const bar=$('#party-timer-fill');
-    bar.style.width=(remaining/30000*100)+'%';
+    bar.style.width=(remaining/duration*100)+'%';
     bar.classList.toggle('urgent',remaining<7000);
     const holder=state.room?.players?.find(p=>p.id===holderId);
     const yourTurn=Boolean(state.room?.phase==='playing' && holderId===state.playerId);
@@ -482,7 +489,7 @@
     } else if (playing) {
       $('#party-category-title').textContent=room.category?.title||'Find a country…';
       $('#party-used-list').innerHTML=room.usedAnswers.length?room.usedAnswers.map(code=>'<span>'+esc(state.byCode.get(code)?.name || code)+'</span>').join(''):'No countries named yet.';
-      renderTimer(room.timerRemaining??state.timerMs,room.currentHolderId);
+      renderPartyTimer(room.timerRemaining??state.timerMs,room.currentHolderId,room.timerDurationMs||state.timerDurationMs);
     } else if (finished) {
       $('#party-phase-label').textContent='PARTY COMPLETE';
       $('#party-phase-title').textContent='The atlas has landed.';
