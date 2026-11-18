@@ -1116,7 +1116,38 @@
     if (page === 'explore') renderCountryTable();
     if (page === 'compare') renderCompareResults();
     if (page === 'games') renderGameModes();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  function initMotionControls() {
+    const progress = $('#scroll-progress-fill');
+    const backToTop = $('#back-to-top');
+    let scheduled = false;
+    const update = () => {
+      scheduled = false;
+      const scrollable = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const ratio = Math.max(0, Math.min(1, window.scrollY / scrollable));
+      if (progress) progress.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
+      if (backToTop) {
+        const visible = window.scrollY > 520;
+        backToTop.classList.toggle('is-visible', visible);
+        backToTop.setAttribute('aria-hidden', String(!visible));
+        backToTop.tabIndex = visible ? 0 : -1;
+      }
+    };
+    const schedule = () => {
+      if (scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    backToTop?.addEventListener('click', () => {
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+    update();
   }
 
   function renderAll() {
@@ -1208,6 +1239,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
+    initMotionControls();
     initInteractions();
     renderIndicatorDirectory();
     $('#current-year').textContent = new Date().getFullYear();
