@@ -65,6 +65,7 @@ HUMANITY_FINAL_RELEASE/
 ├── index.html
 ├── styles.css
 ├── app.js
+├── nation.js
 ├── sw.js
 ├── manifest.webmanifest
 ├── favicon.svg
