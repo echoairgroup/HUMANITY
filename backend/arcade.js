@@ -651,28 +651,51 @@ function createArcade({ server, pool, allowedOrigins }) {
   }
 
   async function handleFusePop(room) {
-    if (room.phase !== 'playing' || !room.currentHolderId || !room.timerEndsAt) return;
-    const holder = room.players.find(player => player.id === room.currentHolderId);
-    if (!holder) return;
-    holder.lives = Math.max(0, holder.lives - 1);
-    const eliminated = holder.lives === 0;
-    safeBroadcast(room, {
-      type: 'fuse_popped',
-      playerId: holder.id,
-      nickname: holder.nickname,
-      lives: holder.lives,
-      eliminated
-    });
-    const alive = livingPlayers(room);
-    if (alive.length <= 1) {
-      await sendPartyResults(room);
-      return;
+    if (
+      room.phase !== 'playing' ||
+      !room.currentHolderId ||
+      !room.timerEndsAt ||
+      room.fuseProcessing
+    ) return;
+
+    // Lock the expired fuse before doing anything asynchronous. Without this
+    // guard the 250 ms room ticker can process the same timeout repeatedly.
+    room.fuseProcessing = true;
+    room.timerEndsAt = null;
+
+    try {
+      const holder = room.players.find(player => player.id === room.currentHolderId);
+      if (!holder) return;
+
+      holder.lives = Math.max(0, holder.lives - 1);
+      const eliminated = holder.lives === 0;
+      safeBroadcast(room, {
+        type: 'fuse_popped',
+        playerId: holder.id,
+        nickname: holder.nickname,
+        lives: holder.lives,
+        eliminated
+      });
+
+      const alive = livingPlayers(room);
+      if (alive.length <= 1) {
+        await sendPartyResults(room);
+        return;
+      }
+
+      const next = nextLivingPlayer(room, holder.id);
+      if (!next) {
+        await sendPartyResults(room);
+        return;
+      }
+
+      room.currentHolderId = next.id;
+      nextCategory(room);
+      startFuse(room);
+      sendRoomState(room);
+    } finally {
+      room.fuseProcessing = false;
     }
-    const next = nextLivingPlayer(room, holder.id);
-    room.currentHolderId = next.id;
-    nextCategory(room);
-    startFuse(room);
-    sendRoomState(room);
   }
 
   function makeRoom(host, visibility) {
