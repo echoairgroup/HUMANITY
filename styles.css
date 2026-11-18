@@ -494,3 +494,66 @@
 .atlas-map-pin{background:transparent;border:0}
 .atlas-map-pin span{display:grid;place-items:center;width:32px;height:32px;border:2px solid #fffaf0;border-radius:50% 50% 50% 3px;background:#cf9461;color:#fffaf0;font-size:17px;line-height:1;box-shadow:0 4px 9px rgba(58,76,59,.25);transform:rotate(-45deg)}
 .atlas-map-pin span::first-letter{transform:rotate(45deg)}
+
+
+
+/* A calmer, more continuous feel across the whole site. */
+@keyframes humanity-page-enter{
+  from{opacity:0;transform:translate3d(0,9px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+.page.active{animation:humanity-page-enter .34s cubic-bezier(.2,.7,.2,1) both}
+.site-header,.nav-link,.button,.text-link,.icon-button,.metric-card,.chart-card,.country-preview-card,
+.story-card,.indicator-item,.game-mode-card,.arcade-tab,.party-player-card,.party-public-room,
+.atlas-map-toolbar button,.arcade-leaderboard-heading button{
+  transition:
+    color .2s ease,
+    background-color .24s ease,
+    border-color .24s ease,
+    box-shadow .28s ease,
+    transform .28s cubic-bezier(.2,.7,.2,1),
+    opacity .2s ease;
+}
+.metric-card:not(.metric-card-main),.chart-card,.country-preview-card,.story-card{
+  transform:translateZ(0);
+}
+.metric-card:not(.metric-card-main):hover,.chart-card:hover,.country-preview-card:hover,.story-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 13px 28px rgba(22,45,36,.07);
+}
+.button:active,.arcade-tab:active,.game-mode-card:active{transform:translateY(0) scale(.985)}
+input,select,textarea{transition:border-color .2s ease,box-shadow .2s ease,background-color .2s ease}
+.page-heading,.hero-copy,.hero-art,.metric-grid,.chart-grid,.country-preview-grid{
+  backface-visibility:hidden;
+}
+.globe-core>svg path{transition:fill .3s ease,stroke .3s ease}
+.globe-core>svg[data-globe-ready="true"]{filter:saturate(1.04)}
+.arcade-globe-svg path{transition:fill .3s ease,stroke .3s ease}
+.party-server-state{
+  margin-left:auto;
+  padding:8px 10px;
+  border:1px solid #dbe3d8;
+  background:#f4f4ea;
+  color:#8a9689;
+  white-space:nowrap;
+}
+.party-server-state.is-connected{color:#567c60;background:#e8f0e6;border-color:#ccddca}
+.party-server-state.is-connecting{color:#9b805d;background:#f5efe3;border-color:#e8dcc8}
+.party-server-state.is-error{color:#a76d5a;background:#f7ece7;border-color:#ead7ce}
+.atlas-map .leaflet-interactive{transition:fill .16s ease,fill-opacity .16s ease,stroke .16s ease}
+.party-player-card.is-holder{transition:border-color .25s ease,box-shadow .25s ease,background-color .25s ease}
+.party-timer-track span{transition:width .24s linear,background-color .2s ease}
+@media(max-width:520px){
+  .party-server-state{width:100%;margin-left:0;text-align:center}
+}
+@media(prefers-reduced-motion:reduce){
+  .page.active{animation:none}
+  .site-header,.nav-link,.button,.text-link,.icon-button,.metric-card,.chart-card,.country-preview-card,
+  .story-card,.indicator-item,.game-mode-card,.arcade-tab,.party-player-card,.party-public-room,
+  .atlas-map-toolbar button,.arcade-leaderboard-heading button,input,select,textarea{
+    transition:none!important;
+  }
+  .metric-card:not(.metric-card-main):hover,.chart-card:hover,.country-preview-card:hover,.story-card:hover{
+    transform:none;box-shadow:none;
+  }
+}
