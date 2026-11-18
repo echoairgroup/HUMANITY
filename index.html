@@ -13,9 +13,12 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="preconnect" href="https://api.worldbank.org" crossorigin>
   <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3-array@3" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-geo@3" defer></script>
+  <script src="./globe.js" defer></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-  <script src="./app.js" defer>
-  <script src="./arcade.js" defer></script></script>
+  <script src="./app.js" defer></script>
+  <script src="./arcade.js" defer></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body>
@@ -57,14 +60,14 @@
             </div>
             <div class="hero-footnote"><span class="mini-orbit" aria-hidden="true"></span> OPEN DATA · GLOBAL CONTEXT · NO SIGN-UP</div>
           </div>
-          <div class="hero-art" aria-label="Abstract illustration of a connected globe">
+          <div class="hero-art" aria-label="Illustrated globe showing real geographic continents">
             <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
             <div class="globe-core">
               <div class="globe-grid"></div>
               <svg viewBox="0 0 420 420" role="img" aria-hidden="true">
                 <defs><radialGradient id="globeFill" cx="34%" cy="28%"><stop offset="0" stop-color="#d8e8c7"/><stop offset=".55" stop-color="#769b80"/><stop offset="1" stop-color="#315d50"/></radialGradient><clipPath id="globeClip"><circle cx="210" cy="210" r="154"/></clipPath></defs>
                 <circle cx="210" cy="210" r="154" fill="url(#globeFill)"/>
-                <g clip-path="url(#globeClip)" fill="#183b35" opacity=".9">
+                <g id="globe-land-main" clip-path="url(#globeClip)" fill="#183b35" opacity=".9">
                   <path d="m76 126 26-21 36 2 20 16-4 24-28 13-11 31-18 8-13-20-24-7-12-23 15-23Z"/>
                   <path d="m149 203 30-9 26 17 9 29-15 34-4 37-19 34-18-14-7-37-18-34 4-25-16-18 28-14Z"/>
                   <path d="m222 94 31-18 44 11 11 17-8 17-35 7-17 25-27-4-15-20 16-35Z"/>
@@ -162,7 +165,7 @@
           <div class="arcade-globe-art" aria-hidden="true"><div class="arcade-globe-ring ring-one"></div><div class="arcade-globe-ring ring-two"></div>
             <svg class="arcade-globe-svg" viewBox="0 0 330 330"><defs><clipPath id="arcade-globe-clip"><circle cx="165" cy="165" r="119"/></clipPath><radialGradient id="arcade-globe-shade" cx="34%" cy="27%"><stop offset="0" stop-color="#fffdf4"/><stop offset=".8" stop-color="#d6e8e5"/><stop offset="1" stop-color="#b7d3d1"/></radialGradient></defs>
               <circle cx="165" cy="165" r="122" fill="url(#arcade-globe-shade)" stroke="#668a85" stroke-width="2"/>
-              <g clip-path="url(#arcade-globe-clip)" fill="#8fae85" stroke="#6e927b" stroke-width="1.3" stroke-linejoin="round">
+              <g id="globe-land-arcade" clip-path="url(#arcade-globe-clip)" fill="#8fae85" stroke="#6e927b" stroke-width="1.3" stroke-linejoin="round">
                 <path d="M79 93l20-18 26 3 13 14-4 17 17 13-7 19-21 4-7 20-18 8-14-10-6-29-17-13-1-18z"/>
                 <path d="M133 168l20 4 13 19-4 28-14 32-12 31-12-9-1-31-12-24 3-27z"/>
                 <path d="M172 93l22-14 28 5 17 19 21 5 7 17-18 16-21-3-15 13-20-6-13-18-18-4-8-17z"/>
@@ -229,7 +232,7 @@
 
         <section class="arcade-panel" id="arcade-panel-party" data-arcade-panel="party" hidden>
           <div class="arcade-section-heading"><div><div class="eyebrow">GATHER YOUR CREW</div><h2>Atlas <em>Party.</em></h2><p>Pass the atlas. Name a country that fits. Keep it moving before the compass runs out of energy.</p></div><div class="party-player-limit"><strong>8</strong><span>EXPLORERS<br>MAXIMUM</span></div></div>
-          <div class="party-rules-strip"><span>♥ 3 LIVES EACH</span><span>⌁ UNIQUE ANSWERS</span><span>✦ PUBLIC + PRIVATE ROOMS</span><span>◎ GUEST NICKNAMES</span></div>
+          <div class="party-rules-strip"><span>♥ 3 LIVES EACH</span><span>⌁ UNIQUE ANSWERS</span><span>✦ PUBLIC + PRIVATE ROOMS</span><span>◎ GUEST NICKNAMES</span><span class="party-server-state" id="party-server-state">● CONNECT WHEN YOU JOIN</span></div>
           <div class="party-lobby-layout" id="party-lobby-screen">
             <div class="party-main-card"><div class="party-nickname-row"><label for="party-nickname">YOUR EXPLORER NAME</label><input id="party-nickname" maxlength="18" minlength="2" autocomplete="nickname" placeholder="Choose a nickname"></div>
               <div class="party-create-card"><div class="party-create-heading"><span class="party-card-icon">✥</span><div><h3>Create a room.</h3><p>Invite friends or let other explorers join.</p></div></div><div class="party-create-actions"><button type="button" class="button button-primary" id="party-create-private">Create private room ↗</button><button type="button" class="button button-outline" id="party-create-public">Create public room</button></div></div>
