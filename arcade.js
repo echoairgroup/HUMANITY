@@ -226,6 +226,9 @@
     try {
       const result=await api('/arcade/expedition?mode='+(mode==='practice'?'practice':'daily'));
       const alreadyDone=mode==='daily' && localStorage.getItem('humanity-atlas-daily-'+result.date);
+      if (alreadyDone) {
+        result = await api('/arcade/expedition?mode=practice');
+      }
       state.expedition=result;
       state.expeditionMode=alreadyDone?'practice':mode;
       state.clueIndex=0; state.answers=[]; state.distance=0; state.pending=false; state.finished=false;
