@@ -13,7 +13,10 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="preconnect" href="https://api.worldbank.org" crossorigin>
   <link rel="stylesheet" href="./styles.css">
-  <script src="./app.js" defer></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+  <script src="./app.js" defer>
+  <script src="./arcade.js" defer></script></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -150,47 +153,115 @@
       </section>
 
       <section class="page section-wrap interior-page games-page" id="page-games" data-page="games" hidden>
-        <div class="page-heading">
-          <div class="eyebrow">HUMANITY ARCADE / 04</div>
-          <h1>Play your <em>world.</em></h1>
-          <p>Put your knowledge of people, places and global data to the test. Every round uses HUMANITY's country dataset, so the answers are grounded in published sources.</p>
+        <div class="arcade-hero">
+          <div class="arcade-hero-copy"><div class="eyebrow">HUMANITY ARCADE / THE WORLD IS YOUR PLAYGROUND</div>
+            <h1>Find your way<br><em>around the world.</em></h1>
+            <p>Five clues. A thousand places to look. Gather your friends, follow the map and see how much of the world you really know.</p>
+            <div class="arcade-hero-meta"><span><i></i> DAILY CHALLENGES</span><span>✳ UP TO 8 PLAYERS</span><span>⌖ REAL GEOGRAPHY</span></div>
+          </div>
+          <div class="arcade-globe-art" aria-hidden="true"><div class="arcade-globe-ring ring-one"></div><div class="arcade-globe-ring ring-two"></div>
+            <svg class="arcade-globe-svg" viewBox="0 0 330 330"><defs><clipPath id="arcade-globe-clip"><circle cx="165" cy="165" r="119"/></clipPath><radialGradient id="arcade-globe-shade" cx="34%" cy="27%"><stop offset="0" stop-color="#fffdf4"/><stop offset=".8" stop-color="#d6e8e5"/><stop offset="1" stop-color="#b7d3d1"/></radialGradient></defs>
+              <circle cx="165" cy="165" r="122" fill="url(#arcade-globe-shade)" stroke="#668a85" stroke-width="2"/>
+              <g clip-path="url(#arcade-globe-clip)" fill="#8fae85" stroke="#6e927b" stroke-width="1.3" stroke-linejoin="round">
+                <path d="M79 93l20-18 26 3 13 14-4 17 17 13-7 19-21 4-7 20-18 8-14-10-6-29-17-13-1-18z"/>
+                <path d="M133 168l20 4 13 19-4 28-14 32-12 31-12-9-1-31-12-24 3-27z"/>
+                <path d="M172 93l22-14 28 5 17 19 21 5 7 17-18 16-21-3-15 13-20-6-13-18-18-4-8-17z"/>
+                <path d="M189 146l22 2 18 20-6 27-12 24-18 15-13-12 1-27-13-17 4-20z"/>
+                <path d="M239 224l19-7 18 11-5 17-20 8-16-12z"/><path d="M65 194l13-9 17 7 4 14-15 10-18-7z"/>
+              </g>
+              <g clip-path="url(#arcade-globe-clip)" fill="none" stroke="#9bbab7" stroke-width="1" opacity=".75"><ellipse cx="165" cy="165" rx="48" ry="119"/><ellipse cx="165" cy="165" rx="90" ry="119"/><path d="M46 165h238M58 121h214M58 209h214"/></g>
+              <path d="M165 40c-68 0-123 55-123 123" fill="none" stroke="#fffdf4" stroke-width="4" stroke-linecap="round" opacity=".85"/>
+              <circle cx="247" cy="83" r="6" fill="#d59b62"/><path d="M247 68v-8m0 46v-8m-15-15h-8m46 0h-8" stroke="#d59b62" stroke-width="2" stroke-linecap="round"/>
+              <path d="M82 259l5-12 5 12 12 5-12 5-5 12-5-12-12-5z" fill="#d59b62"/>
+            </svg><div class="arcade-orbit-tag tag-north">YOUR NEXT STOP <b>?</b></div><div class="arcade-orbit-tag tag-south">EXPLORE MORE</div>
+          </div>
         </div>
 
-        <section class="games-intro-band">
-          <div><span class="games-live-dot"></span><span>THE WORLD IS YOUR PLAYING FIELD</span></div>
-          <p>Five ways to explore the planet. Ten rounds per challenge. Your best scores stay on this device.</p>
+        <nav class="arcade-tabs" aria-label="Arcade games">
+          <button type="button" class="arcade-tab active" data-arcade-tab="expedition"><span>✦</span> Atlas Expedition <small>DAILY + PRACTICE</small></button>
+          <button type="button" class="arcade-tab" data-arcade-tab="mystery"><span>⌕</span> Mystery Country <small>GUESS THE PLACE</small></button>
+          <button type="button" class="arcade-tab" data-arcade-tab="party"><span>♧</span> Atlas Party <small>PLAY TOGETHER</small></button>
+        </nav>
+
+        <section class="arcade-panel active" id="arcade-panel-expedition" data-arcade-panel="expedition">
+          <div class="arcade-section-heading"><div><div class="eyebrow">TODAY'S SHARED CHALLENGE</div><h2>Atlas <em>Expedition.</em></h2><p>Five geography clues. Pick a country on the map. Less obvious answers take you further.</p></div>
+            <div class="arcade-date-card"><span>NEW EXPEDITION</span><strong id="expedition-date">TODAY</strong><small>RESETS AT 00:00 UTC</small></div>
+          </div>
+          <div class="expedition-intro" id="expedition-intro">
+            <div class="expedition-intro-art"><span class="intro-compass">✥</span><span class="intro-doodle doodle-a">✦</span><span class="intro-doodle doodle-b">⌁</span><div class="intro-map-lines"></div></div>
+            <div class="expedition-intro-copy"><div class="eyebrow">THE DAILY ROUTE</div><h3>Five pins. One big world.</h3><p>Every player gets the same five clues today. Find a country that fits each one, then discover how far your geography knowledge can take you.</p>
+              <div class="expedition-actions"><button class="button button-primary" type="button" data-start-expedition="daily">Play today's expedition ↗</button><button class="button button-outline" type="button" data-start-expedition="practice">Explore unlimited practice</button></div>
+              <p class="expedition-attempt-note" id="expedition-attempt-note">Daily scores can be added to the shared leaderboard.</p>
+            </div>
+          </div>
+          <div class="expedition-play" id="expedition-play" hidden>
+            <div class="expedition-play-top"><div class="expedition-progress" id="expedition-progress"><span class="current">01</span><i></i><span>02</span><i></i><span>03</span><i></i><span>04</span><i></i><span>05</span></div><div class="expedition-score"><small>YOUR DISTANCE</small><strong id="expedition-distance">0 km</strong></div></div>
+            <div class="expedition-layout">
+              <div class="atlas-map-card"><div class="atlas-map-toolbar"><span><i></i> INTERACTIVE WORLD ATLAS</span><button type="button" id="atlas-map-reset">Reset view ↺</button></div>
+                <div id="atlas-map" class="atlas-map" role="application" aria-label="Interactive world map. Select a country to answer the clue."></div>
+                <div class="atlas-map-help"><span>✥</span> Tap a country to place your pin. Zoom and pan to explore.</div>
+                <div class="atlas-country-search"><label for="atlas-country-search">OR SEARCH FOR A COUNTRY</label><input id="atlas-country-search" list="atlas-country-options" autocomplete="off" placeholder="Type a country name…"><button type="button" id="atlas-country-select" class="button button-outline">Select</button></div>
+              </div>
+              <aside class="expedition-clue-card"><div class="clue-card-top"><span class="clue-index" id="expedition-clue-index">CLUE 01 / 05</span><span class="clue-icon">✳</span></div>
+                <div class="clue-decoration">THE NEXT DISCOVERY</div><h3 id="expedition-clue-title">Find a country…</h3><p id="expedition-clue-note">Explore the map and tap the country you think fits.</p>
+                <div class="selected-country-card" id="atlas-selected-country"><span class="selected-pin">⌖</span><div><small>YOUR SELECTED COUNTRY</small><strong id="atlas-selected-name">Nothing selected yet</strong></div></div>
+                <button type="button" class="button button-primary atlas-confirm-button" id="atlas-confirm" disabled>Confirm this country ↗</button>
+                <div class="expedition-feedback" id="expedition-feedback" hidden></div><button type="button" class="button button-outline atlas-next-button" id="atlas-next" hidden>Next clue →</button>
+              </aside>
+            </div>
+          </div>
+          <div class="expedition-finish" id="expedition-finish" hidden><div class="finish-confetti">✦　✧　✳　✧</div><div class="eyebrow">EXPEDITION COMPLETE</div><h3>You travelled <em id="expedition-final-distance">0 km</em> through the atlas.</h3><p id="expedition-final-copy">Five clues, five new discoveries.</p>
+            <form id="expedition-submit-form" class="expedition-submit-form"><label for="expedition-nickname">ADD YOUR SCORE TO TODAY'S LEADERBOARD</label><div><input id="expedition-nickname" maxlength="18" minlength="2" autocomplete="nickname" placeholder="Your nickname" required><button class="button button-primary" type="submit">Save score ↗</button></div></form>
+            <div class="expedition-finish-actions"><button class="button button-outline" type="button" data-start-expedition="practice">Try another expedition</button><button class="button button-outline" type="button" id="expedition-share">Share result ↗</button></div><div class="expedition-leaderboard-inline" id="expedition-leaderboard-result"></div>
+          </div>
+          <div class="arcade-leaderboard-card"><div class="arcade-leaderboard-heading"><div><div class="eyebrow">EXPLORERS OF THE DAY</div><h3>Daily leaderboard.</h3></div><button type="button" id="expedition-leaderboard-refresh">Refresh ↻</button></div><div id="expedition-leaderboard" class="arcade-leaderboard"><p class="leaderboard-loading">Loading today's explorers…</p></div></div>
         </section>
 
-        <div class="game-library-heading">
-          <div><div class="eyebrow">CHOOSE YOUR CHALLENGE</div><h2>Which game will you play?</h2></div>
-          <span class="game-round-label">10 ROUNDS · PERSONAL BESTS</span>
-        </div>
-
-        <div class="game-mode-grid" id="game-mode-grid">
-          <div class="game-mode-loading">Loading games…</div>
-        </div>
-
-        <section class="game-session" id="game-session" hidden>
-          <div class="game-session-header">
-            <button class="game-back-button" id="game-back" type="button">← All games</button>
-            <div class="game-session-title" id="game-session-title">Population Guess</div>
+        <section class="arcade-panel" id="arcade-panel-mystery" data-arcade-panel="mystery" hidden>
+          <div class="arcade-section-heading"><div><div class="eyebrow">A PLACE HIDING IN PLAIN SIGHT</div><h2>Mystery <em>Country.</em></h2><p>Three clues. Three guesses. Can you find the country before the answer is revealed?</p></div><div class="mystery-seal">WHO<br>AM<br>I?</div></div>
+          <div class="mystery-card" id="mystery-intro"><div class="mystery-scribble">?</div><div><div class="eyebrow">A NEW MYSTERY EACH DAY</div><h3>Every clue brings you closer.</h3><p>Start with a broad geographical hint. Each incorrect guess reveals another clue. The earlier you solve it, the higher your score.</p><div class="mystery-actions"><button class="button button-primary" type="button" data-start-mystery="daily">Solve today's mystery ↗</button><button class="button button-outline" type="button" data-start-mystery="practice">Practice with a random country</button></div></div></div>
+          <div class="mystery-play" id="mystery-play" hidden><div class="mystery-play-heading"><span class="eyebrow">MYSTERY FILE <b id="mystery-number">01</b></span><span class="mystery-guesses" id="mystery-guesses">3 guesses remaining</span></div>
+            <div class="mystery-clue-stack" id="mystery-clue-stack"></div>
+            <form id="mystery-guess-form" class="mystery-guess-form"><label for="mystery-guess">YOUR COUNTRY GUESS</label><div><input id="mystery-guess" list="atlas-country-options" autocomplete="off" placeholder="Which country could it be?" required><button class="button button-primary" type="submit">Submit guess ↗</button></div></form>
+            <div id="mystery-feedback" class="mystery-feedback" hidden></div><div class="mystery-actions" id="mystery-after-actions" hidden><button class="button button-primary" type="button" data-start-mystery="practice">Another mystery ↗</button><button class="button button-outline" type="button" id="mystery-back">Back to arcade</button></div>
           </div>
-          <div class="game-hud">
-            <div class="game-hud-stat"><span>SCORE</span><strong id="game-score">0</strong></div>
-            <div class="game-hud-stat"><span>STREAK</span><strong id="game-streak">0</strong></div>
-            <div class="game-hud-stat"><span>ROUND</span><strong id="game-round">1 / 10</strong></div>
-          </div>
-          <div class="game-progress-track" aria-label="Game progress"><span id="game-progress-fill"></span></div>
-          <div class="game-play-card" id="game-play-area" aria-live="polite"></div>
         </section>
 
-        <div class="games-footnote">
-          <span class="games-footnote-mark">i</span>
-          <p>Population questions use estimated inhabitants calculated from the latest published midyear population and annual growth rate. Other answers use the latest available observations, which can have different reporting years. These games are for learning, not official rankings.</p>
-        </div>
+        <section class="arcade-panel" id="arcade-panel-party" data-arcade-panel="party" hidden>
+          <div class="arcade-section-heading"><div><div class="eyebrow">GATHER YOUR CREW</div><h2>Atlas <em>Party.</em></h2><p>Pass the atlas. Name a country that fits. Keep it moving before the compass runs out of energy.</p></div><div class="party-player-limit"><strong>8</strong><span>EXPLORERS<br>MAXIMUM</span></div></div>
+          <div class="party-rules-strip"><span>♥ 3 LIVES EACH</span><span>⌁ UNIQUE ANSWERS</span><span>✦ PUBLIC + PRIVATE ROOMS</span><span>◎ GUEST NICKNAMES</span></div>
+          <div class="party-lobby-layout" id="party-lobby-screen">
+            <div class="party-main-card"><div class="party-nickname-row"><label for="party-nickname">YOUR EXPLORER NAME</label><input id="party-nickname" maxlength="18" minlength="2" autocomplete="nickname" placeholder="Choose a nickname"></div>
+              <div class="party-create-card"><div class="party-create-heading"><span class="party-card-icon">✥</span><div><h3>Create a room.</h3><p>Invite friends or let other explorers join.</p></div></div><div class="party-create-actions"><button type="button" class="button button-primary" id="party-create-private">Create private room ↗</button><button type="button" class="button button-outline" id="party-create-public">Create public room</button></div></div>
+              <div class="party-join-card"><div class="party-create-heading"><span class="party-card-icon join-icon">⌖</span><div><h3>Have an invite code?</h3><p>Enter a friend's six-character room code.</p></div></div><form id="party-join-form"><input id="party-room-code" maxlength="6" placeholder="ROOM CODE" autocomplete="off" aria-label="Room code"><button class="button button-outline" type="submit">Join room ↗</button></form></div>
+            </div>
+            <aside class="party-public-card"><div class="party-public-heading"><div><div class="eyebrow">OPEN TO EVERYONE</div><h3>Public rooms.</h3></div><button id="party-refresh-rooms" type="button" aria-label="Refresh public rooms">↻</button></div><p>Find a room with space for one more explorer.</p><div id="party-rooms-list" class="party-rooms-list"><p class="leaderboard-loading">Looking for open rooms…</p></div><button type="button" class="button button-primary party-quick-button" id="party-quick-play">Quick play ↗</button></aside>
+          </div>
+          <div class="party-room-screen" id="party-room-screen" hidden><div class="party-room-top"><button type="button" id="party-leave" class="party-leave">← Leave room</button><div class="party-room-code"><small>ROOM CODE</small><strong id="party-room-code-display">------</strong><button type="button" id="party-copy-code">Copy</button></div><span class="party-room-visibility" id="party-room-visibility">PRIVATE ROOM</span></div>
+            <div class="party-room-layout"><section class="party-room-main"><div class="party-phase-header"><span class="eyebrow" id="party-phase-label">LOBBY / WAITING FOR EXPLORERS</span><h3 id="party-phase-title">Your expedition crew.</h3><p id="party-phase-note">Invite friends using the room code. You need at least two players to start.</p></div><div class="party-player-grid" id="party-player-grid"></div>
+                <div class="party-lobby-controls" id="party-lobby-controls"><button type="button" class="button button-outline" id="party-ready">I'm ready ✓</button><button type="button" class="button button-primary" id="party-start" hidden>Start party ↗</button></div>
+                <div class="party-game-board" id="party-game-board" hidden><div class="party-category-card"><span class="eyebrow">THE GEOGRAPHY CATEGORY</span><h3 id="party-category-title">Name a country…</h3><p>Every country can only be named once in this round.</p></div>
+                  <div class="party-compass-stage"><div class="party-compass-orbit"></div><div class="party-compass-token" id="party-compass-token">✥</div><div class="party-fuse-ring"><span>ATLAS<br>ENERGY</span></div></div>
+                  <div class="party-turn-status" id="party-turn-status">Waiting for the current explorer…</div><div class="party-timer-track"><span id="party-timer-fill"></span></div>
+                  <form id="party-answer-form" class="party-answer-form"><label for="party-answer">NAME A COUNTRY THAT FITS</label><div><input id="party-answer" maxlength="60" list="atlas-country-options" autocomplete="off" placeholder="Type a country…" disabled><button class="button button-primary" type="submit" disabled id="party-pass-button">Pass the atlas ↗</button></div></form>
+                  <div class="party-used-answers"><small>ALREADY EXPLORED THIS ROUND</small><div id="party-used-list">No countries named yet.</div></div>
+                </div><div class="party-game-over" id="party-game-over" hidden></div>
+              </section><aside class="party-room-side"><div class="party-room-side-heading"><span class="eyebrow">CREW STATUS</span><strong id="party-player-count">1 / 8</strong></div><div id="party-scoreboard"></div><div class="party-room-side-note">Each explorer starts with three lives. When the atlas timer runs out, the current holder loses one. Last explorer with lives remaining wins.</div><button type="button" id="party-rematch" class="button button-outline" hidden>Play another round ↗</button></aside></div>
+          </div>
+          <div class="party-leaderboard-card"><div class="arcade-leaderboard-heading"><div><div class="eyebrow">TOP EXPLORERS</div><h3>Atlas Party leaderboard.</h3></div><span>LAST 30 DAYS</span></div><div id="party-leaderboard" class="arcade-leaderboard"><p class="leaderboard-loading">Loading party standings…</p></div></div>
+        </section>
+
+        <section class="arcade-classics"><div class="arcade-section-heading compact"><div><div class="eyebrow">QUICK ROUNDS</div><h2>More ways to <em>explore.</em></h2><p>Short challenges using HUMANITY's country data.</p></div></div>
+          <div class="game-mode-grid" id="game-mode-grid"><div class="game-mode-loading">Loading games…</div></div>
+          <section class="game-session" id="game-session" hidden><div class="game-session-header"><button class="game-back-button" id="game-back" type="button">← All games</button><div class="game-session-title" id="game-session-title">Population Guess</div></div>
+            <div class="game-hud"><div class="game-hud-stat"><span>SCORE</span><strong id="game-score">0</strong></div><div class="game-hud-stat"><span>STREAK</span><strong id="game-streak">0</strong></div><div class="game-hud-stat"><span>ROUND</span><strong id="game-round">1 / 10</strong></div></div>
+            <div class="game-progress-track" aria-label="Game progress"><span id="game-progress-fill"></span></div><div class="game-play-card" id="game-play-area" aria-live="polite"></div>
+          </section>
+        </section>
+        <div class="games-footnote"><span class="games-footnote-mark">i</span><p>HUMANITY's geography games are educational. The daily expedition is shared worldwide and resets at midnight UTC. Party lobbies are temporary; completed results are saved to the HUMANITY leaderboard.</p></div>
       </section>
 
-      <section class="page section-wrap interior-page" id="page-about" data-page="about" hidden>
+            <section class="page section-wrap interior-page" id="page-about" data-page="about" hidden>
         <div class="page-heading"><div class="eyebrow">ABOUT HUMANITY / 05</div><h1>Understand more.<br><em>Assume less.</em></h1><p>HUMANITY is an independent exploration of the data that describes our shared world. Its purpose is simple: make global evidence easier to find, compare and question.</p></div>
         <div class="about-layout"><div class="about-main"><div class="eyebrow">OUR PRINCIPLES</div><h2>Clarity without false certainty.</h2><p>Global statistics are useful, but they are not the whole truth. A national average can hide differences by income, age, gender, region and opportunity. We show the measure, its source and its year so you can understand what a number does — and does not — tell you.</p><p>HUMANITY is designed as a public-facing data explorer. It is not affiliated with the World Bank, the United Nations or any national government.</p><div class="principle-list"><div><span>01</span><div><strong>Show the source.</strong><p>Every indicator links back to its data provider and definition.</p></div></div><div><span>02</span><div><strong>Show the year.</strong><p>Latest available does not mean current. Reporting years can differ.</p></div></div><div><span>03</span><div><strong>Show the limits.</strong><p>Indicators are approximations of complex realities, not rankings of human worth.</p></div></div></div></div>
           <aside class="source-panel"><div class="eyebrow">DATA PARTNER</div><h3>World Bank<br><em>Open Data</em></h3><p>Most country and global indicators are retrieved from the World Bank Indicators API. Drinking-water coverage comes from the WHO/UNICEF Joint Monitoring Programme. These public sources publish observations at different intervals, so each value includes its reporting year.</p><a class="button button-primary source-button" href="https://data.worldbank.org/" target="_blank" rel="noopener noreferrer">Visit World Bank Data ↗</a><div class="source-meta"><span>DATA ACCESS</span><strong>Public API · v2</strong><span>API DOCUMENTATION</span><a href="https://datahelpdesk.worldbank.org/knowledgebase/articles/889392" target="_blank" rel="noopener noreferrer">Read the documentation ↗</a></div></aside></div>
