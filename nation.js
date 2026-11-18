@@ -372,6 +372,8 @@
     const saved = readSaved();
     const startButton = $('#nation-start');
     if (startButton) startButton.disabled = false;
+    const retryButton = $('#nation-retry-data');
+    if (retryButton) retryButton.hidden = true;
     if (saved) {
       const resume = $('#nation-continue');
       if (resume) {
@@ -623,6 +625,7 @@
     const select = $('#nation-country-select');
     const country = select && getCountry(select.value);
     if (!country || !dataset) return;
+    if (readSaved() && !confirm('Starting a new campaign will replace the campaign saved in this browser. Continue?')) return;
     campaign = Engine.createCampaign(country, dataset.values || {}, new Date().getFullYear());
     selectedPoliciesSet = new Set();
     selectedTax = 20;
@@ -667,9 +670,7 @@
     const changeCountry = $('#nation-change-country');
     if (changeCountry) changeCountry.addEventListener('click', showStart);
     const newNation = $('#nation-new-campaign');
-    if (newNation) newNation.addEventListener('click', () => {
-      if (confirm('Start a new country campaign? Your current saved campaign will be replaced when you begin the new one.')) showStart();
-    });
+    if (newNation) newNation.addEventListener('click', showStart);
     const refresh = $('#nation-save-now');
     if (refresh) refresh.addEventListener('click', saveCurrent);
   }
