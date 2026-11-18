@@ -90,7 +90,7 @@
             <article class="metric-card"><div class="metric-top"><span>INTERNET ACCESS</span><span class="metric-icon">⌘</span></div><div class="metric-value skeleton-text">Loading</div><div class="metric-bottom"><span>Of world population</span><span class="metric-year">—</span></div></article>
             <article class="metric-card"><div class="metric-top"><span>GDP PER PERSON</span><span class="metric-icon">↗</span></div><div class="metric-value skeleton-text">Loading</div><div class="metric-bottom"><span>Current US dollars</span><span class="metric-year">—</span></div></article>
           </div>
-          <p class="data-footnote">The population counter is a live estimate projected from the latest midyear population and annual growth rate. Other indicators refresh from the latest published source data; reporting years can differ.</p>
+          <p class="data-footnote">The population counter is a live estimate projected from the latest midyear population and annual growth rate. Other indicators sync with their sources every six hours, using the latest published observations; reporting years can differ.</p>
         </section>
 
         <section class="section-wrap trends-section">
@@ -117,7 +117,7 @@
           <label class="select-wrap"><span>SORT BY</span><select id="country-sort"><option value="population">Population</option><option value="life">Life expectancy</option><option value="internet">Internet access</option><option value="gdp">GDP per person</option><option value="name">Country name</option></select></label>
           <button class="button button-outline export-button" id="export-csv">Export CSV <span>↓</span></button>
         </div>
-        <div class="explore-summary"><span id="country-count">Loading countries…</span><span>26 indicators · population estimate updates every second</span></div>
+        <div class="explore-summary"><span id="country-count">Loading countries…</span><span>26 indicators · population estimate updates every second · source sync every six hours</span></div>
         <div class="table-wrap"><table class="country-table"><thead><tr><th scope="col">COUNTRY / ECONOMY</th><th scope="col">REGION</th><th scope="col" class="numeric">LIVE EST. INHABITANTS</th><th scope="col" class="numeric">ANNUAL GROWTH</th><th scope="col" class="numeric">LIFE EXPECTANCY</th><th scope="col" class="numeric">INTERNET</th><th scope="col" class="numeric">GDP / PERSON</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody id="country-table-body"><tr><td colspan="8" class="table-message">Connecting to the World Bank data service…</td></tr></tbody></table></div>
         <div class="table-footer"><span id="table-range">—</span><button class="text-link" id="load-more" hidden>Load more countries <span>↓</span></button></div><p class="live-population-note">Live inhabitants are estimates, not real-time census counts. The counter starts from the latest published midyear population figure and applies the corresponding annual population-growth rate.</p>
         <aside class="country-detail" id="country-detail" aria-live="polite" aria-label="Country details" hidden>
