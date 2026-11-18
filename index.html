@@ -260,6 +260,19 @@
         <section class="arcade-panel nation-panel" id="arcade-panel-nation" data-arcade-panel="nation" hidden>
           <div class="arcade-section-heading nation-heading"><div><div class="eyebrow">HUMANITY / COUNTRY STEWARDSHIP</div><h2>Nation <em>Builder.</em></h2><p>Take responsibility for a country. Start from its published indicators, decide what to prioritise and see how your choices shape the next decade.</p></div><div class="nation-data-stamp"><span class="nation-data-dot"></span><span id="nation-data-status">Waiting for country data…</span></div></div>
 
+          <details class="nation-guide" open>
+            <summary><span class="nation-guide-icon">i</span><span><small>FIRST TIME PLAYING?</small><strong>How to play Nation Builder</strong></span><span class="nation-guide-toggle">OPEN GUIDE&nbsp; +</span></summary>
+            <div class="nation-guide-content">
+              <div class="nation-guide-steps">
+                <article><span>01</span><strong>Choose your country</strong><p>Your starting position uses the latest available observations in HUMANITY. The year shown beside each indicator tells you when it was reported.</p></article>
+                <article><span>02</span><strong>Set two priorities</strong><p>Pick up to two programmes each year. Education, healthcare, jobs, housing, infrastructure, clean energy and water all have different effects and costs.</p></article>
+                <article><span>03</span><strong>Set taxes and check the ledger</strong><p>Move the tax slider between 14% and 27%. Review revenue, services, programme costs and debt interest before you commit to the year.</p></article>
+                <article><span>04</span><strong>Advance time and adapt</strong><p>Each turn advances one simulated year. A scenario event changes the outlook, your indicators respond to policy, and your government record keeps the results.</p></article>
+              </div>
+              <div class="nation-guide-footer"><span>YOUR AIM</span><p>Build a stronger country over ten years by improving development while keeping public finances sustainable. There is no single winning strategy.</p></div>
+              <div class="nation-guide-caveat">Published statistics are starting data. Future values, budgets and events are game simulations. Your campaign autosaves in this browser; export a save file to move it to another device.</div>
+            </div>
+          </details>
           <div class="nation-start-layout" id="nation-start-screen">
             <section class="nation-start-card">
               <div class="eyebrow">YOUR FIRST DECISION</div>
@@ -288,7 +301,7 @@
             <div class="nation-command-bar">
               <div class="nation-country-identity"><span class="nation-country-flag" id="nation-country-flag">🌐</span><div><strong id="nation-country-name">Country</strong><small id="nation-country-context">Region · income group</small></div></div>
               <div class="nation-year-block"><small>SIMULATION YEAR</small><strong id="nation-current-year">2027</strong><span id="nation-turn-number">YEAR 1</span></div>
-              <div class="nation-command-actions"><span id="nation-save-status">Saved on this browser</span><button type="button" class="button button-outline" id="nation-change-country">Country selection</button><button type="button" class="button button-outline" id="nation-new-campaign">New campaign</button></div>
+              <div class="nation-command-actions"><span id="nation-save-status">Saved on this browser</span><button type="button" class="button button-outline" id="nation-export-save">Export save</button><button type="button" class="button button-outline" id="nation-import-save">Import save</button><input type="file" id="nation-import-file" accept="application/json,.json" hidden><button type="button" class="button button-outline" id="nation-change-country">Country selection</button><button type="button" class="button button-outline" id="nation-new-campaign">New campaign</button></div>
             </div>
 
             <div class="nation-decade-banner" id="nation-decade-complete" hidden><span>✦</span><div><strong>Your first decade is complete.</strong><p>You can keep governing, build on your progress and see how your country develops over another decade.</p></div></div>
@@ -329,6 +342,14 @@
                   <div id="nation-latest-briefing"></div>
                 </section>
 
+
+                <section class="nation-card nation-objectives-card">
+                  <div class="eyebrow">THE NATIONAL MANDATE</div><h3>Objectives & milestones.</h3>
+                  <p class="nation-objectives-intro">Track progress against your own starting position.</p>
+                  <div id="nation-objectives" class="nation-objectives"></div>
+                  <div class="nation-achievement-heading"><span>ACHIEVEMENTS</span><strong id="nation-achievement-count">0 / 6</strong></div>
+                  <div id="nation-achievements" class="nation-achievements"></div>
+                </section>
                 <section class="nation-card nation-history-card">
                   <div class="eyebrow">GOVERNMENT RECORD</div><h3>Recent years.</h3>
                   <div id="nation-history"></div>
@@ -360,6 +381,8 @@
       </section>
     </main>
 
+    <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-fill"></span></div>
+    <button class="back-to-top" id="back-to-top" type="button" aria-label="Back to top" aria-hidden="true">↑</button>
     <footer class="site-footer">
       <div class="footer-main"><a class="brand footer-brand" href="#overview"><span class="brand-mark"><svg viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="17.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 21h34M21 3.5c5 4.8 7.5 10.6 7.5 17.5S26 33.7 21 38.5C16 33.7 13.5 27.9 13.5 21S16 8.3 21 3.5Z" stroke="currentColor" stroke-width="1.25"/></svg></span><span class="brand-word">HUMANITY<span class="brand-period">.</span><small>UNDERSTAND OUR WORLD</small></span></a><p>For a world worth understanding.</p><div class="footer-links"><a href="#about">About & methodology</a><a href="https://data.worldbank.org/" target="_blank" rel="noopener noreferrer">Data source ↗</a><a href="#overview">Back to top ↑</a></div></div>
       <div class="footer-bottom"><span>© <span id="current-year">2026</span> HUMANITY. An independent data project.</span><span>BUILT FOR CURIOSITY, NOT CERTAINTY.</span></div>
