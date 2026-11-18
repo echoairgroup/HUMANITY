@@ -662,7 +662,7 @@
         const progress = Math.round(item.progress * 100);
         const current = Number.isFinite(item.amount) ? item.amount : 0;
         const completed = progress >= 100;
-        const movement = current >= 0 && item.suffix !== ' pts' ? '+' : '';
+        const movement = current >= 0 ? '+' : '';
         return '<article class="nation-objective' + (completed ? ' is-complete' : '') + '">' +
           '<div class="nation-objective-top"><strong>' + item.title + '</strong><span>' + (completed ? 'COMPLETE' : progress + '%') + '</span></div>' +
           '<p>' + item.detail + '</p><div class="nation-objective-track"><i style="width:' + progress + '%"></i></div>' +
@@ -814,7 +814,7 @@
       if (!item || !Number.isFinite(Number(item.value))) return null;
       validStats[key] = {
         value: Number(item.value),
-        year: Number.isFinite(Number(item.year)) ? Number(item.year) : null,
+        year: item.year !== null && item.year !== undefined && Number.isFinite(Number(item.year)) ? Number(item.year) : null,
         estimated: Boolean(item.estimated),
         simulated: Boolean(item.simulated)
       };
@@ -824,7 +824,7 @@
       if (!item || !Number.isFinite(Number(item.value))) return null;
       validBaseline[key] = {
         value: Number(item.value),
-        year: Number.isFinite(Number(item.year)) ? Number(item.year) : null,
+        year: item.year !== null && item.year !== undefined && Number.isFinite(Number(item.year)) ? Number(item.year) : null,
         estimated: Boolean(item.estimated),
         simulated: false
       };
@@ -855,6 +855,23 @@
     safe.achievements = Array.isArray(safe.achievements)
       ? safe.achievements.filter(id => allowedAchievements.includes(id))
       : [];
+    if (safe.lastResult && typeof safe.lastResult === 'object') {
+      safe.lastResult = {
+        year: Number(safe.lastResult.year) || safe.year - 1,
+        event: String(safe.lastResult.event || 'Unknown event').slice(0, 100),
+        eventText: String(safe.lastResult.eventText || '').slice(0, 500),
+        growth: Number(safe.lastResult.growth) || 0,
+        taxRate: clamp(Number(safe.lastResult.taxRate) || safe.taxRate, 14, 27),
+        revenue: Number(safe.lastResult.revenue) || 0,
+        services: Number(safe.lastResult.services) || 0,
+        interest: Number(safe.lastResult.interest) || 0,
+        programmes: Number(safe.lastResult.programmes) || 0,
+        balance: Number(safe.lastResult.balance) || 0,
+        policies: Array.isArray(safe.lastResult.policies) ? safe.lastResult.policies.map(item => String(item).slice(0, 80)).slice(0, 2) : []
+      };
+    } else {
+      safe.lastResult = null;
+    }
     return safe;
   }
 
