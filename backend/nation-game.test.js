@@ -39,6 +39,7 @@ test('campaign starts from supplied country observations and records their years
   assert.equal(campaign.year, 2027);
   assert.equal(campaign.stats.internet.estimated, false);
   assert.equal(campaign.stats.water.estimated, true);
+  assert.equal(Object.keys(campaign.stats).length, 26);
   assert.ok(Number.isFinite(campaign.debt));
 });
 
