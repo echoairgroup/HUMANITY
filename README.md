@@ -14,22 +14,24 @@ A responsive, multi-section global data explorer built as a static website. It i
 
 ## Data and freshness
 
-HUMANITY retrieves public country metadata and indicator values from the World Bank Indicators API v2. It does not require an API key. Data is cached in the visitor's browser for up to 24 hours; older saved data can be used if the API is temporarily unavailable.
+HUMANITY's backend synchronizes its public data sources every six hours and stores the latest successful datasets in Neon PostgreSQL. The website checks the backend every five minutes while it is open.
 
-The indicators currently used are:
+The 26-indicator catalogue covers population and growth, urban/rural distribution, health, education, employment, economic activity, connectivity, electricity access and environmental measures. Most series come from the World Bank Indicators API v2. Drinking-water coverage comes from the WHO/UNICEF Joint Monitoring Programme.
 
-| Topic | World Bank indicator | Code |
-|---|---|---|
-| Population | Population, total | `SP.POP.TOTL` |
-| Life expectancy | Life expectancy at birth, total | `SP.DYN.LE00.IN` |
-| Internet access | Individuals using the Internet (% of population) | `IT.NET.USER.ZS` |
-| GDP per capita | GDP per capita (current US$) | `NY.GDP.PCAP.CD` |
-| CO₂ emissions | CO₂ emissions (metric tons per capita) | `EN.ATM.CO2E.PC` |
-| Drinking water | People using at least basic drinking water services | `SH.H2O.BASW.ZS` |
+Every published observation retains its reporting year. Different indicators and countries can have different latest years, and missing observations are displayed as unavailable rather than invented.
 
-Every displayed observation retains its reporting year. Different indicators and countries may have different latest years. The charts show available global observations from 2000 onward. Missing observations are shown as an em dash rather than estimated or invented.
+### Population estimate
 
-Primary API documentation: https://datahelpdesk.worldbank.org/knowledgebase/articles/889392
+The country population counter updates its display every second. It is a projection, not a live census: it starts from the latest published midyear population total and applies the latest available annual population growth rate using an exponential growth model. The underlying source observations update when the providers publish new data and the backend next synchronizes.
+
+### Games
+
+The Games page contains five ten-round challenges: Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective. Scores, streaks and personal bests are saved in the current browser only; there is no global leaderboard or account system.
+
+Primary sources:
+
+- World Bank Indicators API v2: https://datahelpdesk.worldbank.org/knowledgebase/articles/889392
+- WHO/UNICEF Joint Monitoring Programme: https://washdata.org/data/api
 
 ## Run locally
 
