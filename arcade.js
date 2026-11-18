@@ -227,7 +227,7 @@
     $('#atlas-confirm').hidden=false;
     $('#atlas-confirm').disabled=true;
     $('#atlas-confirm').textContent='Confirm this country ↗';
-    $('#expedition-clue-card')?.classList.remove('answered');
+    $('.expedition-clue-card')?.classList.remove('answered');
     state.revealed=new Set();
     clearSelection();
     state.geoLayer?.setStyle(countryStyle);
