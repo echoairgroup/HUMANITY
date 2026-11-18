@@ -32,7 +32,7 @@ function createClient(url = WS_URL) {
     }
   });
 
-  function waitFor(predicate, timeoutMs = 12000) {
+  function waitFor(predicate, timeoutMs = 12000, label = 'Atlas Party message') {
     const queuedIndex = queue.findIndex(predicate);
     if (queuedIndex >= 0) return Promise.resolve(queue.splice(queuedIndex, 1)[0]);
     return new Promise((resolve, reject) => {
@@ -42,14 +42,23 @@ function createClient(url = WS_URL) {
         timer: setTimeout(() => {
           const index = waiters.indexOf(waiter);
           if (index >= 0) waiters.splice(index, 1);
-          reject(new Error('Timed out waiting for an Atlas Party message.'));
+          reject(new Error(
+            'Timed out waiting for ' + label + '. Queued server messages: ' +
+            JSON.stringify(queue.map(message => ({
+              type: message.type,
+              code: message.code,
+              phase: message.room?.phase,
+              players: message.room?.players?.length,
+              message: message.message
+            })))
+          ));
         }, timeoutMs)
       };
       waiters.push(waiter);
     });
   }
 
-  return { socket, waitFor };
+  return { socket, waitFor, queue };
 }
 
 async function connectWithRetry(label, url = WS_URL) {
@@ -120,6 +129,19 @@ async function testLocalPartyRound() {
       const timer = setTimeout(() => reject(new Error('Local game test WebSocket timed out.')), 5000);
       client.socket.once('open', () => { clearTimeout(timer); resolve(); });
       client.socket.once('error', error => { clearTimeout(timer); reject(error); });
+      client.socket.on('message', raw => {
+        try {
+          const message = JSON.parse(raw.toString());
+          if (message.type === 'error') {
+            console.log('LOCAL ' + (client === host ? 'HOST' : 'GUEST') + ' SERVER ERROR: ' + JSON.stringify(message));
+          } else if (message.type === 'game_started' || message.type === 'room_state') {
+            console.log('LOCAL ' + (client === host ? 'HOST' : 'GUEST') + ' RECEIVED: ' +
+              (message.type === 'room_state'
+                ? 'room_state phase=' + message.room.phase + ' round=' + message.room.round + ' players=' + message.room.players.length
+                : 'game_started'));
+          }
+        } catch (_) { /* Ignore malformed test messages. */ }
+      });
     })));
 
     const suffix = String(Date.now()).slice(-5);
@@ -132,13 +154,13 @@ async function testLocalPartyRound() {
     await guestJoined;
 
     const [hostLobby, guestLobby] = await Promise.all([
-      host.waitFor(message => message.type === 'room_state' && message.room?.players.length === 2),
-      guest.waitFor(message => message.type === 'room_state' && message.room?.players.length === 2)
+      host.waitFor(message => message.type === 'room_state' && message.room?.players.length === 2, 12000, 'two-player host lobby state'),
+      guest.waitFor(message => message.type === 'room_state' && message.room?.players.length === 2, 12000, 'two-player guest lobby state')
     ]);
     assert.equal(hostLobby.room.players.filter(player => player.lives === 3).length, 2);
 
-    const hostPlaying = host.waitFor(message => message.type === 'room_state' && message.room?.phase === 'playing');
-    const guestPlaying = guest.waitFor(message => message.type === 'room_state' && message.room?.phase === 'playing');
+    const hostPlaying = host.waitFor(message => message.type === 'room_state' && message.room?.phase === 'playing', 12000, 'host game start state');
+    const guestPlaying = guest.waitFor(message => message.type === 'room_state' && message.room?.phase === 'playing', 12000, 'guest game start state');
     send(host, { type: 'start_game' });
     const [hostStart, guestStart] = await Promise.all([hostPlaying, guestPlaying]);
     assert.equal(hostStart.room.round, 1);
@@ -154,8 +176,8 @@ async function testLocalPartyRound() {
     assert.equal(hostFuse.eliminated, false);
 
     const [hostNextRound, guestNextRound] = await Promise.all([
-      host.waitFor(message => message.type === 'room_state' && message.room?.round === 2),
-      guest.waitFor(message => message.type === 'room_state' && message.room?.round === 2)
+      host.waitFor(message => message.type === 'room_state' && message.room?.round === 2, 12000, 'host next-round state'),
+      guest.waitFor(message => message.type === 'room_state' && message.room?.round === 2, 12000, 'guest next-round state')
     ]);
     for (const room of [hostNextRound.room, guestNextRound.room]) {
       assert.equal(room.phase, 'playing');
