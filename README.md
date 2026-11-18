@@ -8,7 +8,7 @@ A responsive, multi-section global data explorer built as a static website. It i
 - **Explore:** searchable and sortable country table, region filter, country detail panels and CSV export.
 - **Compare:** side-by-side comparison of up to three countries across the full 26-indicator catalogue.
 - **Stories:** editorial context to help visitors think critically about population, wellbeing, connectivity and emissions.
-- **Games:** five playable modes — Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective. Ten rounds per challenge, scoring, streaks and device-local personal bests.
+- **Games / HUMANITY Arcade:** Atlas Expedition (shared daily five-clue world-map challenge plus unlimited practice), Mystery Country (daily and practice clue ladder), Atlas Party (live public/private rooms with up to eight players, nickname-only guest entry, three lives, timed turns, rematches and a shared party leaderboard), plus Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective.
 - **About:** 26 indicator definitions, methodology notes and direct source links.
 - Responsive layouts, keyboard accessibility, reduced-motion support, metadata, a web app manifest and a small offline shell cache.
 
@@ -26,7 +26,7 @@ The country population counter updates its display every second. It is a project
 
 ### Games
 
-The Games page contains five ten-round challenges: Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective. Scores, streaks and personal bests are saved in the current browser only; there is no global leaderboard or account system.
+The Arcade combines solo geography and live multiplayer. Atlas Expedition gives everyone the same five geography clues each UTC day; players select countries on a world map, with less obvious correct answers awarding more distance. Unlimited practice expeditions are separate from the daily leaderboard. Mystery Country reveals up to three clues for a daily or random country. Atlas Party provides public rooms and private six-character invite codes, up to eight nickname-only guests, three lives each, a timed pass-the-atlas turn, unique valid country answers per category, host-controlled starts, rematches and a 30-day party leaderboard. Daily expedition scores and completed party results are stored in Neon PostgreSQL. Party rooms themselves are in-memory live sessions and reset when the API process restarts. Player identities are guest nicknames, not verified accounts. The five original quick games remain available: Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective.
 
 Primary sources:
 
