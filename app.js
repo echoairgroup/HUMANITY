@@ -1103,7 +1103,7 @@
   }
 
   function activatePage(page) {
-    const valid = ['overview', 'explore', 'compare', 'stories', 'about'];
+    const valid = ['overview', 'explore', 'compare', 'stories', 'games', 'about'];
     if (!valid.includes(page)) page = 'overview';
     $$('.page').forEach(section => {
       const active = section.dataset.page === page;
