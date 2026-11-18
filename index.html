@@ -19,6 +19,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
   <script src="./app.js" defer></script>
   <script src="./arcade.js" defer></script>
+  <script src="./nation.js" defer></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body>
@@ -184,6 +185,7 @@
           <button type="button" class="arcade-tab active" data-arcade-tab="expedition"><span>✦</span> Atlas Expedition <small>DAILY + PRACTICE</small></button>
           <button type="button" class="arcade-tab" data-arcade-tab="mystery"><span>⌕</span> Mystery Country <small>GUESS THE PLACE</small></button>
           <button type="button" class="arcade-tab" data-arcade-tab="party"><span>♧</span> Atlas Party <small>PLAY TOGETHER</small></button>
+          <button type="button" class="arcade-tab nation-tab" data-arcade-tab="nation"><span>⌖</span> Nation Builder <small>LEAD A COUNTRY</small></button>
         </nav>
 
         <section class="arcade-panel active" id="arcade-panel-expedition" data-arcade-panel="expedition">
@@ -252,6 +254,90 @@
               </section><aside class="party-room-side"><div class="party-room-side-heading"><span class="eyebrow">CREW STATUS</span><strong id="party-player-count">1 / 8</strong></div><div id="party-scoreboard"></div><div class="party-room-side-note">Each explorer starts with three lives. When the atlas timer runs out, the current holder loses one. Last explorer with lives remaining wins.</div><button type="button" id="party-rematch" class="button button-outline" hidden>Play another round ↗</button></aside></div>
           </div>
           <div class="party-leaderboard-card"><div class="arcade-leaderboard-heading"><div><div class="eyebrow">TOP EXPLORERS</div><h3>Atlas Party leaderboard.</h3></div><span>LAST 30 DAYS</span></div><div id="party-leaderboard" class="arcade-leaderboard"><p class="leaderboard-loading">Loading party standings…</p></div></div>
+        </section>
+
+
+        <section class="arcade-panel nation-panel" id="arcade-panel-nation" data-arcade-panel="nation" hidden>
+          <div class="arcade-section-heading nation-heading"><div><div class="eyebrow">HUMANITY / COUNTRY STEWARDSHIP</div><h2>Nation <em>Builder.</em></h2><p>Take responsibility for a country. Start from its published indicators, decide what to prioritise and see how your choices shape the next decade.</p></div><div class="nation-data-stamp"><span class="nation-data-dot"></span><span id="nation-data-status">Waiting for country data…</span></div></div>
+
+          <div class="nation-start-layout" id="nation-start-screen">
+            <section class="nation-start-card">
+              <div class="eyebrow">YOUR FIRST DECISION</div>
+              <h3>Which country will you lead?</h3>
+              <p>Choose any country in HUMANITY’s dataset. Its latest available population, economy, health and development observations become your starting position.</p>
+              <label class="nation-select-label" for="nation-country-select">SELECT A COUNTRY</label>
+              <select id="nation-country-select" class="nation-country-select"><option value="">Loading country list…</option></select>
+              <div class="nation-start-preview" id="nation-start-preview"><div class="nation-preview-empty">Country snapshots will appear here.</div></div>
+              <button class="button button-primary nation-start-button" type="button" id="nation-start" disabled>Start governing ↗</button>
+              <button class="button button-outline nation-retry-button" type="button" id="nation-retry-data" hidden>Retry country data</button>
+            </section>
+            <aside class="nation-save-card">
+              <div class="eyebrow">YOUR GOVERNMENT</div>
+              <div class="nation-save-emblem">⌂</div>
+              <h3>A decade to make a difference.</h3>
+              <p>Each year, choose two priorities, set the tax rate, review your fiscal position and advance time. Decisions have trade-offs; there is no single perfect strategy.</p>
+              <div class="nation-save-divider"></div>
+              <small>EXISTING CAMPAIGN</small>
+              <strong id="nation-existing-save">No saved campaign yet</strong>
+              <button class="button button-outline nation-continue-button" id="nation-continue" type="button" hidden>Continue campaign ↗</button>
+              <p class="nation-local-save-note">Campaign progress is saved in this browser on this device. No account is required.</p>
+            </aside>
+          </div>
+
+          <div class="nation-game-screen" id="nation-game-screen" hidden>
+            <div class="nation-command-bar">
+              <div class="nation-country-identity"><span class="nation-country-flag" id="nation-country-flag">🌐</span><div><strong id="nation-country-name">Country</strong><small id="nation-country-context">Region · income group</small></div></div>
+              <div class="nation-year-block"><small>SIMULATION YEAR</small><strong id="nation-current-year">2027</strong><span id="nation-turn-number">YEAR 1</span></div>
+              <div class="nation-command-actions"><span id="nation-save-status">Saved on this browser</span><button type="button" class="button button-outline" id="nation-change-country">Country selection</button><button type="button" class="button button-outline" id="nation-new-campaign">New campaign</button></div>
+            </div>
+
+            <div class="nation-decade-banner" id="nation-decade-complete" hidden><span>✦</span><div><strong>Your first decade is complete.</strong><p>You can keep governing, build on your progress and see how your country develops over another decade.</p></div></div>
+
+            <div class="nation-kpi-grid" id="nation-kpi-grid"></div>
+
+            <div class="nation-main-layout">
+              <main class="nation-main-column">
+                <section class="nation-card nation-indicators-card">
+                  <div class="nation-card-heading"><div><div class="eyebrow">THE COUNTRY YOU INHERITED</div><h3>National indicators.</h3></div><span class="nation-heading-note">Published baseline → simulated future</span></div>
+                  <div class="nation-indicator-grid" id="nation-indicator-grid"></div>
+                </section>
+
+                <section class="nation-card nation-policy-card">
+                  <div class="nation-card-heading"><div><div class="eyebrow">THE POLICY DESK</div><h3>Set this year’s priorities.</h3><p>Choose up to two programmes. Each costs money now and changes selected indicators over time.</p></div><span class="nation-policy-count" id="nation-policy-count">0 / 2 selected</span></div>
+                  <div class="nation-policy-list" id="nation-policy-list"></div>
+                  <div class="nation-tax-control"><div><label for="nation-tax-rate">NATIONAL TAX RATE</label><p>Higher rates raise more revenue but can slow simulated growth and public support.</p></div><strong id="nation-tax-label">20%</strong><input id="nation-tax-rate" type="range" min="14" max="27" step="1" value="20" aria-label="National tax rate"></div>
+                  <div class="nation-policy-footer"><span id="nation-action-note">Choose up to two national priorities.</span><button class="button button-primary" type="button" id="nation-end-year">Advance year ↗</button></div>
+                </section>
+
+                <section class="nation-card nation-indicators-card">
+                  <div class="nation-card-heading"><div><div class="eyebrow">YOUR COUNTRY’S TRAJECTORY</div><h3>Development signals.</h3><p>Progress is measured against your own starting point, not against other countries.</p></div><strong class="nation-progress-score" id="nation-progress-score">50 / 100</strong></div>
+                  <div class="nation-signal-grid" id="nation-signal-grid"></div>
+                  <div class="nation-decade-track"><span id="nation-decade-progress"></span></div><small class="nation-decade-label" id="nation-decade-label">0 of 10 years completed</small>
+                </section>
+              </main>
+
+              <aside class="nation-side-column">
+                <section class="nation-card nation-budget-card">
+                  <div class="eyebrow">THE NATIONAL LEDGER</div><h3>Public finances.</h3>
+                  <div class="nation-finance-summary"><div><small>TREASURY</small><strong id="nation-cash-position">$—</strong></div><div><small>SIMULATED DEBT</small><strong id="nation-debt-position">$—</strong><span id="nation-debt-ratio">—</span></div></div>
+                  <div id="nation-budget-ledger" class="nation-budget-ledger"></div>
+                  <p class="nation-budget-outcome" id="nation-budget-outcome">Review the projected balance before advancing.</p>
+                </section>
+
+                <section class="nation-card nation-briefing-card">
+                  <div class="eyebrow">YEARLY BRIEFING</div><h3>What happened?</h3>
+                  <div id="nation-latest-briefing"></div>
+                </section>
+
+                <section class="nation-card nation-history-card">
+                  <div class="eyebrow">GOVERNMENT RECORD</div><h3>Recent years.</h3>
+                  <div id="nation-history"></div>
+                </section>
+                <p class="nation-source-note" id="nation-source-summary">Starting statistics and their reporting years will appear here.</p>
+              </aside>
+            </div>
+            <div class="nation-methodology"><span>i</span><p><strong>How the simulation works.</strong> Published country observations provide the starting snapshot. Future values are game simulations, not forecasts. Government revenue, public services, debt, programme costs, policy impacts and scenario events use simplified assumptions for play; they are not actual national accounts or live news. When an indicator is missing, the game uses a clearly labelled estimate.</p></div>
+          </div>
         </section>
 
         <section class="arcade-classics"><div class="arcade-section-heading compact"><div><div class="eyebrow">QUICK ROUNDS</div><h2>More ways to <em>explore.</em></h2><p>Short challenges using HUMANITY's country data.</p></div></div>
