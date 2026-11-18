@@ -145,7 +145,7 @@
     if (state.selectedLayer) state.selectedLayer.setStyle(countryStyle(state.selectedLayer.feature));
     const boundsCenter = state.selectedLayer?.getBounds?.().getCenter?.();
     const coordinates = boundsCenter ||
-      (Number.isFinite(Number(country.latitude)) && Number.isFinite(Number(country.longitude))
+      (window.L && Number.isFinite(Number(country.latitude)) && Number.isFinite(Number(country.longitude))
         ? L.latLng(Number(country.latitude), Number(country.longitude)) : null);
     if (state.map && coordinates) {
       const pinIcon = L.divIcon({
