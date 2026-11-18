@@ -1,0 +1,38 @@
+name: Atlas Party smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/atlas-party-smoke.yml'
+      - 'backend/arcade.js'
+      - 'backend/server.js'
+      - 'backend/package.json'
+      - 'backend/atlas-party-smoke.js'
+  workflow_dispatch:
+
+concurrency:
+  group: humanity-atlas-party-smoke
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  public-lobby:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check out HUMANITY
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend dependencies
+        run: npm install --prefix backend --ignore-scripts
+      - name: Check Atlas Party WebSocket flow
+        run: node backend/atlas-party-smoke.js
+        env:
+          HUMANITY_PARTY_WS_URL: wss://humanity-api-jyk5.onrender.com/api/party
+          HUMANITY_API_ROOT: https://humanity-api-jyk5.onrender.com/api
