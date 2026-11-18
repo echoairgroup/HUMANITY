@@ -70,7 +70,7 @@ const GEOGRAPHY_PROMPTS = [
     id: 'equator',
     title: 'Find a country crossed by the Equator.',
     note: 'The Equator passes through countries in South America, Africa and Asia.',
-    answers: { ECU: 'common', COL: 'uncommon', BRA: 'common', STP: 'atlas', GAB: 'rare', COG: 'rare', COD: 'uncommon', UGA: 'uncommon', KEN: 'common', SOM: 'rare', IDN: 'common' }
+    answers: { ECU: 'common', COL: 'uncommon', BRA: 'common', STP: 'atlas', GAB: 'rare', COG: 'rare', COD: 'uncommon', UGA: 'uncommon', KEN: 'common', SOM: 'rare', IDN: 'common', KIR: 'atlas' }
   },
   {
     id: 'switzerland-neighbours',
@@ -124,7 +124,7 @@ const GEOGRAPHY_PROMPTS = [
     id: 'red-sea',
     title: 'Find a country with a coastline on the Red Sea.',
     note: 'The Red Sea separates northeast Africa from the Arabian Peninsula.',
-    answers: { DJI: 'rare', EGY: 'common', ERI: 'rare', SAU: 'common', SDN: 'uncommon', YEM: 'uncommon' }
+    answers: { DJI: 'rare', EGY: 'common', ERI: 'rare', ISR: 'uncommon', JOR: 'rare', SAU: 'common', SDN: 'uncommon', YEM: 'uncommon' }
   }
 ];
 
