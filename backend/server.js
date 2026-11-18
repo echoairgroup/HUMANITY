@@ -659,7 +659,7 @@ function setCorsHeaders(request, response) {
   )) {
     response.setHeader('Access-Control-Allow-Origin', origin);
     response.setHeader('Vary', 'Origin');
-    response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
     response.setHeader('Access-Control-Max-Age', '86400');
   }
@@ -685,6 +685,8 @@ async function handleRequest(request, response) {
 
   const url = new URL(request.url, 'http://localhost');
 
+  if (await arcade.handleHttp(request, response, url)) return;
+
   if (request.method !== 'GET') {
     sendJSON(response, 405, { ok: false, error: 'Method not allowed' });
     return;
@@ -707,6 +709,7 @@ async function handleRequest(request, response) {
         lastRefresh,
         lastRefreshError,
         databaseTime: db.rows[0].database_time,
+        arcade: { websocketPath: '/api/party', activeRooms: arcade.getActiveRooms() },
         upstream: 'World Bank Indicators API v2 · WHO/UNICEF JMP'
       });
     } catch (error) {
@@ -779,7 +782,7 @@ async function handleRequest(request, response) {
   if (url.pathname === '/') {
     sendJSON(response, 200, {
       service: 'HUMANITY Data API',
-      endpoints: ['/api/health', '/api/bootstrap']
+      endpoints: ['/api/health', '/api/bootstrap', '/api/arcade/expedition', '/api/arcade/leaderboard', '/api/arcade/rooms', '/api/party']
     });
     return;
   }
@@ -796,6 +799,13 @@ const server = http.createServer((request, response) => {
       response.end();
     }
   });
+});
+
+const { createArcade } = require('./arcade');
+const arcade = createArcade({
+  server,
+  pool,
+  allowedOrigins: ALLOWED_ORIGINS
 });
 
 async function start() {
@@ -817,6 +827,7 @@ start().catch(error => {
 async function shutdown(signal) {
   console.log(signal + ' received. Shutting down.');
   server.close(async () => {
+    await arcade.close();
     await pool.end();
     process.exit(0);
   });
