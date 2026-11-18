@@ -229,6 +229,7 @@ function createArcade({ server, pool, allowedOrigins }) {
   const sockets = new WeakMap();
   const wss = new WebSocketServer({ noServer: true, maxPayload: 8192, perMessageDeflate: false });
   let countryCatalogPromise = null;
+  let lastChallengePruneAt = 0;
 
   async function countryCatalog() {
     if (!countryCatalogPromise) {
@@ -553,6 +554,7 @@ function createArcade({ server, pool, allowedOrigins }) {
       currentHolderId: room.currentHolderId,
       timerEndsAt: room.timerEndsAt,
       timerRemaining: room.timerEndsAt ? Math.max(0, room.timerEndsAt - Date.now()) : null,
+      timerDurationMs: room.timerDurationMs || null,
       usedAnswers: room.usedAnswers,
       players: room.players.map(player => ({
         id: player.id,
@@ -607,7 +609,9 @@ function createArcade({ server, pool, allowedOrigins }) {
   }
 
   function startFuse(room) {
-    room.timerEndsAt = Date.now() + randomFuse();
+    room.timerStartedAt = Date.now();
+    room.timerDurationMs = randomFuse();
+    room.timerEndsAt = room.timerStartedAt + room.timerDurationMs;
   }
 
   async function sendPartyResults(room) {
@@ -877,6 +881,8 @@ function createArcade({ server, pool, allowedOrigins }) {
       room.lastCategoryId = null;
       room.currentHolderId = null;
       room.timerEndsAt = null;
+      room.timerStartedAt = null;
+      room.timerDurationMs = null;
       room.usedAnswers = [];
       room.players.forEach(item => {
         item.lives = STARTING_LIVES;
@@ -966,6 +972,8 @@ function createArcade({ server, pool, allowedOrigins }) {
     }
     if (room.phase === 'playing' && livingPlayers(room).length <= 1) {
       sendPartyResults(room).catch(error => console.error('Party finalization failed:', error.message));
+    } else if (room.phase !== 'finishing' && room.phase !== 'finished') {
+      sendRoomState(room);
     }
   }
 
@@ -999,6 +1007,15 @@ function createArcade({ server, pool, allowedOrigins }) {
 
   function tickRooms() {
     const now = Date.now();
+    if (now - lastChallengePruneAt > 60000) {
+      lastChallengePruneAt = now;
+      for (const [id, challenge] of expeditions.entries()) {
+        if (now - challenge.createdAt > EXPEDITION_TTL_MS) expeditions.delete(id);
+      }
+      for (const [id, challenge] of mysteries.entries()) {
+        if (now - challenge.createdAt > EXPEDITION_TTL_MS) mysteries.delete(id);
+      }
+    }
     for (const [code, room] of rooms.entries()) {
       if (now - room.lastActivityAt > ROOM_IDLE_MS &&
           (room.phase === 'lobby' || room.phase === 'finished')) {
@@ -1015,7 +1032,12 @@ function createArcade({ server, pool, allowedOrigins }) {
         handleFusePop(room).catch(error => console.error('Fuse timer failed:', error.message));
       } else if (room.phase === 'playing' && now - (room.lastTimerBroadcast || 0) > 500) {
         room.lastTimerBroadcast = now;
-        safeBroadcast(room, { type: 'timer', remainingMs: Math.max(0, room.timerEndsAt - now), holderId: room.currentHolderId });
+        safeBroadcast(room, {
+          type: 'timer',
+          remainingMs: Math.max(0, room.timerEndsAt - now),
+          durationMs: room.timerDurationMs || FUSE_MAX_MS,
+          holderId: room.currentHolderId
+        });
       }
     }
   }
