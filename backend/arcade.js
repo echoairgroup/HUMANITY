@@ -606,6 +606,8 @@ function createArcade({ server, pool, allowedOrigins }) {
   }
 
   async function sendPartyResults(room) {
+    if (room.phase === 'finishing' || room.phase === 'finished') return;
+    room.phase = 'finishing';
     const ranking = [...room.players].sort((a, b) => {
       if (a.lives !== b.lives) return b.lives - a.lives;
       if (a.score !== b.score) return b.score - a.score;
@@ -851,6 +853,34 @@ function createArcade({ server, pool, allowedOrigins }) {
       room.currentHolderId = shuffle(livingPlayers(room))[0].id;
       startFuse(room);
       safeBroadcast(room, { type: 'game_started' });
+      sendRoomState(room);
+      return;
+    }
+
+    if (message.type === 'rematch') {
+      if (room.phase !== 'finished') {
+        replyError(socket, 'This room has not finished its game yet.');
+        return;
+      }
+      if (player.id !== room.hostId) {
+        replyError(socket, 'Only the host can start a rematch.');
+        return;
+      }
+      room.phase = 'lobby';
+      room.round = 0;
+      room.category = null;
+      room.lastCategoryId = null;
+      room.currentHolderId = null;
+      room.timerEndsAt = null;
+      room.usedAnswers = [];
+      room.players.forEach(item => {
+        item.lives = STARTING_LIVES;
+        item.score = 0;
+        item.roundsSurvived = 0;
+        item.ready = true;
+      });
+      room.lastActivityAt = Date.now();
+      safeBroadcast(room, { type: 'rematch_ready' });
       sendRoomState(room);
       return;
     }
