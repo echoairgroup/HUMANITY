@@ -5,11 +5,11 @@
   const API_ROOT = 'https://humanity-api-jyk5.onrender.com/api';
 
   const POLICIES = [
-    { id: 'education', name: 'Education & skills', group: 'People', cost: 1.25, growth: 0.08, literacy: 0.75, secondary_enrollment: 1.15, unemployment: -0.08, support: 1.2, note: 'Improve schools, teacher training and access to practical skills.' },
+    { id: 'education', name: 'Education & skills', group: 'People', cost: 1.25, growth: 0.08, literacy: 0.75, secondary_enrollment: 1.15, fertility: -0.015, birth_rate: -0.08, unemployment: -0.08, support: 1.2, note: 'Improve schools, teacher training and access to practical skills.' },
     { id: 'healthcare', name: 'Healthcare access', group: 'People', cost: 1.35, growth: 0.04, life: 0.16, infant_mortality: -0.65, under5_mortality: -0.8, support: 1.6, note: 'Strengthen primary care, prevention and regional health services.' },
     { id: 'infrastructure', name: 'Digital & transport links', group: 'Infrastructure', cost: 1.45, growth: 0.12, internet: 1.55, electricity_access: 0.8, mobile_subscriptions: 1.2, support: 0.4, note: 'Connect communities and make essential infrastructure more reliable.' },
     { id: 'clean_energy', name: 'Clean energy transition', group: 'Environment', cost: 1.2, growth: 0.05, renewables_share: 2.15, co2: -0.24, pm25: -0.18, support: 0.7, note: 'Modernise energy systems and reduce pollution over time.' },
-    { id: 'jobs_innovation', name: 'Jobs & innovation', group: 'Economy', cost: 1.15, growth: 0.24, unemployment: -0.38, internet: 0.25, support: 0.8, note: 'Support small businesses, research and productive employment.' },
+    { id: 'jobs_innovation', name: 'Jobs & innovation', group: 'Economy', cost: 1.15, growth: 0.24, unemployment: -0.38, internet: 0.25, exports_gdp: 0.45, support: 0.8, note: 'Support small businesses, research and productive employment.' },
     { id: 'water_sanitation', name: 'Clean water & sanitation', group: 'Infrastructure', cost: 0.95, growth: 0.03, water: 2.1, life: 0.055, infant_mortality: -0.3, support: 1.0, note: 'Expand safe water services and modern sanitation systems.' },
     { id: 'housing', name: 'Housing & living costs', group: 'People', cost: 1.05, growth: 0.05, inflation: -0.16, life: 0.025, support: 1.1, note: 'Improve housing availability and ease pressure on household budgets.' }
   ];
@@ -19,8 +19,8 @@
     { title: 'Global supply delays', text: 'Longer delivery times put pressure on businesses and prices.', growth: -0.3, inflation: 0.48, unemployment: 0.12 },
     { title: 'Favourable harvest', text: 'A good agricultural season eases food-price pressure in this scenario.', growth: 0.12, inflation: -0.24, unemployment: -0.04 },
     { title: 'Energy price pressure', text: 'Higher energy costs make production and transport more expensive.', growth: -0.18, inflation: 0.58, unemployment: 0.08 },
-    { title: 'Technology spillover', text: 'New tools spread through businesses and public services.', growth: 0.24, inflation: -0.04, unemployment: -0.08, internet: 0.4 },
-    { title: 'Public-health innovation', text: 'A new prevention approach improves health outcomes in this scenario.', growth: 0.08, inflation: 0, life: 0.06, infant_mortality: -0.22 },
+    { title: 'Technology spillover', text: 'New tools spread through businesses and public services.', growth: 0.24, inflation: -0.04, unemployment: -0.08, internet: 0.4, mobile_subscriptions: 0.35 },
+    { title: 'Public-health innovation', text: 'A new prevention approach improves health outcomes in this scenario.', growth: 0.08, inflation: 0, life: 0.06, infant_mortality: -0.22, death_rate: -0.025 },
     { title: 'Severe weather disruption', text: 'Extreme weather disrupts transport and supply chains this simulated year.', growth: -0.25, inflation: 0.3, unemployment: 0.12 },
     { title: 'Regional tourism boost', text: 'More visitors support local services and employment.', growth: 0.2, inflation: 0.08, unemployment: -0.16 }
   ];
@@ -58,12 +58,20 @@
     const stats = {
       population: get('population', 500000),
       population_growth: get('population_growth', 1.0),
+      urban_share: get('urban_share', 55),
+      rural_share: get('rural_share', 45),
+      fertility: get('fertility', 2.5),
+      birth_rate: get('birth_rate', 18),
+      death_rate: get('death_rate', 8),
+      health_spend: get('health_spend', 6),
       gdp: get('gdp', incomeFallback(country.income)),
       gdp_growth: get('gdp_growth', 2.2),
       inflation: get('inflation', 3.0),
       unemployment: get('unemployment', 7.0),
+      exports_gdp: get('exports_gdp', 30),
       life: get('life', 70),
       internet: get('internet', 50),
+      mobile_subscriptions: get('mobile_subscriptions', 100),
       literacy: get('literacy', 82),
       secondary_enrollment: get('secondary_enrollment', 75),
       electricity_access: get('electricity_access', 85),
@@ -72,7 +80,8 @@
       water: get('water', 85),
       infant_mortality: get('infant_mortality', 18),
       under5_mortality: get('under5_mortality', 25),
-      pm25: get('pm25', 18)
+      pm25: get('pm25', 18),
+      forest_area: get('forest_area', 30)
     };
     const sourceYears = Object.values(stats).map(item => item.year).filter(Number.isFinite);
     const year = Number(startYear) || new Date().getFullYear();
@@ -112,7 +121,8 @@
 
   function budgetProjection(campaign, ids, taxRate) {
     const gdp = currentGDP(campaign);
-    const rate = clamp(Number(taxRate) || campaign.taxRate || 20, 14, 27);
+    const requestedRate = Number(taxRate);
+    const rate = clamp(Number.isFinite(requestedRate) ? requestedRate : (Number(campaign.taxRate) || 20), 14, 27);
     const policies = selectedPolicies(ids);
     const revenue = gdp * rate / 100;
     const services = gdp * 0.18;
@@ -133,7 +143,7 @@
   }
 
   function updateStat(stats, key, change, year, minimum, maximum) {
-    if (!stats[key]) return;
+    if (!stats[key] || !Number.isFinite(change) || Math.abs(change) < 0.0000001) return;
     const nextValue = clamp(stats[key].value + change, minimum === undefined ? -Infinity : minimum, maximum === undefined ? Infinity : maximum);
     stats[key] = { value: nextValue, year: year, estimated: stats[key].estimated, simulated: true };
   }
@@ -197,7 +207,11 @@
     updateStat(next.stats, 'unemployment', (event.unemployment || 0) - (growth - 2) * 0.025 + sumEffect('unemployment'), year, 0, 45);
     updateStat(next.stats, 'life', 0.035 + sumEffect('life') + (event.life || 0), year, 35, 90);
     updateStat(next.stats, 'internet', (event.internet || 0) + sumEffect('internet'), year, 0, 100);
+    updateStat(next.stats, 'mobile_subscriptions', (event.mobile_subscriptions || 0) + sumEffect('mobile_subscriptions'), year, 0, 300);
     updateStat(next.stats, 'literacy', sumEffect('literacy'), year, 0, 100);
+    updateStat(next.stats, 'fertility', sumEffect('fertility'), year, 0, 10);
+    updateStat(next.stats, 'birth_rate', sumEffect('birth_rate'), year, 0, 60);
+    updateStat(next.stats, 'death_rate', (event.death_rate || 0) + sumEffect('death_rate'), year, 0, 40);
     updateStat(next.stats, 'secondary_enrollment', sumEffect('secondary_enrollment'), year, 0, 120);
     updateStat(next.stats, 'electricity_access', sumEffect('electricity_access'), year, 0, 100);
     updateStat(next.stats, 'renewables_share', sumEffect('renewables_share'), year, 0, 100);
@@ -206,6 +220,7 @@
     updateStat(next.stats, 'infant_mortality', (event.infant_mortality || 0) + sumEffect('infant_mortality'), year, 0, 250);
     updateStat(next.stats, 'under5_mortality', sumEffect('under5_mortality'), year, 0, 300);
     updateStat(next.stats, 'pm25', sumEffect('pm25'), year, 0, 500);
+    updateStat(next.stats, 'exports_gdp', sumEffect('exports_gdp'), year, -100, 300);
     next.support = clamp(next.support - (projection.taxRate - 20) * 0.55 + sumEffect('support'), 0, 100);
     next.taxRate = projection.taxRate;
     next.lastResult = {
@@ -272,15 +287,19 @@
     if (key === 'population') return compact.format(Math.round(value));
     if (key === 'gdp') return money.format(value);
     if (key === 'life') return number.format(value) + ' yrs';
-    if (key === 'inflation' || key === 'unemployment' || key === 'gdp_growth' || key === 'population_growth' || key === 'internet' || key === 'literacy' || key === 'electricity_access' || key === 'renewables_share') return number.format(value) + '%';
+    if (key === 'fertility') return number.format(value) + ' births / woman';
+    if (['birth_rate', 'death_rate', 'infant_mortality', 'under5_mortality'].includes(key)) return number.format(value) + ' / 1,000';
+    if (key === 'mobile_subscriptions') return number.format(value) + ' / 100 people';
+    if (key === 'pm25') return number.format(value) + ' µg/m³';
     if (key === 'co2') return number.format(value) + ' t';
+    if (['inflation', 'unemployment', 'gdp_growth', 'population_growth', 'internet', 'literacy', 'electricity_access', 'renewables_share', 'urban_share', 'rural_share', 'health_spend', 'exports_gdp', 'forest_area'].includes(key)) return number.format(value) + '%';
     return number.format(value);
   }
 
   function statSource(item) {
     if (item.simulated) return 'SIMULATED ' + item.year;
     if (item.estimated) return 'GAME ESTIMATE';
-    return 'SOURCE ' + (item.year || 'YEAR N/A');
+    return 'BASELINE ' + (item.year || 'YEAR N/A');
   }
 
   function readSaved() {
@@ -438,9 +457,13 @@
     const target = $('#nation-indicator-grid');
     if (!target || !campaign) return;
     const entries = [
-      ['Life expectancy', 'life'], ['Internet access', 'internet'], ['Literacy', 'literacy'],
-      ['Electricity access', 'electricity_access'], ['Renewable energy', 'renewables_share'], ['CO₂ per person', 'co2'],
-      ['Safe water coverage', 'water'], ['Infant mortality / 1,000', 'infant_mortality']
+      ['Population growth', 'population_growth'], ['Urban population', 'urban_share'], ['Rural population', 'rural_share'],
+      ['Life expectancy', 'life'], ['Fertility rate', 'fertility'], ['Birth rate', 'birth_rate'], ['Death rate', 'death_rate'],
+      ['Infant mortality', 'infant_mortality'], ['Under-five mortality', 'under5_mortality'], ['Health spending / GDP', 'health_spend'],
+      ['Literacy', 'literacy'], ['Secondary enrolment', 'secondary_enrollment'], ['Internet access', 'internet'],
+      ['Mobile subscriptions', 'mobile_subscriptions'], ['Exports / GDP', 'exports_gdp'], ['CO₂ per person', 'co2'],
+      ['Safe water coverage', 'water'], ['Electricity access', 'electricity_access'], ['Renewable energy', 'renewables_share'],
+      ['PM2.5 exposure', 'pm25'], ['Forest area', 'forest_area']
     ];
     target.innerHTML = entries.map(entry => {
       const item = campaign.stats[entry[1]];
