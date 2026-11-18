@@ -747,3 +747,81 @@ input,select,textarea{transition:border-color .2s ease,box-shadow .2s ease,backg
 @media(prefers-reduced-motion:reduce){
   .nation-signal-track i,.nation-decade-track span,.nation-policy{transition:none}
 }
+
+
+/* Guided play, long-term objectives and polished movement across HUMANITY. */
+.nation-guide{margin:0 0 17px;border:1px solid #dce4d8;background:#eef2e9}
+.nation-guide summary{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;list-style:none;color:#526a53}
+.nation-guide summary::-webkit-details-marker{display:none}
+.nation-guide summary:focus-visible{outline:2px solid #6f906b;outline-offset:3px}
+.nation-guide-icon{display:grid;place-items:center;flex:none;width:28px;height:28px;border:1px solid #b9cbb3;border-radius:50%;color:#6f8d6b;font:15px var(--serif)}
+.nation-guide summary>span:nth-child(2){display:grid;gap:3px;flex:1}
+.nation-guide summary small{color:#899989;font:7px var(--mono);letter-spacing:.12em}
+.nation-guide summary strong{color:#405b44;font:18px var(--serif);font-weight:400}
+.nation-guide-toggle{color:#80917e;font:7px var(--mono);letter-spacing:.08em}
+.nation-guide[open] .nation-guide-toggle{font-size:0}
+.nation-guide[open] .nation-guide-toggle:after{content:"CLOSE GUIDE  −";font-size:7px}
+.nation-guide-content{padding:0 16px 15px}
+.nation-guide-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.nation-guide-steps article{min-width:0;padding:13px;background:#f9faf4;border:1px solid #e2e8dd}
+.nation-guide-steps article>span{color:#bd8a68;font:9px var(--mono)}
+.nation-guide-steps article strong{display:block;margin:7px 0 5px;color:#536752;font:16px var(--serif);font-weight:400}
+.nation-guide-steps article p{margin:0;color:#8a9689;font-size:8px;line-height:1.6}
+.nation-guide-footer{display:flex;align-items:flex-start;gap:14px;margin-top:9px;padding:10px 12px;background:#e5ecdf}
+.nation-guide-footer>span{flex:none;padding-top:2px;color:#799073;font:7px var(--mono);letter-spacing:.1em}
+.nation-guide-footer p{margin:0;color:#667b66;font-size:9px;line-height:1.55}
+.nation-guide-caveat{margin-top:9px;color:#929d91;font:7px/1.6 var(--mono)}
+.nation-objectives-intro{margin:-8px 0 13px;color:#8b968a;font-size:8px;line-height:1.5}
+.nation-objectives{display:grid;gap:12px}
+.nation-objective{padding:10px 0;border-bottom:1px solid #edf0e9}
+.nation-objective:last-child{border-bottom:0}
+.nation-objective-top{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.nation-objective-top strong{color:#526650;font:15px var(--serif);font-weight:400}
+.nation-objective-top span{flex:none;color:#9b9f8d;font:7px var(--mono);letter-spacing:.06em}
+.nation-objective.is-complete .nation-objective-top span{color:#658763}
+.nation-objective p{margin:4px 0 7px;color:#929c90;font-size:8px;line-height:1.5}
+.nation-objective-track{height:5px;overflow:hidden;border-radius:20px;background:#e9eee6}
+.nation-objective-track i{display:block;height:100%;border-radius:20px;background:#9eb18f;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.nation-objective.is-complete .nation-objective-track i{background:#6f976d}
+.nation-objective>small{display:block;margin-top:5px;color:#a1aa9e;font:7px var(--mono)}
+.nation-achievement-heading{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:13px;border-top:1px solid #e8ece4}
+.nation-achievement-heading span{color:#8d998d;font:7px var(--mono);letter-spacing:.12em}
+.nation-achievement-heading strong{color:#6e866c;font:9px var(--mono)}
+.nation-achievements{display:grid;gap:1px;margin-top:7px}
+.nation-achievement{display:grid;grid-template-columns:25px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 0;opacity:.52}
+.nation-achievement>span{display:grid;place-items:center;width:23px;height:23px;border:1px solid #e0e5dc;border-radius:50%;color:#a5aea1;font:9px var(--mono)}
+.nation-achievement strong,.nation-achievement small{display:block}
+.nation-achievement strong{color:#768276;font:13px var(--serif);font-weight:400}
+.nation-achievement small{margin-top:2px;color:#a0a99e;font-size:7px}
+.nation-achievement>b{color:#a3aa9e;font:6px var(--mono);letter-spacing:.06em}
+.nation-achievement.is-unlocked{opacity:1}
+.nation-achievement.is-unlocked>span{background:#edf3e9;border-color:#cbd9c4;color:#6e906a}
+.nation-achievement.is-unlocked strong{color:#526b50}
+.nation-achievement.is-unlocked>b{color:#75916e}
+.scroll-progress{position:fixed;z-index:1000;top:0;left:0;right:0;height:3px;pointer-events:none;background:transparent}
+.scroll-progress span{display:block;width:100%;height:100%;background:var(--coral);transform:scaleX(0);transform-origin:left center;will-change:transform}
+.back-to-top{position:fixed;z-index:80;right:24px;bottom:23px;display:grid;place-items:center;width:46px;height:46px;border:1px solid #cbd5c8;border-radius:50%;background:rgba(250,250,244,.94);color:#526a54;box-shadow:0 7px 24px rgba(27,48,36,.12);font:21px var(--sans);opacity:0;pointer-events:none;transform:translateY(10px) scale(.96);transition:opacity .24s ease,transform .28s cubic-bezier(.2,.7,.2,1),background .2s,border-color .2s;backdrop-filter:blur(8px)}
+.back-to-top.is-visible{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
+.back-to-top:hover{background:#e9f0e5;border-color:#a9bea5}
+.page.active{animation:humanity-page-enter .42s cubic-bezier(.16,1,.3,1) both}
+.site-header{transition:background-color .25s ease,border-color .25s ease}
+.button:focus-visible,.arcade-tab:focus-visible,.nation-policy:focus-within{outline-offset:3px}
+button:disabled{cursor:not-allowed}
+@media(max-width:1000px){.nation-guide-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){
+  .nation-command-actions{gap:6px}
+  .nation-command-actions .button{flex:1 1 calc(50% - 6px)}
+  .nation-command-actions>span{flex-basis:100%;text-align:right}
+}
+@media(max-width:520px){
+  .nation-guide summary{gap:9px;padding:11px}
+  .nation-guide summary strong{font-size:16px}
+  .nation-guide-toggle{font-size:0}
+  .nation-guide-toggle:after{content:"DETAILS";font-size:7px}
+  .nation-guide[open] .nation-guide-toggle:after{content:"CLOSE"}
+  .nation-guide-content{padding:0 10px 11px}
+  .nation-guide-steps{grid-template-columns:1fr}
+  .nation-guide-steps article{padding:11px}
+  .back-to-top{right:14px;bottom:14px;width:42px;height:42px}
+}
+@media(prefers-reduced-motion:reduce){.page.active{animation:none}.back-to-top,.nation-objective-track i{transition:none}}
