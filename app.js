@@ -671,6 +671,402 @@
   }
 
 
+  const GAME_MODES = {
+    population: { title: 'Population Guess', description: 'Can you estimate how many people live in a country?', icon: '◎', scoreLabel: 'Up to 1,000 points per guess' },
+    duel: { title: 'Population Duel', description: 'Two countries. One has more people. Pick the bigger population.', icon: '⚖', scoreLabel: '150 points per correct answer' },
+    flags: { title: 'Flag Finder', description: 'Recognise a national flag and pick the right country.', icon: '⚑', scoreLabel: '150 points per correct answer' },
+    capitals: { title: 'Capital Cities', description: 'Match capital cities to the countries they belong to.', icon: '⌖', scoreLabel: '150 points per correct answer' },
+    data: { title: 'Data Detective', description: 'Use HUMANITY statistics to find the right country.', icon: '⌁', scoreLabel: '150 points per correct answer' }
+  };
+
+  const gameState = {
+    mode: null,
+    score: 0,
+    streak: 0,
+    bestStreak: 0,
+    round: 1,
+    totalRounds: 10,
+    question: null,
+    answered: false,
+    finished: false,
+    bestScores: {}
+  };
+
+  function readGameBests() {
+    try {
+      const value = JSON.parse(localStorage.getItem('humanity-game-bests') || '{}');
+      return value && typeof value === 'object' ? value : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveGameBest(mode, score) {
+    const bests = readGameBests();
+    const previous = Number(bests[mode]) || 0;
+    const best = Math.max(previous, score);
+    bests[mode] = best;
+    try { localStorage.setItem('humanity-game-bests', JSON.stringify(bests)); }
+    catch (_) { /* Scores still work for this session if storage is unavailable. */ }
+    gameState.bestScores = bests;
+    return { best, isNew: score > previous };
+  }
+
+  function renderGameModes() {
+    gameState.bestScores = readGameBests();
+    const grid = $('#game-mode-grid');
+    if (!grid) return;
+    grid.innerHTML = Object.entries(GAME_MODES).map(([key, mode]) =>
+      '<button class="game-mode-card" type="button" data-game-mode="' + key + '">' +
+        '<span class="game-mode-icon" aria-hidden="true">' + mode.icon + '</span>' +
+        '<span class="game-mode-title">' + escapeHTML(mode.title) + '</span>' +
+        '<span class="game-mode-description">' + escapeHTML(mode.description) + '</span>' +
+        '<span class="game-mode-footer"><span>' + escapeHTML(mode.scoreLabel) + '</span><strong>PLAY ↗</strong></span>' +
+        '<span class="game-mode-best">PERSONAL BEST <b>' + (Number(gameState.bestScores[key]) || 0).toLocaleString('en-US') + '</b></span>' +
+      '</button>'
+    ).join('');
+  }
+
+  function randomItem(items) {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  function shuffled(items) {
+    const result = [...items];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const target = Math.floor(Math.random() * (index + 1));
+      [result[index], result[target]] = [result[target], result[index]];
+    }
+    return result;
+  }
+
+  function countryPopulationPool() {
+    return state.countries.filter(country =>
+      valueFor(country.code, 'population') &&
+      estimatedPopulation(country.code) &&
+      estimatedPopulation(country.code).value > 1000
+    );
+  }
+
+  function countriesWithIndicator(key) {
+    return state.countries.filter(country => {
+      const value = valueFor(country.code, key);
+      return value && Number.isFinite(value.value);
+    });
+  }
+
+  function makeOptions(correct, pool, count = 4) {
+    const alternatives = shuffled(pool.filter(item => item.code !== correct.code)).slice(0, count - 1);
+    return shuffled([correct, ...alternatives]);
+  }
+
+  function createGameQuestion(mode) {
+    const populationPool = countryPopulationPool();
+    if (mode === 'population') {
+      if (!populationPool.length) throw new Error('Population data is not available yet.');
+      const country = randomItem(populationPool);
+      return { type: mode, country, estimate: estimatedPopulation(country.code) };
+    }
+
+    if (mode === 'duel') {
+      if (populationPool.length < 2) throw new Error('Not enough population data for this game.');
+      const choices = shuffled(populationPool).slice(0, 2);
+      const estimates = choices.map(country => ({ country, estimate: estimatedPopulation(country.code) }));
+      const correctCode = estimates[0].estimate.value >= estimates[1].estimate.value
+        ? estimates[0].country.code
+        : estimates[1].country.code;
+      return { type: mode, choices: estimates, correctCode };
+    }
+
+    if (mode === 'flags') {
+      if (populationPool.length < 4) throw new Error('Not enough country data for this game.');
+      const correct = randomItem(populationPool);
+      return { type: mode, correct, options: makeOptions(correct, populationPool) };
+    }
+
+    if (mode === 'capitals') {
+      const pool = state.countries.filter(country =>
+        country.capital && country.capital.trim() &&
+        country.capital.trim() !== '-' &&
+        country.capital.trim().toLowerCase() !== 'n/a'
+      );
+      if (pool.length < 4) throw new Error('Capital-city data is not available yet.');
+      const correct = randomItem(pool);
+      return { type: mode, correct, options: makeOptions(correct, pool) };
+    }
+
+    if (mode === 'data') {
+      const metricKeys = ['life', 'internet', 'gdp', 'population_growth', 'fertility', 'unemployment', 'co2', 'water', 'electricity_access', 'literacy', 'renewables_share', 'pm25'];
+      const available = metricKeys.filter(key => countriesWithIndicator(key).length >= 4);
+      if (!available.length) throw new Error('There are not enough published statistics for the data quiz yet.');
+      const key = randomItem(available);
+      const indicator = INDICATORS.find(item => item.key === key);
+      const pool = countriesWithIndicator(key);
+      const options = shuffled(pool).slice(0, 4);
+      const correct = options.reduce((best, country) =>
+        valueFor(country.code, key).value > valueFor(best.code, key).value ? country : best
+      );
+      return { type: mode, key, indicator, options, correct, correctCode: correct.code };
+    }
+
+    throw new Error('Unknown game mode.');
+  }
+
+  function updateGameHud() {
+    $('#game-score').textContent = gameState.score.toLocaleString('en-US');
+    $('#game-streak').textContent = gameState.streak;
+    $('#game-round').textContent = gameState.round + ' / ' + gameState.totalRounds;
+    $('#game-progress-fill').style.width = (gameState.round / gameState.totalRounds * 100) + '%';
+  }
+
+  function startGame(mode) {
+    if (!GAME_MODES[mode]) return;
+    if (!state.dataReady || !state.countries.length) {
+      showToast('Connect to the HUMANITY data service before starting a game.');
+      return;
+    }
+    gameState.mode = mode;
+    gameState.score = 0;
+    gameState.streak = 0;
+    gameState.bestStreak = 0;
+    gameState.round = 1;
+    gameState.answered = false;
+    gameState.finished = false;
+    $('#game-mode-grid').hidden = true;
+    $('#game-session').hidden = false;
+    $('#game-session-title').textContent = GAME_MODES[mode].title;
+    updateGameHud();
+    renderGameQuestion();
+    $('#game-session').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderGameQuestion() {
+    const area = $('#game-play-area');
+    gameState.answered = false;
+    try {
+      gameState.question = createGameQuestion(gameState.mode);
+    } catch (error) {
+      area.innerHTML = '<div class="game-empty"><h2>Not enough data yet</h2><p>' +
+        escapeHTML(error.message) + '</p><button class="button button-outline" type="button" data-game-back>Choose another game</button></div>';
+      return;
+    }
+
+    updateGameHud();
+    const q = gameState.question;
+    if (q.type === 'population') {
+      const baseline = valueFor(q.country.code, 'population');
+      const growth = valueFor(q.country.code, 'population_growth');
+      area.innerHTML = '<div class="game-question-eyebrow">ROUND ' + gameState.round + ' · POPULATION ESTIMATION</div>' +
+        '<div class="game-country-heading"><span class="game-country-flag">' + flagEmoji(q.country.iso2) + '</span><div><h2>' + escapeHTML(q.country.name) + '</h2><p>' + escapeHTML(q.country.region) + '</p></div></div>' +
+        '<p class="game-question-text">How many people live in <strong>' + escapeHTML(q.country.name) + '</strong>?</p>' +
+        '<p class="game-question-note">Enter your best estimate. You can be close without getting the exact number.</p>' +
+        '<form id="population-guess-form" class="population-guess-form">' +
+          '<label for="population-guess-input">YOUR ESTIMATE</label>' +
+          '<div class="population-input-row"><input id="population-guess-input" name="guess" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 12,500,000" required><button class="button button-primary" type="submit">Lock in guess ↗</button></div>' +
+        '</form>' +
+        '<div class="game-source-note">Population baseline: ' + baseline.year + (growth ? ' · annual growth: ' + growth.value.toFixed(2) + '% (' + growth.year + ')' : '') +
+        ' · estimate model updates while this game is open.</div>';
+      $('#population-guess-input').focus();
+      return;
+    }
+
+    if (q.type === 'duel') {
+      area.innerHTML = '<div class="game-question-eyebrow">ROUND ' + gameState.round + ' · POPULATION DUEL</div>' +
+        '<h2 class="game-question-text">Which country has the <em>larger population?</em></h2>' +
+        '<div class="duel-options">' + q.choices.map(item =>
+          '<button class="duel-country" type="button" data-game-choice="' + item.country.code + '">' +
+            '<span class="game-country-flag">' + flagEmoji(item.country.iso2) + '</span>' +
+            '<strong>' + escapeHTML(item.country.name) + '</strong>' +
+            '<small>' + escapeHTML(item.country.region) + '</small><span class="duel-reveal"></span>' +
+          '</button>'
+        ).join('') + '</div>' +
+        '<p class="game-question-note">Choose the country with more estimated inhabitants.</p>';
+      return;
+    }
+
+    if (q.type === 'flags') {
+      area.innerHTML = '<div class="game-question-eyebrow">ROUND ' + gameState.round + ' · FLAG FINDER</div>' +
+        '<h2 class="game-question-text">Which country does this flag belong to?</h2>' +
+        '<div class="flag-question">' + flagEmoji(q.correct.iso2) + '</div>' +
+        '<div class="game-choice-grid">' + q.options.map(country =>
+          '<button class="game-choice" type="button" data-game-choice="' + country.code + '">' + escapeHTML(country.name) + '</button>'
+        ).join('') + '</div>';
+      return;
+    }
+
+    if (q.type === 'capitals') {
+      area.innerHTML = '<div class="game-question-eyebrow">ROUND ' + gameState.round + ' · CAPITAL CITIES</div>' +
+        '<h2 class="game-question-text">Which country has this capital?</h2>' +
+        '<div class="capital-question">' + escapeHTML(q.correct.capital) + '</div>' +
+        '<div class="game-choice-grid">' + q.options.map(country =>
+          '<button class="game-choice" type="button" data-game-choice="' + country.code + '">' +
+            flagEmoji(country.iso2) + ' ' + escapeHTML(country.name) + '</button>'
+        ).join('') + '</div>';
+      return;
+    }
+
+    if (q.type === 'data') {
+      area.innerHTML = '<div class="game-question-eyebrow">ROUND ' + gameState.round + ' · DATA DETECTIVE</div>' +
+        '<h2 class="game-question-text">Which of these countries has the <em>highest</em> ' + escapeHTML(q.indicator.short.toLowerCase()) + '?</h2>' +
+        '<p class="game-question-note">Compare the latest available observation for each country.</p>' +
+        '<div class="game-choice-grid">' + q.options.map(country =>
+          '<button class="game-choice" type="button" data-game-choice="' + country.code + '">' +
+            flagEmoji(country.iso2) + ' ' + escapeHTML(country.name) +
+            '<small>' + escapeHTML(q.indicator.unit) + '</small></button>'
+        ).join('') + '</div>';
+    }
+  }
+
+  function answerGameChoice(code) {
+    if (gameState.answered || !gameState.question) return;
+    const q = gameState.question;
+    const correctCode = q.type === 'duel' ? q.correctCode : q.correctCode || q.correct.code;
+    const correct = code === correctCode;
+    scoreGameAnswer(correct, q);
+    const area = $('#game-play-area');
+
+    $$('[data-game-choice]', area).forEach(button => {
+      button.disabled = true;
+      const choiceCode = button.dataset.gameChoice;
+      if (choiceCode === correctCode) button.classList.add('is-correct');
+      else if (choiceCode === code && !correct) button.classList.add('is-incorrect');
+      if (q.type === 'duel') {
+        const item = q.choices.find(entry => entry.country.code === choiceCode);
+        const reveal = button.querySelector('.duel-reveal');
+        if (reveal && item) reveal.textContent = fmt.format(Math.round(item.estimate.value)) + ' estimated people';
+      }
+    });
+
+    let explanation = 'The correct answer is ' + (q.type === 'duel'
+      ? q.choices.find(item => item.country.code === correctCode).country.name
+      : q.correct.name) + '.';
+
+    if (q.type === 'capitals') explanation = q.correct.capital + ' is the capital of ' + q.correct.name + '.';
+    if (q.type === 'data') {
+      const value = valueFor(q.correct.code, q.key);
+      explanation = q.correct.name + ' has the highest ' + q.indicator.short.toLowerCase() +
+        ' in this round: ' + formatValue(value, q.key) + ' (reported ' + value.year + ').';
+    }
+    if (q.type === 'duel') {
+      const winner = q.choices.find(item => item.country.code === correctCode);
+      explanation = winner.country.name + ' has the larger estimated population: ' + fmt.format(Math.round(winner.estimate.value)) + '.';
+    }
+    showGameFeedback(correct, correct ? 150 : 0, explanation);
+  }
+
+  function scoreGameAnswer(correct, q, points = null) {
+    gameState.answered = true;
+    const earned = points === null ? (correct ? 150 : 0) : points;
+    gameState.score += earned;
+    gameState.streak = correct ? gameState.streak + 1 : 0;
+    gameState.bestStreak = Math.max(gameState.bestStreak, gameState.streak);
+    updateGameHud();
+  }
+
+  function showGameFeedback(correct, points, explanation) {
+    const area = $('#game-play-area');
+    const feedback = document.createElement('div');
+    feedback.className = 'game-feedback ' + (correct ? 'correct' : 'incorrect');
+    feedback.innerHTML = '<div class="game-feedback-top"><strong>' + (correct ? 'Correct!' : 'Not quite') +
+      '</strong><span>' + (points ? '+' + points.toLocaleString('en-US') + ' points' : 'No points this round') + '</span></div>' +
+      '<p>' + escapeHTML(explanation) + '</p>' +
+      '<button class="button button-primary" type="button" data-game-next>' +
+      (gameState.round >= gameState.totalRounds ? 'See results ↗' : 'Next round ↗') + '</button>';
+    area.appendChild(feedback);
+  }
+
+  function submitPopulationGuess(form) {
+    if (gameState.answered || gameState.mode !== 'population' || !gameState.question) return;
+    const input = $('#population-guess-input', form);
+    const raw = String(input.value || '').trim();
+    const guess = Number(raw.replace(/[,\s]/g, ''));
+    if (!Number.isFinite(guess) || guess <= 0) {
+      input.setCustomValidity('Enter a population estimate greater than zero.');
+      input.reportValidity();
+      return;
+    }
+    input.setCustomValidity('');
+
+    const q = gameState.question;
+    const target = q.estimate.value;
+    const errorRate = Math.abs(guess - target) / target;
+    const points = Math.max(0, Math.round(1000 * (1 - Math.min(errorRate, 1))));
+    const correct = errorRate <= 0.05;
+    scoreGameAnswer(correct, q, points);
+
+    form.querySelector('input').disabled = true;
+    form.querySelector('button[type="submit"]').disabled = true;
+
+    const difference = Math.abs(guess - target);
+    const direction = guess > target ? 'too high' : 'too low';
+    const explanation = 'The estimate is ' + fmt.format(Math.round(target)) +
+      ' people, based on the ' + q.estimate.year + ' midyear baseline and annual growth data. Your guess was ' +
+      fmt.format(Math.round(difference)) + ' people ' + direction + '.';
+    showGameFeedback(correct, points, explanation);
+  }
+
+  function finishGame() {
+    gameState.finished = true;
+    const result = saveGameBest(gameState.mode, gameState.score);
+    $('#game-play-area').innerHTML =
+      '<div class="game-finish"><div class="game-question-eyebrow">CHALLENGE COMPLETE</div>' +
+      '<div class="game-finish-score">' + gameState.score.toLocaleString('en-US') + '</div>' +
+      '<h2>' + (result.isNew ? 'A new personal best.' : 'Challenge complete.') + '</h2>' +
+      '<p>You finished ' + gameState.totalRounds + ' rounds with a best streak of ' + gameState.bestStreak + '.</p>' +
+      '<div class="game-finish-actions"><button class="button button-primary" type="button" data-game-replay>Play again ↗</button>' +
+      '<button class="button button-outline" type="button" data-game-back>All games</button></div></div>';
+    renderGameModes();
+  }
+
+  function advanceGame() {
+    if (!gameState.answered) return;
+    if (gameState.round >= gameState.totalRounds) {
+      finishGame();
+      return;
+    }
+    gameState.round += 1;
+    renderGameQuestion();
+  }
+
+  function backToGameModes() {
+    $('#game-session').hidden = true;
+    $('#game-mode-grid').hidden = false;
+    gameState.mode = null;
+    gameState.question = null;
+    gameState.answered = false;
+    gameState.finished = false;
+    renderGameModes();
+    $('#game-mode-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function initGameInteractions() {
+    $('#game-mode-grid').addEventListener('click', event => {
+      const button = event.target.closest('[data-game-mode]');
+      if (button) startGame(button.dataset.gameMode);
+    });
+
+    $('#game-back').addEventListener('click', backToGameModes);
+
+    $('#game-play-area').addEventListener('submit', event => {
+      if (event.target.id !== 'population-guess-form') return;
+      event.preventDefault();
+      submitPopulationGuess(event.target);
+    });
+
+    $('#game-play-area').addEventListener('click', event => {
+      const choice = event.target.closest('[data-game-choice]');
+      const next = event.target.closest('[data-game-next]');
+      const back = event.target.closest('[data-game-back]');
+      const replay = event.target.closest('[data-game-replay]');
+      if (choice) answerGameChoice(choice.dataset.gameChoice);
+      else if (next) advanceGame();
+      else if (back) backToGameModes();
+      else if (replay) startGame(gameState.mode);
+    });
+
+    renderGameModes();
+  }
+
   function exportCSV() {
     if (!state.countries.length) { showToast('Country data is not available yet.'); return; }
     const headers = ['Country', 'ISO3', 'Region', ...INDICATORS.flatMap(indicator => [indicator.short, `${indicator.short} year`])];
@@ -700,7 +1096,7 @@
   }
 
   function navigate(page) {
-    const valid = ['overview', 'explore', 'compare', 'stories', 'about'];
+    const valid = ['overview', 'explore', 'compare', 'stories', 'games', 'about'];
     if (!valid.includes(page)) page = 'overview';
     if (location.hash !== `#${page}`) history.pushState(null, '', `#${page}`);
     activatePage(page);
@@ -719,6 +1115,7 @@
     $('#mobile-menu-toggle').setAttribute('aria-expanded', 'false');
     if (page === 'explore') renderCountryTable();
     if (page === 'compare') renderCompareResults();
+    if (page === 'games') renderGameModes();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -780,6 +1177,7 @@
     });
     $('#detail-close').addEventListener('click', closeCountry);
     $('#detail-backdrop').addEventListener('click', closeCountry);
+    initGameInteractions();
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') closeCountry();
       if (event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
