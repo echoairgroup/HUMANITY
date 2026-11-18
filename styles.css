@@ -45,3 +45,5 @@
   .live-population-heading{flex-wrap:wrap}
   .live-update-label{margin-left:0;width:100%}
 }
+
+.indicator-list{display:block;background:transparent;border:0}
