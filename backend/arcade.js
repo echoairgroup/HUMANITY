@@ -414,6 +414,67 @@ function createArcade({ server, pool, allowedOrigins }) {
       return true;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/arcade/mystery') {
+      try {
+        const mode = url.searchParams.get('mode') === 'practice' ? 'practice' : 'daily';
+        const date = todayUTC();
+        const index = mode === 'daily'
+          ? hashNumber('HUMANITY-MYSTERY-' + date) % MYSTERY_COUNTRIES.length
+          : crypto.randomInt(0, MYSTERY_COUNTRIES.length);
+        const target = MYSTERY_COUNTRIES[index];
+        const id = crypto.randomUUID();
+        mysteries.set(id, { id, mode, date, target, guesses: 0, createdAt: Date.now(), complete: false });
+        sendJSON(response, 200, {
+          ok: true,
+          challengeId: id,
+          mode,
+          date,
+          clue: target.clues[0],
+          guessesRemaining: target.clues.length
+        });
+      } catch (error) {
+        console.error('Mystery Country creation failed:', error.message);
+        sendJSON(response, 503, { ok: false, error: 'The mystery could not be prepared.' });
+      }
+      return true;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/arcade/mystery/guess') {
+      try {
+        const body = await readJSON(request);
+        const challenge = mysteries.get(String(body.challengeId || ''));
+        if (!challenge || challenge.complete || Date.now() - challenge.createdAt > EXPEDITION_TTL_MS) {
+          sendJSON(response, 404, { ok: false, error: 'This mystery has expired. Start a new one.' });
+          return true;
+        }
+        const code = String(body.countryCode || '').toUpperCase();
+        const catalog = await countryCatalog();
+        const country = catalog.byCode.get(code);
+        if (!country) {
+          sendJSON(response, 400, { ok: false, error: 'Choose a country from the list.' });
+          return true;
+        }
+        challenge.guesses += 1;
+        const correct = code === challenge.target.code;
+        const finished = correct || challenge.guesses >= challenge.target.clues.length;
+        if (finished) challenge.complete = true;
+        sendJSON(response, 200, {
+          ok: true,
+          correct,
+          finished,
+          countryName: country.name,
+          answer: finished ? (catalog.byCode.get(challenge.target.code)?.name || challenge.target.code) : null,
+          score: correct ? Math.max(250, 1000 - ((challenge.guesses - 1) * 250)) : 0,
+          clue: finished ? null : challenge.target.clues[challenge.guesses],
+          guessesRemaining: Math.max(0, challenge.target.clues.length - challenge.guesses)
+        });
+      } catch (error) {
+        console.error('Mystery Country guess failed:', error.message);
+        sendJSON(response, 503, { ok: false, error: 'The mystery could not check that guess.' });
+      }
+      return true;
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/arcade/leaderboard') {
       try {
         const date = validDate(url.searchParams.get('date')) || todayUTC();
@@ -561,7 +622,7 @@ function createArcade({ server, pool, allowedOrigins }) {
         console.error('Could not save Atlas Party result:', error.message);
       }
     }
-    room.phase = 'finished';
+    room.phase = 'finishing';
     room.timerEndsAt = null;
     room.currentHolderId = null;
     safeBroadcast(room, {
