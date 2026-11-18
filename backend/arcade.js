@@ -402,7 +402,12 @@ function createArcade({ server, pool, allowedOrigins }) {
         const score = answers.reduce((sum, answer) => sum + answer.points, 0);
         const totalKm = answers.reduce((sum, answer) => sum + (answer.correct ? TIER_KM[answer.tier] : 0), 0);
         await pool.query(
-          'INSERT INTO atlas_daily_scores (challenge_date, nickname, score, total_km, answers) VALUES ($1::date, $2, $3, $4, $5::jsonb)',
+          'INSERT INTO atlas_daily_scores (challenge_date, nickname, score, total_km, answers) VALUES ($1::date, $2, $3, $4, $5::jsonb) ' +
+          'ON CONFLICT (challenge_date, lower(nickname)) DO UPDATE SET ' +
+          'score = GREATEST(atlas_daily_scores.score, EXCLUDED.score), ' +
+          'total_km = CASE WHEN EXCLUDED.score > atlas_daily_scores.score THEN EXCLUDED.total_km ELSE atlas_daily_scores.total_km END, ' +
+          'answers = CASE WHEN EXCLUDED.score > atlas_daily_scores.score THEN EXCLUDED.answers ELSE atlas_daily_scores.answers END, ' +
+          'submitted_at = NOW()',
           [challenge.date, nickname, score, totalKm, JSON.stringify(answers)]
         );
         expeditions.delete(challenge.id);
