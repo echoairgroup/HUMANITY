@@ -90,7 +90,7 @@
   }
 
   function switchTab(tab) {
-    if (!['expedition','mystery','party'].includes(tab)) return;
+    if (!['expedition','mystery','party','nation'].includes(tab)) return;
     state.activeTab = tab;
     $$('.arcade-tab').forEach(b => b.classList.toggle('active', b.dataset.arcadeTab === tab));
     $$('[data-arcade-panel]').forEach(p => {
