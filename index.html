@@ -29,6 +29,7 @@
         <a href="#overview" data-nav="overview" class="nav-link active">Overview</a>
         <a href="#explore" data-nav="explore" class="nav-link">Explore</a>
         <a href="#compare" data-nav="compare" class="nav-link">Compare</a>
+        <a href="#games" data-nav="games" class="nav-link">Games</a>
         <a href="#stories" data-nav="stories" class="nav-link">Stories</a>
         <a href="#about" data-nav="about" class="nav-link">About</a>
       </nav>
@@ -148,8 +149,49 @@
         <p class="editorial-disclaimer">HUMANITY's stories are educational context, not policy recommendations. Read the underlying source, check the reporting year, and consider what each indicator leaves out.</p>
       </section>
 
+      <section class="page section-wrap interior-page games-page" id="page-games" data-page="games" hidden>
+        <div class="page-heading">
+          <div class="eyebrow">HUMANITY ARCADE / 04</div>
+          <h1>Play your <em>world.</em></h1>
+          <p>Put your knowledge of people, places and global data to the test. Every round uses HUMANITY's country dataset, so the answers are grounded in published sources.</p>
+        </div>
+
+        <section class="games-intro-band">
+          <div><span class="games-live-dot"></span><span>THE WORLD IS YOUR PLAYING FIELD</span></div>
+          <p>Five ways to explore the planet. Ten rounds per challenge. Your best scores stay on this device.</p>
+        </section>
+
+        <div class="game-library-heading">
+          <div><div class="eyebrow">CHOOSE YOUR CHALLENGE</div><h2>Which game will you play?</h2></div>
+          <span class="game-round-label">10 ROUNDS · PERSONAL BESTS</span>
+        </div>
+
+        <div class="game-mode-grid" id="game-mode-grid">
+          <div class="game-mode-loading">Loading games…</div>
+        </div>
+
+        <section class="game-session" id="game-session" hidden>
+          <div class="game-session-header">
+            <button class="game-back-button" id="game-back" type="button">← All games</button>
+            <div class="game-session-title" id="game-session-title">Population Guess</div>
+          </div>
+          <div class="game-hud">
+            <div class="game-hud-stat"><span>SCORE</span><strong id="game-score">0</strong></div>
+            <div class="game-hud-stat"><span>STREAK</span><strong id="game-streak">0</strong></div>
+            <div class="game-hud-stat"><span>ROUND</span><strong id="game-round">1 / 10</strong></div>
+          </div>
+          <div class="game-progress-track" aria-label="Game progress"><span id="game-progress-fill"></span></div>
+          <div class="game-play-card" id="game-play-area" aria-live="polite"></div>
+        </section>
+
+        <div class="games-footnote">
+          <span class="games-footnote-mark">i</span>
+          <p>Population questions use estimated inhabitants calculated from the latest published midyear population and annual growth rate. Other answers use the latest available observations, which can have different reporting years. These games are for learning, not official rankings.</p>
+        </div>
+      </section>
+
       <section class="page section-wrap interior-page" id="page-about" data-page="about" hidden>
-        <div class="page-heading"><div class="eyebrow">ABOUT HUMANITY / 04</div><h1>Understand more.<br><em>Assume less.</em></h1><p>HUMANITY is an independent exploration of the data that describes our shared world. Its purpose is simple: make global evidence easier to find, compare and question.</p></div>
+        <div class="page-heading"><div class="eyebrow">ABOUT HUMANITY / 05</div><h1>Understand more.<br><em>Assume less.</em></h1><p>HUMANITY is an independent exploration of the data that describes our shared world. Its purpose is simple: make global evidence easier to find, compare and question.</p></div>
         <div class="about-layout"><div class="about-main"><div class="eyebrow">OUR PRINCIPLES</div><h2>Clarity without false certainty.</h2><p>Global statistics are useful, but they are not the whole truth. A national average can hide differences by income, age, gender, region and opportunity. We show the measure, its source and its year so you can understand what a number does — and does not — tell you.</p><p>HUMANITY is designed as a public-facing data explorer. It is not affiliated with the World Bank, the United Nations or any national government.</p><div class="principle-list"><div><span>01</span><div><strong>Show the source.</strong><p>Every indicator links back to its data provider and definition.</p></div></div><div><span>02</span><div><strong>Show the year.</strong><p>Latest available does not mean current. Reporting years can differ.</p></div></div><div><span>03</span><div><strong>Show the limits.</strong><p>Indicators are approximations of complex realities, not rankings of human worth.</p></div></div></div></div>
           <aside class="source-panel"><div class="eyebrow">DATA PARTNER</div><h3>World Bank<br><em>Open Data</em></h3><p>Most country and global indicators are retrieved from the World Bank Indicators API. Drinking-water coverage comes from the WHO/UNICEF Joint Monitoring Programme. These public sources publish observations at different intervals, so each value includes its reporting year.</p><a class="button button-primary source-button" href="https://data.worldbank.org/" target="_blank" rel="noopener noreferrer">Visit World Bank Data ↗</a><div class="source-meta"><span>DATA ACCESS</span><strong>Public API · v2</strong><span>API DOCUMENTATION</span><a href="https://datahelpdesk.worldbank.org/knowledgebase/articles/889392" target="_blank" rel="noopener noreferrer">Read the documentation ↗</a></div></aside></div>
         <div class="indicator-directory"><div class="eyebrow">INDICATOR DIRECTORY</div><h2>What we measure.</h2><div class="indicator-list" id="indicator-directory"></div></div>
