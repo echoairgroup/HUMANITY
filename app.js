@@ -69,7 +69,8 @@
       panel.hidden = !active;
       panel.classList.toggle('active', active);
     });
-    $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+    $('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+    document.body.classList.toggle('globe-rush-active', view === 'party');
     if (view === 'party') { loadOpenRooms(); loadPartyMiniRanking(); loadSeason(); }
     if (view === 'rankings') loadRankings(state.currentRanking);
     history.replaceState(null, '', '#' + view);
@@ -570,6 +571,7 @@
       state.roomCode = message.roomCode;
       state.playerId = message.playerId;
       $('#room-code-display').textContent = message.roomCode;
+      $('#ocean-room-code').textContent = message.roomCode;
       $('#party-lobby').hidden = true;
       $('#party-room').hidden = false;
       $('#room-lobby-state').hidden = false;
@@ -605,6 +607,8 @@
       $('#rush-feedback').classList.remove('success');
     } else if (message.type === 'match_ready') {
       $('#room-status-note').textContent = 'Match begins in a few seconds…';
+    } else if (message.type === 'room_chat') {
+      renderRoomChatMessage(message);
     } else if (message.type === 'game_over') {
       state.result = message.results;
       renderPartyResults(message.results);
@@ -617,6 +621,23 @@
       toast(message.message || 'This room is no longer available.');
     }
   }
+  function renderRoomChat(messages) {
+    const log = $('#room-chat-log');
+    if (!log) return;
+    const rows = Array.isArray(messages) ? messages.slice(-30) : [];
+    log.innerHTML = rows.map(item => {
+      const time = new Date(Number(item.createdAt) || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return '<div class="ocean-chat-entry"><span>' + esc(time) + '</span><b>' + esc(item.nickname || 'Explorer') +
+        '</b><p>' + esc(item.text || '') + '</p></div>';
+    }).join('') || '<div class="ocean-chat-empty">Say hello while the others join.</div>';
+    log.scrollTop = log.scrollHeight;
+  }
+  function renderRoomChatMessage(message) {
+    if (!state.room) return;
+    const history = Array.isArray(state.room.chatMessages) ? state.room.chatMessages : [];
+    state.room.chatMessages = [...history, message].slice(-30);
+    renderRoomChat(state.room.chatMessages);
+  }
   function renderRoomState(room) {
     const lobby = room.phase === 'lobby';
     const playing = room.phase === 'playing';
@@ -624,29 +645,41 @@
     $('#room-lobby-state').hidden = !lobby;
     $('#room-game-state').hidden = !playing;
     $('#room-results-state').hidden = !finished;
-    const capacity = Math.max(2, Number(room.capacity || room.players.length));
+    const capacity = Math.max(2, Math.min(10, Number(room.capacity || room.players.length)));
     const hostIsYou = room.players.some(player => player.isYou && player.isHost);
-    $('#room-status-label').textContent = lobby
-      ? 'THE WORLD HUB · ' + room.players.length + ' / ' + capacity + ' EXPLORERS'
-      : 'GLOBE RUSH IN PROGRESS';
+    $('#room-status-label').textContent = lobby ? 'PRIVATE ROOM · WAITING' : 'GLOBE RUSH · ' + (playing ? 'IN PROGRESS' : 'RESULTS');
+    $('#lobby-seat-count').textContent = room.players.length + ' / ' + capacity + ' PLAYERS';
+    $('#ocean-room-code').textContent = room.code;
+    $('#ocean-capacity').textContent = 'UP TO ' + capacity;
     $('#room-status-note').textContent = lobby
-      ? 'Room ' + room.code + ' · Share the code and gather your crew on the stone platforms.'
-      : room.players.length + ' explorers are in this expedition.';
-    $('#lobby-seat-count').textContent = room.players.length + ' / ' + capacity + ' SEATS';
-    const occupiedSeats = room.players.map(player =>
-      '<div class="room-player ' + (player.isYou ? 'you' : '') + '">' +
-      '<span class="room-player-stone"><i>' + esc(player.nickname.slice(0,1).toUpperCase()) + '</i></span>' +
-      '<strong>' + esc(player.nickname) + '</strong>' +
-      '<small>' + (player.isHost ? 'HOST' : 'EXPLORER') + ' · ' + (player.isConnected ? 'ONLINE' : 'RECONNECTING') + '</small>' +
-      '</div>'
-    ).join('');
-    const openSeats = Array.from({ length: Math.max(0, Math.min(10, capacity) - room.players.length) }, () =>
-      '<div class="room-player room-player-empty"><span class="room-player-stone"><i>＋</i></span><strong>Open platform</strong><small>AWAITING EXPLORER</small></div>'
-    ).join('');
-    $('#room-lobby-players').innerHTML = occupiedSeats + openSeats;
+      ? room.players.length + ' explorer' + (room.players.length === 1 ? '' : 's') + ' in the water · Invite friends with the room code.'
+      : room.players.length + ' explorers in this room.';
+    const seats = Array.from({ length: capacity }, (_, index) => {
+      const player = room.players[index];
+      const hue = (index * 47 + 166) % 360;
+      const seatClass = player ? 'ocean-seat occupied' + (player.isYou ? ' is-you' : '') : 'ocean-seat open';
+      const name = player ? esc(player.nickname) : 'OPEN SEAT';
+      const status = player
+        ? (player.isHost ? 'HOST' : 'EXPLORER') + ' · ' + (player.isConnected ? 'ONLINE' : 'RECONNECTING')
+        : 'WAITING';
+      return '<div class="' + seatClass + '" style="--sprite-hue:' + hue + 'deg">' +
+        '<span class="ocean-seat-creature" aria-hidden="true"><i></i><b></b><em></em></span>' +
+        '<span class="ocean-seat-rock" aria-hidden="true"></span>' +
+        '<span class="ocean-seat-name">' + name + '</span>' +
+        '<span class="ocean-seat-status">' + status + '</span>' +
+        '</div>';
+    }).join('');
+    $('#room-lobby-players').innerHTML = seats;
+    $('#ocean-roster-count').textContent = room.players.length + ' ONLINE';
+    $('#ocean-player-roster').innerHTML = room.players.map(player =>
+      '<div class="ocean-roster-row ' + (player.isYou ? 'is-you' : '') + '">' +
+      '<span class="ocean-roster-dot"></span><span class="ocean-roster-name">' + esc(player.nickname) + '</span>' +
+      '<small>' + (player.isHost ? 'HOST' : (player.isConnected ? 'ONLINE' : 'OFFLINE')) + '</small></div>'
+    ).join('') || '<div class="ocean-roster-empty">Waiting for explorers…</div>';
     $('#room-start').hidden = !lobby || !hostIsYou;
     $('#room-start').disabled = room.players.length < 2;
-    $('#room-start').textContent = room.players.length < 2 ? 'Waiting for one more explorer' : 'Launch Globe Rush';
+    $('#room-start').textContent = room.players.length < 2 ? 'WAITING FOR YOUR CREW' : 'WAKE THE ATLAS';
+    renderRoomChat(room.chatMessages || []);
     if (playing && room.category) {
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
@@ -889,6 +922,14 @@
       setSettings();
     });
     $('#leave-room').addEventListener('click', () => { sendSocket({ type: 'leave_room' }); resetRoomUI(); });
+    $('#room-chat-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const input = $('#room-chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+      sendSocket({ type: 'chat_message', text: message });
+      input.value = '';
+    });
     $('#copy-room-code').addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(state.roomCode || ''); toast('Room code copied.'); }
       catch (_) { toast('Room code: ' + state.roomCode); }
