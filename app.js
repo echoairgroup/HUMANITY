@@ -425,6 +425,31 @@
     } catch (error) { table.innerHTML = '<div class="empty-room-note">' + esc(error.message) + '</div>'; }
   }
 
+  async function loadAuthProviders() {
+    const googleButton = $('#google-signin');
+    const discordButton = $('#discord-signin');
+    const buttons = $('#oauth-buttons');
+    const divider = $('#oauth-divider');
+    const note = $('#oauth-config-note');
+    try {
+      const result = await api('/config');
+      const google = Boolean(result.auth && result.auth.google);
+      const discord = Boolean(result.auth && result.auth.discord);
+      googleButton.hidden = !google;
+      discordButton.hidden = !discord;
+      buttons.hidden = !google && !discord;
+      divider.hidden = !google && !discord;
+      note.hidden = google || discord;
+    } catch (_) {
+      googleButton.hidden = true;
+      discordButton.hidden = true;
+      buttons.hidden = true;
+      divider.hidden = true;
+      note.hidden = false;
+      note.textContent = 'Third-party sign-in is unavailable right now. Username and password sign-in still works.';
+    }
+  }
+
   function setAccountUI(player) {
     state.player = player || null;
     if (!player) {
@@ -856,7 +881,7 @@
     if ('serviceWorker' in navigator && location.protocol === 'https:') {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
-    await loadProfile(true);
+    await Promise.all([loadAuthProviders(), loadProfile(true)]);
     await loadDaily();
     if (location.hash === '#party') setView('party');
     else if (location.hash === '#rankings') setView('rankings');
