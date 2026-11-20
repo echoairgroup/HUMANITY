@@ -1,0 +1,43 @@
+name: HUMANITY Geography CI
+
+on:
+  push:
+    branches:
+      - humanity-geography-rebuild
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - 'styles.css'
+      - 'app.js'
+      - 'backend/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install backend dependencies
+        run: npm install
+      - name: Run geography engine tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: |
+          node --check game-server.js
+          node --check party-server.js
+          node --check geography-engine.js
+          node --check game-engine.test.js
+          node --check ../app.js

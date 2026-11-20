@@ -8,11 +8,11 @@ const LEVEL_NAMES = ['Familiar', 'Known', 'Uncommon', 'Rare', 'Remarkable', 'Exc
 function normaliseAnswer(value) {
   return String(value || '')
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\p{M}+/gu, '')
     .toLocaleLowerCase('en')
     .replace(/&/g, ' and ')
     .replace(/[’']/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .replace(/\s+/g, ' ');
 }
@@ -282,7 +282,7 @@ const Q = [
   },
   {
     id: 'major-cities', domain: 'geography', category: 'Major cities',
-    prompt: 'Name a major city outside your own country.',
+    prompt: 'Name a major city in the world.',
     note: 'Think of cities with international or regional significance.',
     source: 'UN urban agglomerations and curated geographic reference list',
     answers: [
@@ -494,15 +494,6 @@ function pointsForUsage(entry, answerCount, totalAnswers) {
   return POINTS_BY_LEVEL[finalLevel];
 }
 
-function addApprovedAnswer(questionId, name, aliases, rarity, source) {
-  const question = QUESTION_BY_ID.get(questionId);
-  if (!question || !String(name || '').trim()) return false;
-  const key = normaliseAnswer(name);
-  if (question.answers.some(item => [item.name].concat(item.aliases || []).some(value => normaliseAnswer(value) === key))) return false;
-  question.answers.push(answer(String(name).trim(), aliases || [], rarity, source || 'HUMANITY approved answer'));
-  return true;
-}
-
 function getQuestion(id) {
   return QUESTION_BY_ID.get(id) || null;
 }
@@ -532,7 +523,6 @@ module.exports = {
   matchAnswer,
   pointsForUsage,
   getQuestion,
-  addApprovedAnswer,
   getPartyQuestion,
   listQuestionBank
 };
