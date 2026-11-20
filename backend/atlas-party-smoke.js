@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const WebSocket = require('ws');
+const engine = require('./geography-engine');
 
 const API_ROOT = (process.env.HUMANITY_API_ROOT || 'https://humanity-api-jyk5.onrender.com/api').replace(/\/$/, '');
 const WS_URL = process.env.HUMANITY_PARTY_WS_URL || 'wss://humanity-api-jyk5.onrender.com/api/party';
@@ -30,8 +31,8 @@ function createClient(label) {
     catch (_) { return; }
 
     if (message.type === 'timer') {
-      console.log('[' + label + '] fuse ' + Math.ceil((message.remainingMs || 0) / 1000) +
-        's left; holder=' + (message.holderId || 'none'));
+      console.log('[' + label + '] turn ' + (message.turnNumber || '?') + ': ' +
+        Math.ceil((message.remainingMs || 0) / 1000) + 's left; holder=' + (message.holderId || 'none'));
     }
     if (message.type === 'orb_overload') {
       console.log('[' + label + '] Orb overload: ' + message.nickname +
@@ -183,31 +184,77 @@ async function checkLivePartyRound() {
     host.send({ type: 'start_game' });
     const [hostPlaying, guestPlaying] = await Promise.all([hostPlayingPromise, guestPlayingPromise]);
     assert.ok(hostPlaying.currentHolderId);
-    assert.equal(hostPlaying.timerDurationMs, guestPlaying.timerDurationMs);
-    assert.ok(hostPlaying.timerDurationMs >= 10000 && hostPlaying.timerDurationMs <= 30000);
+    assert.equal(hostPlaying.timerDurationMs, 12000, 'Every player should receive a fresh 12-second turn');
+    assert.equal(guestPlaying.timerDurationMs, 12000);
+    assert.equal(hostPlaying.turnNumber, 1);
 
     const holder = hostPlaying.players.find(player => player.id === hostPlaying.currentHolderId);
     assert.ok(holder, 'The first round should have an active Orb holder');
+    const holderClient = holder.isHost ? host : guest;
+    const nextHolderClient = holder.isHost ? guest : host;
+    const correctQuestion = engine.getQuestion(hostPlaying.category.id);
+    assert.ok(correctQuestion && correctQuestion.answers.length, 'The live category should exist in the approved geography bank');
+
+    const acceptedHost = host.waitFor(message => message.type === 'answer_accepted', 15000, 'host accepted answer');
+    const acceptedGuest = guest.waitFor(message => message.type === 'answer_accepted', 15000, 'guest accepted answer');
+    const passedHost = host.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId !== holder.id,
+      15000, 'fresh timer after a valid pass'
+    );
+    const passedGuest = guest.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId !== holder.id,
+      15000, 'guest sees fresh timer after a valid pass'
+    );
+    holderClient.send({ type: 'submit_answer', answer: correctQuestion.answers[0].name });
+    await Promise.all([acceptedHost, acceptedGuest]);
+    const [hostPassed, guestPassed] = await Promise.all([passedHost, passedGuest]);
+    assert.equal(hostPassed.timerDurationMs, 12000);
+    assert.equal(guestPassed.timerDurationMs, 12000);
+    assert.ok(hostPassed.timerRemainingMs > 10000, 'The next player should receive almost all of their own fresh time');
+    const nextHolder = hostPassed.players.find(player => player.id === hostPassed.currentHolderId);
+    assert.ok(nextHolder && nextHolder.id !== holder.id);
+    assert.equal(nextHolder.turnsTaken, 1);
+
+    await pause(1300);
+    const invalidHolderClient = nextHolder.isHost ? host : guest;
+    const invalidError = invalidHolderClient.waitFor(message =>
+      message.type === 'error' && message.code === 'answer_not_approved',
+      10000, 'invalid answer response'
+    );
+    const invalidState = invalidHolderClient.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.turnNumber === 2 && message.currentHolderId === nextHolder.id && message.timerRemainingMs !== null,
+      10000, 'timer continues after invalid answer'
+    );
+    invalidHolderClient.send({ type: 'submit_answer', answer: 'not-a-real-place-' + suffix });
+    await invalidError;
+    const afterInvalid = await invalidState;
+    assert.ok(afterInvalid.timerRemainingMs < hostPassed.timerRemainingMs - 700,
+      'An invalid answer must not reset the current player clock');
 
     const hostOverloadPromise = host.waitFor(message =>
-      message.type === 'orb_overload' && message.nickname === holder.nickname,
+      message.type === 'orb_overload' && message.nickname === nextHolder.nickname,
       60000,
-      'host Orb overload'
+      'host player turn overload'
     );
     const guestOverloadPromise = guest.waitFor(message =>
-      message.type === 'orb_overload' && message.nickname === holder.nickname,
+      message.type === 'orb_overload' && message.nickname === nextHolder.nickname,
       60000,
-      'guest Orb overload'
+      'guest player turn overload'
     );
     const hostNextRoundPromise = host.waitFor(message =>
-      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' && message.round === 2,
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 2 && message.turnNumber === 1,
       60000,
-      'host next round'
+      'host next round with fresh player clock'
     );
     const guestNextRoundPromise = guest.waitFor(message =>
-      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' && message.round === 2,
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 2 && message.turnNumber === 1,
       60000,
-      'guest next round'
+      'guest next round with fresh player clock'
     );
 
     const [hostOverload, guestOverload] = await Promise.all([hostOverloadPromise, guestOverloadPromise]);
@@ -217,10 +264,13 @@ async function checkLivePartyRound() {
     const [hostNextRound, guestNextRound] = await Promise.all([hostNextRoundPromise, guestNextRoundPromise]);
     assert.equal(hostNextRound.round, 2);
     assert.equal(guestNextRound.round, 2);
+    assert.equal(hostNextRound.turnNumber, 1);
+    assert.equal(hostNextRound.timerDurationMs, 12000);
+    assert.ok(hostNextRound.timerRemainingMs > 10000, 'The next round must start with a full new player clock');
     assert.equal(hostNextRound.players.reduce((sum, player) => sum + player.hearts, 0), 3);
-    assert.equal(hostNextRound.players.find(player => player.nickname === holder.nickname).hearts, 1);
+    assert.equal(hostNextRound.players.find(player => player.nickname === nextHolder.nickname).hearts, 1);
 
-    console.log('PASS: Globe Rush room creation, public lobby discovery, guest joining, game start, fuse and next-round transition.');
+    console.log('PASS: Globe Rush personal 12-second turns, valid-pass reset, invalid-answer no-reset, overload, and next-round reset.');
   } finally {
     for (const client of [host, guest]) {
       if (!client?.socket) continue;
