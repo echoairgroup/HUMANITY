@@ -571,7 +571,7 @@
       state.roomCode = message.roomCode;
       state.playerId = message.playerId;
       $('#room-code-display').textContent = message.roomCode;
-      $('#ocean-room-code').textContent = message.roomCode;
+      $('#planet-room-code').textContent = message.roomCode;
       $('#party-lobby').hidden = true;
       $('#party-room').hidden = false;
       $('#room-lobby-state').hidden = false;
@@ -649,8 +649,8 @@
     const hostIsYou = room.players.some(player => player.isYou && player.isHost);
     $('#room-status-label').textContent = lobby ? 'ROOM OPEN · READY TO EXPLORE' : 'GLOBE RUSH · ' + (playing ? 'IN PROGRESS' : 'RESULTS');
     $('#lobby-seat-count').textContent = room.players.length + ' / ' + capacity + ' PLAYERS';
-    $('#ocean-room-code').textContent = room.code;
-    $('#ocean-capacity').textContent = 'UP TO ' + capacity;
+    $('#planet-room-code').textContent = room.code;
+    $('#planet-capacity').textContent = 'UP TO ' + capacity;
     $('#room-status-note').textContent = lobby
       ? room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.'
       : room.players.length + ' explorers on this mission.';
@@ -670,8 +670,8 @@
         '</div>';
     }).join('');
     $('#room-lobby-players').innerHTML = seats;
-    $('#ocean-roster-count').textContent = room.players.length + ' ONLINE';
-    $('#ocean-player-roster').innerHTML = room.players.map(player =>
+    $('#planet-roster-count').textContent = room.players.length + ' ONLINE';
+    $('#planet-player-roster').innerHTML = room.players.map(player =>
       '<div class="planet-roster-row ' + (player.isYou ? 'is-you' : '') + '">' +
       '<span class="planet-roster-dot"></span><span class="planet-roster-name">' + esc(player.nickname) + '</span>' +
       '<small>' + (player.isHost ? 'HOST' : (player.isConnected ? 'ONLINE' : 'OFFLINE')) + '</small></div>'
