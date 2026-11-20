@@ -594,7 +594,14 @@
       $('#rush-feedback').classList.remove('success');
       playTone('overload');
     } else if (message.type === 'new_round') {
-      $('#rush-feedback').textContent = 'New round · ' + message.category.title;
+      const reason = message.reason === 'mistakes'
+        ? 'Two incorrect answers · new category'
+        : message.reason === 'turn_limit'
+          ? 'Ten accepted turns · new category'
+          : message.reason === 'overload'
+            ? 'The Orb overloaded · new category'
+            : 'New category';
+      $('#rush-feedback').textContent = reason + ' · ' + message.category.title;
       $('#rush-feedback').classList.remove('success');
     } else if (message.type === 'match_ready') {
       $('#room-status-note').textContent = 'Match begins in a few seconds…';
@@ -604,7 +611,7 @@
     } else if (message.type === 'error') {
       $('#rush-feedback').textContent = message.message || 'That action could not be completed.';
       $('#rush-feedback').classList.remove('success');
-      toast(message.message || 'Globe Rush action failed.');
+      if (message.code !== 'category_changed') toast(message.message || 'Globe Rush action failed.');
     } else if (message.type === 'room_closed' || message.type === 'removed') {
       resetRoomUI();
       toast(message.message || 'This room is no longer available.');
@@ -617,20 +624,44 @@
     $('#room-lobby-state').hidden = !lobby;
     $('#room-game-state').hidden = !playing;
     $('#room-results-state').hidden = !finished;
-    $('#room-status-label').textContent = 'WAITING FOR EXPLORERS';
-    $('#room-status-note').textContent = room.players.length + ' explorers have joined. Share the room code with your crew.';
-    $('#room-lobby-players').innerHTML = room.players.map(player =>
-      '<div class="room-player"><span class="room-player-avatar">' + esc(player.nickname.slice(0,1).toUpperCase()) +
-      '</span><strong>' + esc(player.nickname) + '</strong><small>' + (player.isHost ? 'HOST' : player.isConnected ? 'READY' : 'RECONNECTING') +
-      '</small></div>'
+    const capacity = Math.max(2, Number(room.capacity || room.players.length));
+    const hostIsYou = room.players.some(player => player.isYou && player.isHost);
+    $('#room-status-label').textContent = lobby
+      ? 'THE WORLD HUB · ' + room.players.length + ' / ' + capacity + ' EXPLORERS'
+      : 'GLOBE RUSH IN PROGRESS';
+    $('#room-status-note').textContent = lobby
+      ? 'Room ' + room.code + ' · Share the code and gather your crew on the stone platforms.'
+      : room.players.length + ' explorers are in this expedition.';
+    $('#lobby-seat-count').textContent = room.players.length + ' / ' + capacity + ' SEATS';
+    const occupiedSeats = room.players.map(player =>
+      '<div class="room-player ' + (player.isYou ? 'you' : '') + '">' +
+      '<span class="room-player-stone"><i>' + esc(player.nickname.slice(0,1).toUpperCase()) + '</i></span>' +
+      '<strong>' + esc(player.nickname) + '</strong>' +
+      '<small>' + (player.isHost ? 'HOST' : 'EXPLORER') + ' · ' + (player.isConnected ? 'ONLINE' : 'RECONNECTING') + '</small>' +
+      '</div>'
     ).join('');
-    $('#room-start').hidden = !lobby || !room.players.some(player => player.isYou && player.isHost);
+    const openSeats = Array.from({ length: Math.max(0, Math.min(10, capacity) - room.players.length) }, () =>
+      '<div class="room-player room-player-empty"><span class="room-player-stone"><i>＋</i></span><strong>Open platform</strong><small>AWAITING EXPLORER</small></div>'
+    ).join('');
+    $('#room-lobby-players').innerHTML = occupiedSeats + openSeats;
+    $('#room-start').hidden = !lobby || !hostIsYou;
     $('#room-start').disabled = room.players.length < 2;
+    $('#room-start').textContent = room.players.length < 2 ? 'Waiting for one more explorer' : 'Launch Globe Rush';
     if (playing && room.category) {
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
-      $('#rush-note').textContent = room.category.note || 'An answer can only be used once per round.';
+      $('#rush-note').textContent = 'New category after 2 incorrect answers or 10 accepted turns. ' +
+        (room.category.note || 'Answers can only be used once per category.');
+      const wrongCount = Math.max(0, Number(room.wrongAnswersThisCategory || 0));
+      const turnCount = Math.max(0, Number(room.turnsThisCategory || 0));
+      const wrongLimit = Math.max(1, Number(room.maxWrongAnswersPerCategory || 2));
+      const turnLimit = Math.max(1, Number(room.maxTurnsPerCategory || 10));
+      $('#category-cycle').innerHTML =
+        '<div class="category-cycle-stat"><span>WRONG ANSWERS</span><b>' + wrongCount + ' / ' + wrongLimit +
+        '</b><i><span style="width:' + Math.min(100, wrongCount / wrongLimit * 100) + '%"></span></i></div>' +
+        '<div class="category-cycle-stat"><span>ACCEPTED TURNS</span><b>' + turnCount + ' / ' + turnLimit +
+        '</b><i><span style="width:' + Math.min(100, turnCount / turnLimit * 100) + '%"></span></i></div>';
       $('#used-answer-list').innerHTML = room.usedAnswers.length
         ? room.usedAnswers.map(answer => '<span class="used-answer-chip">' + esc(answer) + '</span>').join('')
         : '<span class="empty-used">No answers yet.</span>';
