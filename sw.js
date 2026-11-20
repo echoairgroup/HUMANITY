@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'humanity-globe-orbit-v5';
+const CACHE_NAME = 'humanity-globe-orbit-v6';
 const SHELL = [
   './',
   './index.html',
