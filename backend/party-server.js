@@ -102,6 +102,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       timerRemainingMs: remaining,
       timerDurationMs: room.timerDurationMs,
       usedAnswers: room.usedAnswers.map(item => item.name),
+      chatMessages: (room.chatMessages || []).slice(-30),
       targetMin: room.targetMin,
       capacity: room.capacity,
       players: room.players.map(player => ({
@@ -157,6 +158,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       category: null,
       lastCategoryId: null,
       usedAnswers: [],
+      chatMessages: [],
       currentHolderId: null,
       turnNumber: 0,
       wrongAnswersThisCategory: 0,
@@ -555,6 +557,27 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
     const { room, player } = membership;
     room.lastActivityAt = now;
+
+    if (message.type === 'chat_message') {
+      if (context.lastChatAt && now - context.lastChatAt < 750) {
+        sendError(socket, 'Please wait a moment before sending another chat message.', 'chat_rate_limited');
+        return;
+      }
+      const text = String(message.text || '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 160);
+      if (!text) return;
+      context.lastChatAt = now;
+      sockets.set(socket, context);
+      const chatMessage = {
+        type: 'room_chat',
+        id: crypto.randomUUID(),
+        nickname: player.nickname,
+        text,
+        createdAt: now
+      };
+      room.chatMessages = [...(room.chatMessages || []), chatMessage].slice(-30);
+      broadcast(room, chatMessage);
+      return;
+    }
 
     if (message.type === 'start_game') {
       if (player.id !== room.hostId) {
