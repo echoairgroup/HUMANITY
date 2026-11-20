@@ -236,7 +236,7 @@ async function checkLivePartyRound() {
 
     const firstWrongClient = nextHolder.isHost ? host : guest;
     const wrongOneError = firstWrongClient.waitFor(message =>
-      message.type === 'error' && message.code === 'answer_not_approved',
+      message.type === 'error' && message.code === 'answer_used',
       10000, 'first duplicate answer response'
     );
     const hostWrongOne = host.waitFor(message =>
