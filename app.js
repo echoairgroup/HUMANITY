@@ -70,7 +70,7 @@
       panel.classList.toggle('active', active);
     });
     $('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
-    document.body.classList.toggle('globe-rush-active', view === 'party');
+    document.body.classList.add('globe-rush-active');
     if (view === 'party') { loadOpenRooms(); loadPartyMiniRanking(); loadSeason(); }
     if (view === 'rankings') loadRankings(state.currentRanking);
     history.replaceState(null, '', '#' + view);
