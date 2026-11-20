@@ -765,9 +765,11 @@
     $('#daily-next').addEventListener('click', nextDailyQuestion);
     document.addEventListener('keydown', event => {
       if (event.key !== 'Enter' || event.repeat) return;
+      const dailyView = $('[data-view-panel="daily"]');
       const resultPanel = $('#daily-result');
-      if (!resultPanel || resultPanel.hidden || state.pendingNextIndex === null) return;
-      if (event.target && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))) return;
+      const nextButton = $('#daily-next');
+      if (!dailyView || dailyView.hidden || !resultPanel || resultPanel.hidden ||
+          state.pendingNextIndex === null || event.target !== nextButton) return;
       event.preventDefault();
       nextDailyQuestion();
     });
