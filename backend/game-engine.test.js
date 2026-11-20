@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const engine = require('./geography-engine');
+const partyRules = require('./party-server');
 
 test('daily generation creates seven questions with a geography-first mix', () => {
   const challenge = engine.generateDailyChallenge('2026-11-20');
@@ -53,4 +54,19 @@ test('the party category changes between rounds', () => {
 test('rarity scores use the six published Discovery Levels', () => {
   assert.deepEqual(engine.POINTS_BY_LEVEL, [10, 20, 35, 55, 75, 100]);
   assert.equal(engine.LEVEL_NAMES.length, 6);
+});
+
+
+test('Globe Rush changes category after two incorrect answers', () => {
+  assert.equal(partyRules.categoryRotationReason(1, 4), null);
+  assert.equal(partyRules.categoryRotationReason(2, 4), 'mistakes');
+});
+
+test('Globe Rush changes category after ten accepted turns', () => {
+  assert.equal(partyRules.categoryRotationReason(0, 9), null);
+  assert.equal(partyRules.categoryRotationReason(0, 10), 'turn_limit');
+});
+
+test('two mistakes take priority when both category limits are reached', () => {
+  assert.equal(partyRules.categoryRotationReason(2, 10), 'mistakes');
 });
