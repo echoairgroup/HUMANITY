@@ -62,6 +62,12 @@ function rankPlayers(players) {
   });
 }
 
+function categoryRotationReason(wrongAnswers, acceptedTurns) {
+  if (Number(wrongAnswers || 0) >= 2) return 'mistakes';
+  if (Number(acceptedTurns || 0) >= 10) return 'turn_limit';
+  return null;
+}
+
 function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) {
   const rooms = new Map();
   const sockets = new WeakMap();
@@ -578,9 +584,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
         await queueUnknownAnswer(room.category, message.answer);
-        if (room.wrongAnswersThisCategory >= MAX_WRONG_ANSWERS_PER_CATEGORY) {
+        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory);
+        if (rotationReason) {
           sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
-          newRound(room, player.id, 'mistakes');
+          newRound(room, player.id, rotationReason);
           return;
         }
         sendError(socket, 'That answer is not approved. One more incorrect answer changes the category.', 'answer_not_approved');
@@ -590,9 +597,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       if (room.usedAnswers.some(item => item.key === resolved.key)) {
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
-        if (room.wrongAnswersThisCategory >= MAX_WRONG_ANSWERS_PER_CATEGORY) {
+        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory);
+        if (rotationReason) {
           sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
-          newRound(room, player.id, 'mistakes');
+          newRound(room, player.id, rotationReason);
           return;
         }
         sendError(socket, 'That answer was already used. One more incorrect answer changes the category.', 'answer_used');
@@ -619,8 +627,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         points: resolved.points,
         gainedHeart
       });
-      if (room.turnsThisCategory >= MAX_TURNS_PER_CATEGORY) {
-        newRound(room, player.id, 'turn_limit');
+      const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory);
+      if (rotationReason) {
+        newRound(room, player.id, rotationReason);
         return;
       }
       const next = nextAlive(room, player.id);
@@ -794,4 +803,4 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   };
 }
 
-module.exports = { createPartyServer, GROUPS };
+module.exports = { createPartyServer, GROUPS, categoryRotationReason };
