@@ -627,9 +627,9 @@
     const rows = Array.isArray(messages) ? messages.slice(-30) : [];
     log.innerHTML = rows.map(item => {
       const time = new Date(Number(item.createdAt) || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      return '<div class="ocean-chat-entry"><span>' + esc(time) + '</span><b>' + esc(item.nickname || 'Explorer') +
+      return '<div class="planet-chat-entry"><span>' + esc(time) + '</span><b>' + esc(item.nickname || 'Explorer') +
         '</b><p>' + esc(item.text || '') + '</p></div>';
-    }).join('') || '<div class="ocean-chat-empty">Say hello while the others join.</div>';
+    }).join('') || '<div class="planet-chat-empty">Send a message while the others join.</div>';
     log.scrollTop = log.scrollHeight;
   }
   function renderRoomChatMessage(message) {
@@ -647,38 +647,38 @@
     $('#room-results-state').hidden = !finished;
     const capacity = Math.max(2, Math.min(10, Number(room.capacity || room.players.length)));
     const hostIsYou = room.players.some(player => player.isYou && player.isHost);
-    $('#room-status-label').textContent = lobby ? 'PRIVATE ROOM · WAITING' : 'GLOBE RUSH · ' + (playing ? 'IN PROGRESS' : 'RESULTS');
+    $('#room-status-label').textContent = lobby ? 'ROOM OPEN · READY TO EXPLORE' : 'GLOBE RUSH · ' + (playing ? 'IN PROGRESS' : 'RESULTS');
     $('#lobby-seat-count').textContent = room.players.length + ' / ' + capacity + ' PLAYERS';
     $('#ocean-room-code').textContent = room.code;
     $('#ocean-capacity').textContent = 'UP TO ' + capacity;
     $('#room-status-note').textContent = lobby
-      ? room.players.length + ' explorer' + (room.players.length === 1 ? '' : 's') + ' in the water · Invite friends with the room code.'
-      : room.players.length + ' explorers in this room.';
+      ? room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.'
+      : room.players.length + ' explorers on this mission.';
     const seats = Array.from({ length: capacity }, (_, index) => {
       const player = room.players[index];
       const hue = (index * 47 + 166) % 360;
-      const seatClass = player ? 'ocean-seat occupied' + (player.isYou ? ' is-you' : '') : 'ocean-seat open';
-      const name = player ? esc(player.nickname) : 'OPEN SEAT';
+      const seatClass = 'planet-seat' + (player ? ' occupied' : ' open') + (player && player.isYou ? ' is-you' : '');
+      const name = player ? esc(player.nickname) : 'OPEN SLOT';
       const status = player
         ? (player.isHost ? 'HOST' : 'EXPLORER') + ' · ' + (player.isConnected ? 'ONLINE' : 'RECONNECTING')
-        : 'WAITING';
+        : 'AWAITING PLAYER';
       return '<div class="' + seatClass + '" style="--sprite-hue:' + hue + 'deg">' +
-        '<span class="ocean-seat-creature" aria-hidden="true"><i></i><b></b><em></em></span>' +
-        '<span class="ocean-seat-rock" aria-hidden="true"></span>' +
-        '<span class="ocean-seat-name">' + name + '</span>' +
-        '<span class="ocean-seat-status">' + status + '</span>' +
+        '<span class="planet-seat-avatar" aria-hidden="true"><i></i><b></b><em></em></span>' +
+        '<span class="planet-seat-platform" aria-hidden="true"></span>' +
+        '<span class="planet-seat-name">' + name + '</span>' +
+        '<span class="planet-seat-status">' + status + '</span>' +
         '</div>';
     }).join('');
     $('#room-lobby-players').innerHTML = seats;
     $('#ocean-roster-count').textContent = room.players.length + ' ONLINE';
     $('#ocean-player-roster').innerHTML = room.players.map(player =>
-      '<div class="ocean-roster-row ' + (player.isYou ? 'is-you' : '') + '">' +
-      '<span class="ocean-roster-dot"></span><span class="ocean-roster-name">' + esc(player.nickname) + '</span>' +
+      '<div class="planet-roster-row ' + (player.isYou ? 'is-you' : '') + '">' +
+      '<span class="planet-roster-dot"></span><span class="planet-roster-name">' + esc(player.nickname) + '</span>' +
       '<small>' + (player.isHost ? 'HOST' : (player.isConnected ? 'ONLINE' : 'OFFLINE')) + '</small></div>'
-    ).join('') || '<div class="ocean-roster-empty">Waiting for explorers…</div>';
+    ).join('') || '<div class="planet-roster-empty">Waiting for explorers…</div>';
     $('#room-start').hidden = !lobby || !hostIsYou;
     $('#room-start').disabled = room.players.length < 2;
-    $('#room-start').textContent = room.players.length < 2 ? 'WAITING FOR YOUR CREW' : 'WAKE THE ATLAS';
+    $('#room-start').textContent = room.players.length < 2 ? 'WAITING FOR YOUR CREW' : 'START GLOBE RUSH';
     renderRoomChat(room.chatMessages || []);
     if (playing && room.category) {
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
