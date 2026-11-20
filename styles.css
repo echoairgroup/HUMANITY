@@ -1240,7 +1240,7 @@ body.globe-rush-active .party-room .eyebrow { color:#77d0df; }
   .ocean-arena { min-height:540px; }
   .ocean-player-field { grid-template-columns:repeat(5,minmax(0,1fr)); row-gap:0; }
   .ocean-seat { height:125px; }
-  .ocean-seat:nth-child(n+6) { display:none; }
+  
 }
 @media (max-width: 820px) {
   body.globe-rush-active .site-shell { width:calc(100% - 28px); }
