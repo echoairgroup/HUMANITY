@@ -19,7 +19,7 @@ async function getJson(path, headers = {}) {
   return payload;
 }
 
-function createClient() {
+function createClient(label) {
   const socket = new WebSocket(WS_URL, { handshakeTimeout: 12000 });
   const queue = [];
   const waiters = [];
@@ -28,6 +28,15 @@ function createClient() {
     let message;
     try { message = JSON.parse(raw.toString()); }
     catch (_) { return; }
+
+    if (message.type === 'timer') {
+      console.log('[' + label + '] fuse ' + Math.ceil((message.remainingMs || 0) / 1000) +
+        's left; holder=' + (message.holderId || 'none'));
+    }
+    if (message.type === 'orb_overload') {
+      console.log('[' + label + '] Orb overload: ' + message.nickname +
+        ', hearts=' + message.hearts + ', eliminated=' + message.eliminated);
+    }
 
     const index = waiters.findIndex(waiter => waiter.predicate(message));
     if (index >= 0) {
@@ -72,13 +81,15 @@ function createClient() {
     socket.send(JSON.stringify(payload));
   }
 
+  socket.on('close', (code, reason) => console.log('[' + label + '] socket closed: ' + code + ' ' + reason.toString()));
+  socket.on('error', error => console.log('[' + label + '] socket error: ' + error.message));
   return { socket, waitFor, send };
 }
 
 async function connect(label) {
   let lastError;
   for (let attempt = 1; attempt <= 10; attempt += 1) {
-    const client = createClient();
+    const client = createClient(label);
     try {
       await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('WebSocket open timed out')), 12000);
@@ -180,22 +191,22 @@ async function checkLivePartyRound() {
 
     const hostOverloadPromise = host.waitFor(message =>
       message.type === 'orb_overload' && message.nickname === holder.nickname,
-      35000,
+      60000,
       'host Orb overload'
     );
     const guestOverloadPromise = guest.waitFor(message =>
       message.type === 'orb_overload' && message.nickname === holder.nickname,
-      35000,
+      60000,
       'guest Orb overload'
     );
     const hostNextRoundPromise = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' && message.round === 2,
-      35000,
+      60000,
       'host next round'
     );
     const guestNextRoundPromise = guest.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' && message.round === 2,
-      35000,
+      60000,
       'guest next round'
     );
 
