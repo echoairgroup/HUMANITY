@@ -188,10 +188,18 @@
             <h1>Pass the world.<br><em>Keep your cool.</em></h1>
             <p>Take turns naming answers that fit the category. Pass the Atlas Orb before it overloads — and be the last explorer in the game.</p>
           </div>
-          <div class="orb-preview" aria-hidden="true">
-            <div class="orb-glow"></div><div class="orb-rings ring-one"></div><div class="orb-rings ring-two"></div>
-            <div class="atlas-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
-            <div class="orb-caption">THE ATLAS ORB</div>
+          <div class="world-lobby-scene" role="img" aria-label="A floating stone archipelago with real Earth globes">
+            <div class="world-scene-stars"></div>
+            <div class="scene-orbit scene-orbit-a"></div>
+            <div class="scene-orbit scene-orbit-b"></div>
+            <div class="scene-rock scene-rock-back"></div>
+            <div class="scene-rock scene-rock-left"></div>
+            <div class="scene-rock scene-rock-right"></div>
+            <div class="scene-rock scene-rock-front"></div>
+            <div class="scene-globe scene-globe-main" data-earth-globe aria-label="Earth with real country borders"></div>
+            <div class="scene-globe scene-globe-small scene-globe-left" data-earth-globe aria-label="Earth with real country borders"></div>
+            <div class="scene-globe scene-globe-small scene-globe-right" data-earth-globe aria-label="Earth with real country borders"></div>
+            <div class="scene-caption">THE ATLAS ARCHIPELAGO <span>·</span> A WORLD TO EXPLORE</div>
           </div>
         </div>
 
@@ -277,9 +285,21 @@
         <section class="party-room game-panel" id="party-room" hidden>
           <div class="panel-topline"><div class="panel-kicker"><span class="tiny-orb"></span> GLOBE RUSH · ROOM <b id="room-code-display">------</b></div><button class="text-button" id="leave-room" type="button">Leave room ×</button></div>
           <div class="room-lobby-state" id="room-lobby-state">
-            <div class="room-heading"><div><span class="micro-label" id="room-status-label">WAITING FOR EXPLORERS</span><h2>Your crew is gathering.</h2><p id="room-status-note">Share the room code with friends.</p></div><button class="button button-outline" id="copy-room-code" type="button">Copy code</button></div>
+            <div class="room-heading"><div><span class="micro-label" id="room-status-label">THE WORLD HUB · WAITING FOR EXPLORERS</span><h2>Your crew is gathering.</h2><p id="room-status-note">Share the room code with friends.</p></div><button class="button button-outline" id="copy-room-code" type="button">Copy code</button></div>
+            <div class="stone-world-lobby" aria-label="Globe Rush waiting area">
+              <div class="lobby-sky"></div>
+              <div class="lobby-orbit lobby-orbit-a"></div>
+              <div class="lobby-orbit lobby-orbit-b"></div>
+              <div class="lobby-floating-rock lobby-rock-left"></div>
+              <div class="lobby-floating-rock lobby-rock-right"></div>
+              <div class="lobby-floating-rock lobby-rock-back"></div>
+              <div class="lobby-earth" data-earth-globe aria-label="Real Earth globe with country borders"></div>
+              <div class="lobby-stone-base"></div>
+              <div class="lobby-scene-caption"><span>01</span> THE GATHERING ISLAND</div>
+            </div>
+            <div class="lobby-roster-heading"><span>EXPLORER PLATFORMS</span><span id="lobby-seat-count">1 / 10 SEATS</span></div>
             <div class="room-players" id="room-lobby-players"></div>
-            <button class="button button-primary" id="room-start" type="button" disabled>Start game</button>
+            <button class="button button-primary" id="room-start" type="button" disabled>Launch Globe Rush</button>
           </div>
           <div class="room-game-state" id="room-game-state" hidden>
             <div class="rush-game-header">
@@ -289,6 +309,10 @@
                 <span id="rush-timer-label">PLAYER TURN</span>
                 <div class="rush-timer-track" aria-hidden="true"><span id="rush-timer-fill"></span></div>
               </div>
+            </div>
+            <div class="category-cycle" id="category-cycle" aria-live="polite">
+              <div class="category-cycle-stat"><span>WRONG ANSWERS</span><b>0 / 2</b><i><span style="width:0%"></span></i></div>
+              <div class="category-cycle-stat"><span>ACCEPTED TURNS</span><b>0 / 10</b><i><span style="width:0%"></span></i></div>
             </div>
             <div class="orb-stage" id="orb-stage">
               <div class="orb-stage-halo"></div><div class="stage-ring stage-ring-a"></div><div class="stage-ring stage-ring-b"></div>
