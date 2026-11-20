@@ -249,7 +249,7 @@ async function checkLivePartyRound() {
       message.round === 1 && message.wrongAnswersThisCategory === 1,
       10000, 'guest sees first incorrect answer count'
     );
-    const alreadyUsedAnswer = correctQuestion.answers[0].name;
+    const alreadyUsedAnswer = hostPassed.usedAnswers[0];
     firstWrongClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
     await Promise.all([wrongOneError, hostWrongOne, guestWrongOne]);
     await pause(1200);
