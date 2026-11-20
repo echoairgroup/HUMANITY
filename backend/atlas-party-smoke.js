@@ -220,7 +220,7 @@ async function checkLivePartyRound() {
     await pause(1300);
     const invalidHolderClient = nextHolder.isHost ? host : guest;
     const invalidError = invalidHolderClient.waitFor(message =>
-      message.type === 'error' && message.code === 'answer_not_approved',
+      message.type === 'error' && message.code === 'answer_used',
       10000, 'invalid answer response'
     );
     const invalidState = invalidHolderClient.waitFor(message =>
@@ -237,7 +237,7 @@ async function checkLivePartyRound() {
     const firstWrongClient = nextHolder.isHost ? host : guest;
     const wrongOneError = firstWrongClient.waitFor(message =>
       message.type === 'error' && message.code === 'answer_not_approved',
-      10000, 'first incorrect answer response'
+      10000, 'first duplicate answer response'
     );
     const hostWrongOne = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
@@ -249,7 +249,8 @@ async function checkLivePartyRound() {
       message.round === 1 && message.wrongAnswersThisCategory === 1,
       10000, 'guest sees first incorrect answer count'
     );
-    firstWrongClient.send({ type: 'submit_answer', answer: 'not-a-real-place-' + suffix });
+    const alreadyUsedAnswer = correctQuestion.answers[0].name;
+    firstWrongClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
     await Promise.all([wrongOneError, hostWrongOne, guestWrongOne]);
     await pause(1200);
 
@@ -275,7 +276,7 @@ async function checkLivePartyRound() {
       message.round === 2 && message.turnNumber === 1,
       10000, 'guest new category with reset counters'
     );
-    firstWrongClient.send({ type: 'submit_answer', answer: 'another-not-a-place-' + suffix });
+    firstWrongClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
     await wrongTwoError;
     const [hostReason, guestReason, hostNextRound, guestNextRound] = await Promise.all([
       hostCategoryChange, guestCategoryChange, hostNextRoundPromise, guestNextRoundPromise
