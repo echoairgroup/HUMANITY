@@ -796,6 +796,17 @@ async function handleAPI(request, response, url, party) {
     return true;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/config') {
+    sendJSON(response, 200, {
+      ok: true,
+      auth: {
+        google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+        discord: Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET)
+      }
+    });
+    return true;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/health') {
     const db = await pool.query('SELECT 1 AS connected');
     sendJSON(response, 200, {
