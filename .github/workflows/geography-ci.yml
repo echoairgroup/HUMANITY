@@ -3,7 +3,7 @@ name: HUMANITY Geography CI
 on:
   push:
     branches:
-      - humanity-geography-rebuild
+      - main
   pull_request:
     branches:
       - main
