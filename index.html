@@ -184,23 +184,22 @@
       <section class="view" id="view-party" data-view-panel="party" hidden>
         <div class="page-intro party-intro">
           <div class="party-intro-copy">
-            <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · UNDER THE SURFACE</div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · ONE PLANET, ONE ORB</div>
             <h1>GLOBE RUSH</h1>
-            <p>Take the Atlas Orb, name a place that fits the category and pass it on. Keep your nerve while the whole room takes a turn.</p>
+            <p>Travel the world one answer at a time. Pass the Atlas Orb, name a place that fits the category and keep your crew in the game.</p>
             <div class="party-intro-stats"><span>12 SECOND TURNS</span><i></i><span>2–10 EXPLORERS</span><i></i><span>LIVE ROOMS</span></div>
           </div>
-          <div class="party-preview-ocean" role="img" aria-label="A pixel-art underwater world with rocky seabed, sea plants and glowing sea creatures">
-            <div class="preview-water-rays"></div>
-            <div class="preview-sea-floor"></div>
-            <div class="preview-rock preview-rock-one"></div>
-            <div class="preview-rock preview-rock-two"></div>
-            <div class="preview-kelp preview-kelp-one"></div>
-            <div class="preview-kelp preview-kelp-two"></div>
-            <div class="preview-bubbles"></div>
-            <div class="preview-creature preview-creature-one"><i></i><b></b></div>
-            <div class="preview-creature preview-creature-two"><i></i><b></b></div>
-            <div class="preview-ray-fish"><i></i><b></b></div>
-            <span class="preview-caption">A LITTLE DEEPER · A LITTLE WILDER</span>
+          <div class="party-preview-world" role="img" aria-label="A vivid pixel-art planet Earth surrounded by tiny islands and satellites">
+            <div class="preview-starfield"></div>
+            <div class="preview-orbit preview-orbit-a"></div>
+            <div class="preview-orbit preview-orbit-b"></div>
+            <div class="preview-satellite satellite-one"><i></i></div>
+            <div class="preview-satellite satellite-two"><i></i></div>
+            <div class="preview-mini-moon"></div>
+            <div class="preview-globe" data-earth-globe aria-label="Earth with real country borders"></div>
+            <div class="preview-island preview-island-one"></div>
+            <div class="preview-island preview-island-two"></div>
+            <span class="preview-caption">THE WORLD IS YOUR PLAYGROUND</span>
           </div>
         </div>
 
@@ -294,66 +293,68 @@
             <button class="ocean-leave-button" id="leave-room" type="button">LEAVE ROOM <span aria-hidden="true">↗</span></button>
           </div>
           <div class="room-lobby-state" id="room-lobby-state">
-            <div class="ocean-room-layout">
-              <section class="ocean-arena" aria-label="Globe Rush underwater waiting room">
-                <div class="ocean-water-rays"></div>
-                <div class="ocean-water-grain"></div>
-                <div class="ocean-horizon"></div>
-                <div class="ocean-distant-reef reef-left"></div>
-                <div class="ocean-distant-reef reef-right"></div>
-                <div class="ocean-kelp arena-kelp-one"></div>
-                <div class="ocean-kelp arena-kelp-two"></div>
-                <div class="ocean-kelp arena-kelp-three"></div>
-                <div class="ocean-coral coral-left"></div>
-                <div class="ocean-coral coral-right"></div>
-                <div class="ocean-rock rock-mid-left"></div>
-                <div class="ocean-rock rock-mid-right"></div>
-                <div class="ocean-bubble bubble-a"></div>
-                <div class="ocean-bubble bubble-b"></div>
-                <div class="ocean-bubble bubble-c"></div>
-                <div class="ocean-arena-title">
-                  <span class="ocean-title-small">WELCOME TO THE DEEP</span>
+            <div class="planet-room-layout">
+              <section class="planet-arena" aria-label="Globe Rush world hub with a rotating Earth and player platforms">
+                <div class="planet-starfield"></div>
+                <div class="planet-nebula nebula-left"></div>
+                <div class="planet-nebula nebula-right"></div>
+                <div class="planet-orbit planet-orbit-a"></div>
+                <div class="planet-orbit planet-orbit-b"></div>
+                <div class="planet-orbit planet-orbit-c"></div>
+                <div class="planet-moon moon-one"></div>
+                <div class="planet-moon moon-two"></div>
+                <div class="planet-satellite satellite-large"><i></i><b></b></div>
+                <div class="planet-satellite satellite-small"><i></i><b></b></div>
+                <div class="planet-floating-island island-one"></div>
+                <div class="planet-floating-island island-two"></div>
+                <div class="planet-floating-island island-three"></div>
+                <div class="planet-arena-heading">
+                  <span>WELCOME TO THE WORLD HUB</span>
                   <strong>HUMANITY</strong>
                   <b>GLOBE RUSH</b>
-                  <small>PASS THE ATLAS · DON'T LET IT OVERLOAD</small>
+                  <small>PASS THE ORB · EXPLORE THE PLANET</small>
                 </div>
-                <div class="ocean-ray-creature" aria-hidden="true"><i></i><b></b><em></em></div>
-                <div class="ocean-player-field" id="room-lobby-players"></div>
-                <div class="ocean-floor-caption"><span>◈</span> THE ABYSSAL ARENA <span>◈</span></div>
+                <div class="planet-earth-wrap">
+                  <div class="planet-earth-aura"></div>
+                  <div class="planet-earth" data-earth-globe role="img" aria-label="Planet Earth with real country borders"></div>
+                  <div class="planet-earth-glint"></div>
+                </div>
+                <div class="planet-player-field" id="room-lobby-players"></div>
+                <div class="planet-arena-footer"><span>✦</span> EARTH ORBITAL STATION <span>✦</span></div>
               </section>
 
-              <aside class="ocean-console">
-                <section class="ocean-console-card ocean-room-code-card">
-                  <div class="ocean-console-heading"><span>YOUR ROOM</span><i>PRIVATE</i></div>
-                  <strong class="ocean-room-code-value" id="ocean-room-code">------</strong>
-                  <p id="room-status-note">Share this code and gather your crew.</p>
-                  <button class="ocean-copy-button" id="copy-room-code" type="button">COPY ROOM CODE <span aria-hidden="true">▣</span></button>
+              <aside class="planet-console">
+                <section class="planet-console-card planet-room-code-card">
+                  <div class="planet-console-heading"><span>YOUR ROOM</span><i>PRIVATE</i></div>
+                  <strong class="planet-room-code-value" id="ocean-room-code">------</strong>
+                  <p id="room-status-note">Share this code and bring your crew aboard.</p>
+                  <button class="planet-copy-button" id="copy-room-code" type="button">COPY ROOM CODE <span aria-hidden="true">▣</span></button>
                 </section>
 
-                <section class="ocean-console-card">
-                  <div class="ocean-console-heading"><span>EXPLORERS</span><i id="ocean-roster-count">1 ONLINE</i></div>
-                  <div class="ocean-player-roster" id="ocean-player-roster">
-                    <div class="ocean-roster-empty">Waiting for your crew to arrive…</div>
+                <section class="planet-console-card">
+                  <div class="planet-console-heading"><span>YOUR CREW</span><i id="ocean-roster-count">1 ONLINE</i></div>
+                  <div class="planet-player-roster" id="ocean-player-roster">
+                    <div class="planet-roster-empty">Waiting for explorers to arrive…</div>
                   </div>
                 </section>
 
-                <section class="ocean-console-card ocean-rules-card">
-                  <div class="ocean-console-heading"><span>ROOM SETTINGS</span><i>GLOBE RUSH</i></div>
-                  <div class="ocean-rule-line"><span>TURN CLOCK</span><b>12 SEC</b></div>
-                  <div class="ocean-rule-line"><span>CATEGORY CHANGE</span><b>2 MISSES / 10 TURNS</b></div>
-                  <div class="ocean-rule-line"><span>ROOM SIZE</span><b id="ocean-capacity">UP TO 10</b></div>
+                <section class="planet-console-card planet-rules-card">
+                  <div class="planet-console-heading"><span>MISSION SETTINGS</span><i>GLOBE RUSH</i></div>
+                  <div class="planet-rule-line"><span>TURN CLOCK</span><b>12 SEC</b></div>
+                  <div class="planet-rule-line"><span>CATEGORY CHANGE</span><b>2 MISSES / 10 TURNS</b></div>
+                  <div class="planet-rule-line"><span>ROOM CAPACITY</span><b id="ocean-capacity">UP TO 10</b></div>
                 </section>
 
-                <button class="button button-primary ocean-start-button" id="room-start" type="button" disabled>WAITING FOR YOUR CREW</button>
+                <button class="button button-primary planet-start-button" id="room-start" type="button" disabled>WAITING FOR YOUR CREW</button>
 
-                <section class="ocean-console-card ocean-chat-card">
-                  <div class="ocean-console-heading"><span>ROOM CHAT</span><i>LIVE</i></div>
-                  <div class="ocean-chat-log" id="room-chat-log" role="log" aria-live="polite">
-                    <div class="ocean-chat-empty">Say hello while the others join.</div>
+                <section class="planet-console-card planet-chat-card">
+                  <div class="planet-console-heading"><span>CREW CHAT</span><i>LIVE</i></div>
+                  <div class="planet-chat-log" id="room-chat-log" role="log" aria-live="polite">
+                    <div class="planet-chat-empty">Send a message while the others join.</div>
                   </div>
-                  <form class="ocean-chat-form" id="room-chat-form">
+                  <form class="planet-chat-form" id="room-chat-form">
                     <label class="visually-hidden" for="room-chat-input">Message to your room</label>
-                    <input id="room-chat-input" type="text" maxlength="160" autocomplete="off" placeholder="Say something…">
+                    <input id="room-chat-input" type="text" maxlength="160" autocomplete="off" placeholder="Message your crew…">
                     <button type="submit" aria-label="Send chat message">SEND</button>
                   </form>
                 </section>
