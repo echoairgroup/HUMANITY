@@ -143,6 +143,17 @@ async function getIdentity(request, body) {
   return { user: null, key: 'guest:' + guestId, playerId: null, guestId };
 }
 
+function isoDate(value) {
+  if (!value) return null;
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const text = String(value);
+  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(text)) return text;
+  const parsed = new Date(text);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : text.slice(0, 10);
+}
+
 function utcDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -635,7 +646,7 @@ async function dailyGuess(request, response, skip) {
       'UPDATE humanity_daily_runs SET current_question = $2, provisional_score = provisional_score + $3, status = $4, completed_at = CASE WHEN $4 = $5 THEN NOW() ELSE completed_at END WHERE id = $1',
       [run.id, nextIndex, match.points, complete ? 'completed' : 'in_progress', 'completed']
     );
-    if (complete && identity.playerId) await updateDailyStreak(identity.playerId, String(challenge.challenge_date).slice(0, 10));
+    if (complete && identity.playerId) await updateDailyStreak(identity.playerId, isoDate(challenge.challenge_date));
     const usage = await pool.query(
       'SELECT COUNT(*)::int AS count FROM humanity_daily_run_answers WHERE challenge_id = $1 AND question_id = $2 AND answer_key = $3 AND is_correct = TRUE',
       [run.challenge_id, question.id, match.key]
@@ -666,7 +677,7 @@ async function dailyGuess(request, response, skip) {
     'UPDATE humanity_daily_runs SET current_question = $2, status = $3, completed_at = CASE WHEN $3 = $4 THEN NOW() ELSE completed_at END WHERE id = $1',
     [run.id, nextIndex, complete ? 'completed' : 'in_progress', 'completed']
   );
-  if (complete && identity.playerId) await updateDailyStreak(identity.playerId, String(challenge.challenge_date).slice(0, 10));
+  if (complete && identity.playerId) await updateDailyStreak(identity.playerId, isoDate(challenge.challenge_date));
   sendJSON(response, 200, {
     ok: true,
     accepted: false,
@@ -708,7 +719,7 @@ async function dailyArchive(response) {
   sendJSON(response, 200, {
     ok: true,
     entries: result.rows.map(row => ({
-      date: String(row.challenge_date).slice(0, 10),
+      date: isoDate(row.challenge_date),
       finalised: Boolean(row.finalised_at)
     }))
   });
@@ -864,7 +875,7 @@ async function handleAPI(request, response, url, party) {
     }
     sendJSON(response, 200, {
       ok: true,
-      date: String(challenge.challenge_date).slice(0, 10),
+      date: isoDate(challenge.challenge_date),
       finalised: Boolean(challenge.finalised_at),
       questionCount: challenge.payload.questions.length,
       questions: challenge.payload.questions.map(publicDailyQuestion),
