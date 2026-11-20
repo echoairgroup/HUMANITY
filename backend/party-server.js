@@ -5,9 +5,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 const engine = require('./geography-engine');
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const MIN_FUSE_MS = 10000;
-const MAX_FUSE_MS = 30000;
-const PASS_FLOOR_MS = 8000;
+const PLAYER_TURN_MS = 12000;
 const STARTING_HEARTS = 2;
 const MAX_HEARTS = 3;
 const HEART_METER = [0, 5, 10, 35, 55, 100];
@@ -32,10 +30,6 @@ function randomCode() {
     result += CODE_ALPHABET[crypto.randomInt(0, CODE_ALPHABET.length)];
   }
   return result;
-}
-
-function randomFuse() {
-  return crypto.randomInt(MIN_FUSE_MS, MAX_FUSE_MS + 1);
 }
 
 function cleanName(value) {
@@ -92,6 +86,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         note: room.category.note
       } : null,
       currentHolderId: room.currentHolderId,
+      turnNumber: room.turnNumber,
       timerRemainingMs: remaining,
       timerDurationMs: room.timerDurationMs,
       usedAnswers: room.usedAnswers.map(item => item.name),
@@ -103,6 +98,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         hearts: player.hearts,
         score: player.score,
         rarityMeter: player.rarityMeter,
+        turnsTaken: player.turnsTaken,
+        answersGiven: player.answersGiven,
+        invalidAnswers: player.invalidAnswers,
         alive: player.alive,
         isYou: player.id === viewerId,
         isHost: player.id === room.hostId,
@@ -148,6 +146,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       lastCategoryId: null,
       usedAnswers: [],
       currentHolderId: null,
+      turnNumber: 0,
       timerEndsAt: null,
       timerDurationMs: null,
       lastTimerBroadcastAt: 0,
@@ -279,17 +278,25 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     broadcastState(room);
   }
 
+  function startPlayerTurn(room, playerId) {
+    const holder = room.players.find(player => player.id === playerId && player.alive);
+    room.currentHolderId = holder ? holder.id : null;
+    room.turnNumber = (room.turnNumber || 0) + 1;
+    room.timerDurationMs = PLAYER_TURN_MS;
+    room.timerEndsAt = holder ? Date.now() + PLAYER_TURN_MS : null;
+    room.lastTimerBroadcastAt = 0;
+    if (holder) holder.turnsTaken += 1;
+  }
+
   function newRound(room, afterPlayerId) {
     const category = engine.getPartyQuestion(room.lastCategoryId);
     room.category = category;
     room.lastCategoryId = category.id;
     room.round += 1;
     room.usedAnswers = [];
-    room.timerDurationMs = randomFuse();
-    room.timerEndsAt = Date.now() + room.timerDurationMs;
+    room.turnNumber = 0;
     const next = nextAlive(room, afterPlayerId);
-    room.currentHolderId = next ? next.id : null;
-    room.lastTimerBroadcastAt = 0;
+    startPlayerTurn(room, next ? next.id : null);
     broadcast(room, {
       type: 'new_round',
       round: room.round,
@@ -340,6 +347,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       player.hearts = STARTING_HEARTS;
       player.rarityMeter = 0;
       player.score = 0;
+      player.turnsTaken = 0;
+      player.answersGiven = 0;
+      player.invalidAnswers = 0;
       player.alive = true;
       player.eliminatedAt = 0;
     });
@@ -372,6 +382,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       hearts: STARTING_HEARTS,
       rarityMeter: 0,
       score: 0,
+      turnsTaken: 0,
+      answersGiven: 0,
+      invalidAnswers: 0,
       alive: true,
       eliminatedAt: 0,
       ready: true,
@@ -551,16 +564,21 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       const resolved = engine.matchAnswer(room.category, message.answer);
       if (!resolved) {
+        player.invalidAnswers += 1;
         await queueUnknownAnswer(room.category, message.answer);
-        sendError(socket, 'That answer is not in the approved answer set. Try another answer.', 'answer_not_approved');
+        sendError(socket, 'That answer is not in the approved answer set. Your turn clock keeps running.', 'answer_not_approved');
+        broadcastState(room);
         return;
       }
       if (room.usedAnswers.some(item => item.key === resolved.key)) {
-        sendError(socket, 'That answer has already been used this round. Try another one.', 'answer_used');
+        player.invalidAnswers += 1;
+        sendError(socket, 'That answer has already been used this round. Your turn clock keeps running.', 'answer_used');
+        broadcastState(room);
         return;
       }
 
       room.usedAnswers.push({ key: resolved.key, name: resolved.name });
+      player.answersGiven += 1;
       player.score += resolved.points;
       player.rarityMeter += HEART_METER[resolved.rarity] || 0;
       let gainedHeart = false;
@@ -578,9 +596,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         gainedHeart
       });
       const next = nextAlive(room, player.id);
-      room.currentHolderId = next ? next.id : player.id;
-      const remaining = room.timerEndsAt - Date.now();
-      if (remaining < PASS_FLOOR_MS) room.timerEndsAt = Date.now() + PASS_FLOOR_MS;
+      // Every player gets a fresh personal turn clock when the Orb reaches them.
+      // Invalid or duplicate answers do not reset the current holder's clock.
+      startPlayerTurn(room, next ? next.id : player.id);
       broadcastState(room);
       return;
     }
@@ -600,6 +618,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         item.hearts = STARTING_HEARTS;
         item.rarityMeter = 0;
         item.score = 0;
+        item.turnsTaken = 0;
+        item.answersGiven = 0;
+        item.invalidAnswers = 0;
         item.alive = true;
         item.eliminatedAt = 0;
       });
@@ -648,7 +669,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     if (room.hostId === player.id) room.hostId = room.players[0].id;
     if (room.currentHolderId === player.id && room.phase === 'playing') {
       const next = nextAlive(room, player.id);
-      room.currentHolderId = next ? next.id : null;
+      startPlayerTurn(room, next ? next.id : null);
     }
     if (room.phase === 'playing' && room.players.filter(item => item.alive).length <= 1) {
       finishGame(room).catch(error => console.error(error.message));
@@ -677,7 +698,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
           type: 'timer',
           remainingMs: Math.max(0, room.timerEndsAt - now),
           durationMs: room.timerDurationMs,
-          holderId: room.currentHolderId
+          holderId: room.currentHolderId,
+          turnNumber: room.turnNumber
         });
       }
     }
