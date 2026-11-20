@@ -7,7 +7,16 @@ const engine = require('./geography-engine');
 const API_ROOT = (process.env.HUMANITY_API_ROOT || 'https://humanity-api-jyk5.onrender.com/api').replace(/\/$/, '');
 const WS_URL = process.env.HUMANITY_PARTY_WS_URL || 'wss://humanity-api-jyk5.onrender.com/api/party';
 const suffix = String(Date.now()).slice(-6);
+const TURN_MIN_MS = 10_000;
+const TURN_MAX_MS = 30_000;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function assertRandomTurnDuration(roomState, label) {
+  assert.ok(Number.isInteger(roomState.timerDurationMs), label + ' should expose an integer timer duration');
+  assert.ok(roomState.timerDurationMs >= TURN_MIN_MS && roomState.timerDurationMs <= TURN_MAX_MS,
+    label + ' should be randomly selected between 10 and 30 seconds');
+  assert.equal(roomState.timerDurationMs % 1000, 0, label + ' should use whole seconds');
+}
 
 async function getJson(path, headers = {}) {
   const response = await fetch(API_ROOT + path, {
@@ -199,8 +208,9 @@ async function checkLivePartyRound() {
     host.send({ type: 'start_game' });
     const [hostPlaying, guestPlaying] = await Promise.all([hostPlayingPromise, guestPlayingPromise]);
     assert.ok(hostPlaying.currentHolderId);
-    assert.equal(hostPlaying.timerDurationMs, 12000, 'Every player should receive a fresh 12-second turn');
-    assert.equal(guestPlaying.timerDurationMs, 12000);
+    assertRandomTurnDuration(hostPlaying, 'The opening turn');
+    assertRandomTurnDuration(guestPlaying, 'The guest opening turn');
+    assert.equal(guestPlaying.timerDurationMs, hostPlaying.timerDurationMs, 'Everyone should see the same shared room timer');
     assert.equal(hostPlaying.turnNumber, 1);
 
     const holder = hostPlaying.players.find(player => player.id === hostPlaying.currentHolderId);
@@ -225,9 +235,11 @@ async function checkLivePartyRound() {
     holderClient.send({ type: 'submit_answer', answer: correctQuestion.answers[0].name });
     await Promise.all([acceptedHost, acceptedGuest]);
     const [hostPassed, guestPassed] = await Promise.all([passedHost, passedGuest]);
-    assert.equal(hostPassed.timerDurationMs, 12000);
-    assert.equal(guestPassed.timerDurationMs, 12000);
-    assert.ok(hostPassed.timerRemainingMs > 10000, 'The next player should receive almost all of their own fresh time');
+    assertRandomTurnDuration(hostPassed, 'The next player turn');
+    assertRandomTurnDuration(guestPassed, 'The guest next-player turn');
+    assert.equal(hostPassed.timerDurationMs, guestPassed.timerDurationMs, 'Both players should receive the same new random duration');
+    assert.ok(hostPassed.timerRemainingMs > hostPassed.timerDurationMs - 1500,
+      'The next player should receive almost all of their own fresh random time');
     const nextHolder = hostPassed.players.find(player => player.id === hostPassed.currentHolderId);
     assert.ok(nextHolder && nextHolder.id !== holder.id);
     assert.equal(nextHolder.turnsTaken, 1);
@@ -293,10 +305,14 @@ async function checkLivePartyRound() {
     assert.equal(guestNextRound.wrongAnswersThisCategory, 0);
     assert.equal(hostNextRound.turnsThisCategory, 0);
     assert.equal(guestNextRound.turnsThisCategory, 0);
-    assert.equal(hostNextRound.timerDurationMs, 12000);
-    assert.ok(hostNextRound.timerRemainingMs > 10000, 'A new category starts with a fresh personal clock');
+    assertRandomTurnDuration(hostNextRound, 'The new-category turn');
+    assertRandomTurnDuration(guestNextRound, 'The guest new-category turn');
+    assert.equal(hostNextRound.timerDurationMs, guestNextRound.timerDurationMs,
+      'Both players should see the same new-category timer');
+    assert.ok(hostNextRound.timerRemainingMs > hostNextRound.timerDurationMs - 1500,
+      'A new category starts with a fresh random personal clock');
 
-    console.log('PASS: Globe Rush personal 12-second turns, valid-pass reset, wrong-answer counting and category rotation after two mistakes.');
+    console.log('PASS: Globe Rush shared random 10–30 second turns, valid-pass reset, wrong-answer counting and category rotation after two mistakes.');
   } finally {
     for (const client of [host, guest]) {
       if (!client?.socket) continue;

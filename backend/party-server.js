@@ -5,7 +5,8 @@ const { WebSocketServer, WebSocket } = require('ws');
 const engine = require('./geography-engine');
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const PLAYER_TURN_MS = 12000;
+const PLAYER_TURN_MIN_SECONDS = 10;
+const PLAYER_TURN_MAX_SECONDS = 30;
 const MAX_WRONG_ANSWERS_PER_CATEGORY = 2;
 const MAX_TURNS_PER_CATEGORY = 10;
 const STARTING_HEARTS = 2;
@@ -298,8 +299,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const holder = room.players.find(player => player.id === playerId && player.alive);
     room.currentHolderId = holder ? holder.id : null;
     room.turnNumber = (room.turnNumber || 0) + 1;
-    room.timerDurationMs = PLAYER_TURN_MS;
-    room.timerEndsAt = holder ? Date.now() + PLAYER_TURN_MS : null;
+    const turnSeconds = crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1);
+    room.timerDurationMs = turnSeconds * 1000;
+    room.timerEndsAt = holder ? Date.now() + room.timerDurationMs : null;
     room.lastTimerBroadcastAt = 0;
     if (holder) holder.turnsTaken += 1;
   }

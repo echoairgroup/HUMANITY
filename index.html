@@ -187,7 +187,7 @@
             <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · ONE PLANET, ONE ORB</div>
             <h1>GLOBE RUSH</h1>
             <p>Travel the world one answer at a time. Pass the Atlas Orb, name a place that fits the category and keep your crew in the game.</p>
-            <div class="party-intro-stats"><span>12 SECOND TURNS</span><i></i><span>2–10 EXPLORERS</span><i></i><span>LIVE ROOMS</span></div>
+            <div class="party-intro-stats"><span>RANDOM 10–30 SEC TURNS</span><i></i><span>2–10 EXPLORERS</span><i></i><span>LIVE ROOMS</span></div>
           </div>
           <div class="party-preview-world" role="img" aria-label="A vivid pixel-art planet Earth surrounded by tiny islands and satellites">
             <div class="preview-starfield"></div>
@@ -264,8 +264,8 @@
             <section class="side-card how-card">
               <span class="micro-label">HOW GLOBE RUSH WORKS</span>
               <ol class="how-list">
-                <li><span>01</span><div><strong>Your own turn clock</strong><p>When the Orb reaches you, your personal 12-second clock starts fresh.</p></div></li>
-                <li><span>02</span><div><strong>Answer and pass</strong><p>A valid, unused answer gives the next player a fresh 12 seconds. Wrong answers keep your clock running.</p></div></li>
+                <li><span>01</span><div><strong>Your own turn clock</strong><p>When the Orb reaches you, your personal timer starts with a random 10–30 seconds.</p></div></li>
+                <li><span>02</span><div><strong>Answer and pass</strong><p>A valid, unused answer gives the next player a new random 10–30 second clock. Wrong answers keep your clock running.</p></div></li>
                 <li><span>03</span><div><strong>Keep the category moving</strong><p>Two incorrect answers or ten accepted turns changes the category for everyone.</p></div></li>
               </ol>
             </section>
@@ -340,7 +340,7 @@
 
                 <section class="planet-console-card planet-rules-card">
                   <div class="planet-console-heading"><span>MISSION SETTINGS</span><i>GLOBE RUSH</i></div>
-                  <div class="planet-rule-line"><span>TURN CLOCK</span><b>12 SEC</b></div>
+                  <div class="planet-rule-line"><span>TURN CLOCK</span><b>10–30 SEC</b></div>
                   <div class="planet-rule-line"><span>CATEGORY CHANGE</span><b>2 MISSES / 10 TURNS</b></div>
                   <div class="planet-rule-line"><span>ROOM CAPACITY</span><b id="planet-capacity">UP TO 10</b></div>
                 </section>
@@ -366,9 +366,9 @@
     <div class="rush-heading-copy">
       <span class="micro-label rush-round-label">ORBIT <b id="rush-round">01</b> · TURN <b id="rush-turn">01</b></span>
       <h2 id="rush-category">Name a river in the world.</h2>
-      <p id="rush-note">Every Orb holder gets a fresh 12-second turn clock.</p>
+      <p id="rush-note">Every Orb holder gets a random 10–30 second turn clock.</p>
     </div>
-    <div class="rush-timer" id="rush-timer"><strong id="rush-seconds">12</strong><span id="rush-timer-label">PLAYER TURN</span><div class="rush-timer-track" aria-hidden="true"><span id="rush-timer-fill"></span></div></div>
+    <div class="rush-timer" id="rush-timer" aria-label="Random player turn timer"><strong id="rush-seconds">—</strong><span id="rush-timer-label">RANDOM TURN</span><div class="rush-timer-track" aria-hidden="true"><span id="rush-timer-fill"></span></div></div>
   </div>
   <div class="category-cycle" id="category-cycle" aria-live="polite">
     <div class="category-cycle-stat"><span>WRONG ANSWERS</span><b>0 / 2</b><i><span style="width:0%"></span></i></div>
@@ -382,8 +382,15 @@
     <div class="rush-stage-satellite rush-satellite-one" aria-hidden="true"><i></i></div><div class="rush-stage-satellite rush-satellite-two" aria-hidden="true"><i></i></div>
     <div class="rush-stage-island rush-island-left" aria-hidden="true"></div><div class="rush-stage-island rush-island-right" aria-hidden="true"></div>
     <div class="rush-stage-kicker">THE ATLAS ORB IS IN CIRCULATION</div>
+    <div class="category-announcement" id="category-announcement" hidden aria-live="polite" aria-atomic="true">
+      <span id="category-announcement-kicker">ATLAS UPDATE</span>
+      <strong>NEW CATEGORY</strong>
+      <p id="category-announcement-title">A new challenge awaits</p>
+      <small id="category-announcement-detail">A fresh world challenge. Get ready to pass the Orb.</small>
+    </div>
     <div class="orb-stage-halo"></div><div class="stage-ring stage-ring-a"></div><div class="stage-ring stage-ring-b"></div>
     <div class="atlas-orb stage-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
+    <div class="orb-explosion" id="orb-explosion" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div class="orb-holder-label" id="orb-holder-label">Waiting for the first answer</div>
     <div class="rush-stage-footer">ONE PLANET · ONE ORB · ONE WINNER</div>
   </div>

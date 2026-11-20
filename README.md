@@ -47,11 +47,11 @@ All globe illustrations use actual country polygon geometry from Natural Earth r
 - Quick Play and Ranked support 1v1, 3-player, 4–6-player and 8–10-player matchmaking groups.
 - Private rooms support 2–10 players.
 - A round uses one geography category; answers cannot be repeated during that category.
-- Every player receives a personal 12-second clock when the Orb reaches them. The full 12 seconds reset for the next player after every accepted answer and for the next category.
+- Every player receives a server-generated random personal clock between 10 and 30 seconds when the Orb reaches them. The next player and every new category receive a newly randomised timer.
 - Invalid and duplicate answers do not reset the current player's clock; the player can keep trying while their own time is running.
 - A category changes for the whole room after **2 incorrect answers** (not necessarily consecutive) or **10 accepted turns**, whichever happens first. Both counters reset when the category changes.
 - The timer and category counters are controlled by the server and shown to everyone, with the active player clearly highlighted.
-- An overload costs the current holder one Stability Point. A new category then begins with a fresh 12-second turn.
+- As the clock runs low, the Atlas Orb grows and begins to shake. When it expires, the Orb bursts in a bright animated overload, costs the current holder one Stability Point, and a new category begins with a newly randomised turn.
 - The live player list tracks each explorer's turns taken, approved answers, Stability Points and score.
 - The last active player wins.
 - Ranked requires an account. A player's rating is soft-reset toward 1000 between quarterly seasons.

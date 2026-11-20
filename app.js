@@ -13,7 +13,8 @@
     provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null,
-    toastTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
+    toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
+    orbOverloadTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
     animations: localStorage.getItem('humanity-motion') !== 'false'
   };
 
@@ -577,6 +578,7 @@
       $('#room-lobby-state').hidden = false;
       $('#room-game-state').hidden = true;
       $('#room-results-state').hidden = true;
+      clearGlobeRushEffects();
       $('#party-room').scrollIntoView({ behavior: state.animations ? 'smooth' : 'auto', block: 'start' });
     } else if (message.type === 'room_state') {
       state.room = message;
@@ -589,8 +591,16 @@
       $('#rush-feedback').classList.add('success');
       playTone('success');
     } else if (message.type === 'orb_overload') {
-      $('#orb-stage').classList.add('overload');
-      setTimeout(() => $('#orb-stage').classList.remove('overload'), 500);
+      const stage = $('#orb-stage');
+      clearTimeout(state.orbOverloadTimer);
+      stage.classList.remove('pressure', 'warning', 'critical');
+      stage.style.setProperty('--orb-scale', '1.42');
+      stage.classList.add('overload');
+      state.orbOverloadTimer = setTimeout(() => {
+        stage.classList.remove('overload');
+        stage.style.setProperty('--orb-scale', '1');
+        state.orbOverloadTimer = null;
+      }, 1450);
       $('#rush-feedback').textContent = message.nickname + ' held the Atlas Orb when it overloaded.' +
         (message.eliminated ? ' Eliminated.' : ' One Stability Point lost.');
       $('#rush-feedback').classList.remove('success');
@@ -605,6 +615,7 @@
             : 'New category';
       $('#rush-feedback').textContent = reason + ' · ' + message.category.title;
       $('#rush-feedback').classList.remove('success');
+      showCategoryAnnouncement(message.category, message.reason);
     } else if (message.type === 'match_ready') {
       $('#room-status-note').textContent = 'Match begins in a few seconds…';
     } else if (message.type === 'room_chat') {
@@ -684,7 +695,7 @@
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
-      $('#rush-note').textContent = 'New category after 2 incorrect answers or 10 accepted turns. ' +
+      $('#rush-note').textContent = 'Random 10–30 second turns · 2 misses or 10 accepted turns rotate the category. ' +
         (room.category.note || 'Answers can only be used once per category.');
       const wrongCount = Math.max(0, Number(room.wrongAnswersThisCategory || 0));
       const turnCount = Math.max(0, Number(room.turnsThisCategory || 0));
@@ -718,18 +729,75 @@
   }
   function updatePartyTimer(remainingMs, holderId, durationMs) {
     const remaining = Math.max(0, Number(remainingMs || 0));
-    const duration = Math.max(1, Number(durationMs || state.room?.timerDurationMs || 12000));
+    const duration = Math.max(1, Number(durationMs || state.room?.timerDurationMs || 20000));
     const seconds = Math.ceil(remaining / 1000);
     const progress = Math.max(0, Math.min(100, (remaining / duration) * 100));
     $('#rush-seconds').textContent = String(seconds);
     $('#rush-timer-fill').style.width = progress + '%';
     $('#rush-timer').classList.toggle('urgent', seconds <= 4);
+
+    const stage = $('#orb-stage');
+    const pressure = Math.max(0, Math.min(1, (5000 - remaining) / 5000));
+    const scale = 1 + pressure * 0.38;
+    stage.style.setProperty('--orb-scale', scale.toFixed(3));
+    stage.classList.toggle('pressure', remaining > 0 && remaining <= 5000);
+    stage.classList.toggle('warning', seconds > 0 && seconds <= 5);
+    stage.classList.toggle('critical', state.animations && seconds > 0 && seconds <= 2);
+
     const holder = state.room && state.room.players.find(player => player.id === holderId);
     if (holder) {
       $('#rush-timer-label').textContent = holder.isYou ? 'YOUR TURN' : 'PLAYER TURN';
       $('#orb-holder-label').textContent = holder.isYou
         ? 'THE ORB IS WITH YOU'
         : 'THE ORB IS WITH ' + holder.nickname.toUpperCase();
+    }
+  }
+  function showCategoryAnnouncement(category, reason) {
+    const stage = $('#orb-stage');
+    const banner = $('#category-announcement');
+    if (!stage || !banner) return;
+    clearTimeout(state.categoryAnnouncementTimer);
+    clearTimeout(state.categoryAnnouncementDelayTimer);
+
+    const reveal = () => {
+      $('#category-announcement-kicker').textContent = reason === 'overload'
+        ? 'THE ATLAS HAS REFORMED'
+        : reason === 'round_start' ? 'THE FIRST ORBIT BEGINS' : 'THE ATLAS IS SHIFTING';
+      $('#category-announcement-title').textContent = category?.title || category?.prompt || 'A new challenge awaits';
+      $('#category-announcement-detail').textContent = reason === 'round_start'
+        ? 'Your first world challenge starts now.'
+        : 'A fresh world challenge. Get ready to pass the Orb.';
+      banner.hidden = false;
+      banner.classList.remove('visible');
+      stage.classList.remove('category-shift');
+      void banner.offsetWidth;
+      banner.classList.add('visible');
+      stage.classList.add('category-shift');
+      state.categoryAnnouncementTimer = setTimeout(() => {
+        banner.hidden = true;
+        banner.classList.remove('visible');
+        stage.classList.remove('category-shift');
+        state.categoryAnnouncementTimer = null;
+      }, 3500);
+    };
+    state.categoryAnnouncementDelayTimer = setTimeout(reveal, reason === 'overload' ? 700 : 0);
+  }
+  function clearGlobeRushEffects() {
+    clearTimeout(state.categoryAnnouncementTimer);
+    clearTimeout(state.categoryAnnouncementDelayTimer);
+    clearTimeout(state.orbOverloadTimer);
+    state.categoryAnnouncementTimer = null;
+    state.categoryAnnouncementDelayTimer = null;
+    state.orbOverloadTimer = null;
+    const stage = $('#orb-stage');
+    if (stage) {
+      stage.classList.remove('pressure', 'warning', 'critical', 'overload', 'category-shift');
+      stage.style.removeProperty('--orb-scale');
+    }
+    const banner = $('#category-announcement');
+    if (banner) {
+      banner.hidden = true;
+      banner.classList.remove('visible');
     }
   }
   function renderPartyResults(results) {
@@ -747,6 +815,7 @@
     loadPartyMiniRanking();
   }
   function resetRoomUI() {
+    clearGlobeRushEffects();
     state.room = null; state.roomCode = null; state.playerId = null; state.result = null;
     $('#party-room').hidden = true;
     $('#party-lobby').hidden = false;
