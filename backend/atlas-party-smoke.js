@@ -158,7 +158,7 @@ async function checkLivePartyRound() {
     guest.send({ type: 'join_room', code: roomCode, nickname: 'Guest' + suffix });
     await guestJoinedPromise;
     const [hostLobby, guestLobby] = await Promise.all([hostTwoPlayersPromise, guestTwoPlayersPromise]);
-    assert.equal(hostLobby.players.filter(player => player.hearts === 3).length, 2);
+    assert.equal(hostLobby.players.filter(player => player.hearts === 2).length, 2);
     assert.ok(hostLobby.players.some(player => player.isYou && player.isHost));
     assert.ok(guestLobby.players.some(player => player.isYou && !player.isHost));
 
@@ -200,13 +200,14 @@ async function checkLivePartyRound() {
     );
 
     const [hostOverload, guestOverload] = await Promise.all([hostOverloadPromise, guestOverloadPromise]);
-    assert.equal(hostOverload.hearts, 2);
-    assert.equal(guestOverload.hearts, 2);
+    assert.equal(hostOverload.hearts, 1);
+    assert.equal(guestOverload.hearts, 1);
     assert.equal(hostOverload.eliminated, false);
     const [hostNextRound, guestNextRound] = await Promise.all([hostNextRoundPromise, guestNextRoundPromise]);
     assert.equal(hostNextRound.round, 2);
     assert.equal(guestNextRound.round, 2);
-    assert.equal(hostNextRound.players.reduce((sum, player) => sum + player.hearts, 0), 5);
+    assert.equal(hostNextRound.players.reduce((sum, player) => sum + player.hearts, 0), 3);
+    assert.equal(hostNextRound.players.find(player => player.nickname === holder.nickname).hearts, 1);
 
     console.log('PASS: Globe Rush room creation, public lobby discovery, guest joining, game start, fuse and next-round transition.');
   } finally {
