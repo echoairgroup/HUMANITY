@@ -563,7 +563,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         sendError(socket, 'Please wait a moment before sending another chat message.', 'chat_rate_limited');
         return;
       }
-      const text = String(message.text || '').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 160);
+      const text = String(message.text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
       if (!text) return;
       context.lastChatAt = now;
       sockets.set(socket, context);
