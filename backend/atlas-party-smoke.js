@@ -234,43 +234,65 @@ async function checkLivePartyRound() {
     assert.ok(afterInvalid.timerRemainingMs < hostPassed.timerRemainingMs - 700,
       'An invalid answer must not reset the current player clock');
 
-    const hostOverloadPromise = host.waitFor(message =>
-      message.type === 'orb_overload' && message.nickname === nextHolder.nickname,
-      60000,
-      'host player turn overload'
+    const firstWrongClient = nextHolder.isHost ? host : guest;
+    const wrongOneError = firstWrongClient.waitFor(message =>
+      message.type === 'error' && message.code === 'answer_not_approved',
+      10000, 'first incorrect answer response'
     );
-    const guestOverloadPromise = guest.waitFor(message =>
-      message.type === 'orb_overload' && message.nickname === nextHolder.nickname,
-      60000,
-      'guest player turn overload'
+    const hostWrongOne = host.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.wrongAnswersThisCategory === 1,
+      10000, 'host sees first incorrect answer count'
+    );
+    const guestWrongOne = guest.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.wrongAnswersThisCategory === 1,
+      10000, 'guest sees first incorrect answer count'
+    );
+    firstWrongClient.send({ type: 'submit_answer', answer: 'not-a-real-place-' + suffix });
+    await Promise.all([wrongOneError, hostWrongOne, guestWrongOne]);
+    await pause(1200);
+
+    const wrongTwoError = firstWrongClient.waitFor(message =>
+      message.type === 'error' && message.code === 'category_changed',
+      10000, 'second incorrect answer triggers category rotation'
+    );
+    const hostCategoryChange = host.waitFor(message =>
+      message.type === 'new_round' && message.reason === 'mistakes',
+      10000, 'host category change reason'
+    );
+    const guestCategoryChange = guest.waitFor(message =>
+      message.type === 'new_round' && message.reason === 'mistakes',
+      10000, 'guest category change reason'
     );
     const hostNextRoundPromise = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
       message.round === 2 && message.turnNumber === 1,
-      60000,
-      'host next round with fresh player clock'
+      10000, 'host new category with reset counters'
     );
     const guestNextRoundPromise = guest.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
       message.round === 2 && message.turnNumber === 1,
-      60000,
-      'guest next round with fresh player clock'
+      10000, 'guest new category with reset counters'
     );
-
-    const [hostOverload, guestOverload] = await Promise.all([hostOverloadPromise, guestOverloadPromise]);
-    assert.equal(hostOverload.hearts, 1);
-    assert.equal(guestOverload.hearts, 1);
-    assert.equal(hostOverload.eliminated, false);
-    const [hostNextRound, guestNextRound] = await Promise.all([hostNextRoundPromise, guestNextRoundPromise]);
+    firstWrongClient.send({ type: 'submit_answer', answer: 'another-not-a-place-' + suffix });
+    await wrongTwoError;
+    const [hostReason, guestReason, hostNextRound, guestNextRound] = await Promise.all([
+      hostCategoryChange, guestCategoryChange, hostNextRoundPromise, guestNextRoundPromise
+    ]);
+    assert.equal(hostReason.round, 2);
+    assert.equal(guestReason.round, 2);
     assert.equal(hostNextRound.round, 2);
     assert.equal(guestNextRound.round, 2);
-    assert.equal(hostNextRound.turnNumber, 1);
+    assert.notEqual(hostNextRound.category.id, hostPlaying.category.id, 'The category should rotate to a new prompt');
+    assert.equal(hostNextRound.wrongAnswersThisCategory, 0);
+    assert.equal(guestNextRound.wrongAnswersThisCategory, 0);
+    assert.equal(hostNextRound.turnsThisCategory, 0);
+    assert.equal(guestNextRound.turnsThisCategory, 0);
     assert.equal(hostNextRound.timerDurationMs, 12000);
-    assert.ok(hostNextRound.timerRemainingMs > 10000, 'The next round must start with a full new player clock');
-    assert.equal(hostNextRound.players.reduce((sum, player) => sum + player.hearts, 0), 3);
-    assert.equal(hostNextRound.players.find(player => player.nickname === nextHolder.nickname).hearts, 1);
+    assert.ok(hostNextRound.timerRemainingMs > 10000, 'A new category starts with a fresh personal clock');
 
-    console.log('PASS: Globe Rush personal 12-second turns, valid-pass reset, invalid-answer no-reset, overload, and next-round reset.');
+    console.log('PASS: Globe Rush personal 12-second turns, valid-pass reset, wrong-answer counting and category rotation after two mistakes.');
   } finally {
     for (const client of [host, guest]) {
       if (!client?.socket) continue;
