@@ -1015,20 +1015,20 @@ body.globe-rush-active .party-room {
   padding:14px; border:1px solid #2c4f77; border-radius:3px; color:#e4f3ff;
   background:linear-gradient(180deg,#101f41,#08152e); box-shadow:0 8px 0 #040a17,0 24px 55px rgba(0,0,0,.24);
 }
-.ocean-room-topbar {
+.planet-room-topbar {
   display:grid; grid-template-columns:minmax(170px,1fr) auto auto auto; align-items:center; gap:14px;
   margin-bottom:14px; padding:5px 3px 13px; border-bottom:1px solid #2b4d74;
 }
-.ocean-brand-lockup { display:flex; align-items:center; gap:10px; min-width:0; }
-.ocean-brand-mark { display:grid; place-items:center; width:34px; height:34px; color:#071a34; background:#7cdce8; border:2px solid #d6f8ff; box-shadow:3px 3px 0 #244f7a; font:18px 'Press Start 2P',monospace; }
-.ocean-brand-lockup b { display:block; color:#eef8ff; font:17px 'VT323',monospace; letter-spacing:.14em; }
-.ocean-brand-lockup small { display:block; margin-top:2px; color:#93acc9; font:11px 'VT323',monospace; letter-spacing:.18em; }
-.ocean-room-code-pill,.ocean-room-live-pill { display:grid; gap:3px; padding:7px 11px; border:1px solid #355a80; background:#0c1c3b; }
-.ocean-room-code-pill span,.ocean-room-live-pill span { color:#98b4cf; font:10px 'VT323',monospace; letter-spacing:.13em; }
-.ocean-room-code-pill strong { color:#8ce4ee; font:23px 'VT323',monospace; letter-spacing:.16em; }
-.ocean-room-live-pill strong { color:#f2c17b; font:16px 'VT323',monospace; letter-spacing:.08em; }
-.ocean-leave-button { padding:9px 11px; border:1px solid #42658b; border-radius:2px; color:#c2d6e8; background:#0e2041; cursor:pointer; font:13px 'VT323',monospace; letter-spacing:.08em; }
-.ocean-leave-button:hover { color:#fff; border-color:#e8b96e; background:#2b2945; }
+.planet-brand-lockup { display:flex; align-items:center; gap:10px; min-width:0; }
+.planet-brand-mark { display:grid; place-items:center; width:34px; height:34px; color:#071a34; background:#7cdce8; border:2px solid #d6f8ff; box-shadow:3px 3px 0 #244f7a; font:18px 'Press Start 2P',monospace; }
+.planet-brand-lockup b { display:block; color:#eef8ff; font:17px 'VT323',monospace; letter-spacing:.14em; }
+.planet-brand-lockup small { display:block; margin-top:2px; color:#93acc9; font:11px 'VT323',monospace; letter-spacing:.18em; }
+.planet-room-code-pill,.planet-room-live-pill { display:grid; gap:3px; padding:7px 11px; border:1px solid #355a80; background:#0c1c3b; }
+.planet-room-code-pill span,.planet-room-live-pill span { color:#98b4cf; font:10px 'VT323',monospace; letter-spacing:.13em; }
+.planet-room-code-pill strong { color:#8ce4ee; font:23px 'VT323',monospace; letter-spacing:.16em; }
+.planet-room-live-pill strong { color:#f2c17b; font:16px 'VT323',monospace; letter-spacing:.08em; }
+.planet-leave-button { padding:9px 11px; border:1px solid #42658b; border-radius:2px; color:#c2d6e8; background:#0e2041; cursor:pointer; font:13px 'VT323',monospace; letter-spacing:.08em; }
+.planet-leave-button:hover { color:#fff; border-color:#e8b96e; background:#2b2945; }
 .planet-room-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:13px; align-items:stretch; }
 .planet-arena {
   position:relative; min-width:0; min-height:570px; overflow:hidden; isolation:isolate;
@@ -1162,9 +1162,9 @@ body.globe-rush-active .party-room .eyebrow { color:#7bd7e4; }
   body.globe-rush-active .site-shell { width:calc(100% - 28px); }
   body.globe-rush-active .party-intro { grid-template-columns:1fr; gap:12px; }
   .party-preview-world { height:132px; }
-  .ocean-room-topbar { grid-template-columns:1fr auto; }
-  .ocean-room-live-pill { justify-self:end; }
-  .ocean-leave-button { grid-column:2; grid-row:1; justify-self:end; margin-top:45px; }
+  .planet-room-topbar { grid-template-columns:1fr auto; }
+  .planet-room-live-pill { justify-self:end; }
+  .planet-leave-button { grid-column:2; grid-row:1; justify-self:end; margin-top:45px; }
   .planet-room-layout { grid-template-columns:1fr; }
   .planet-arena { min-height:560px; }
   .planet-earth-wrap { width:min(40%,320px); }
@@ -1186,12 +1186,12 @@ body.globe-rush-active .party-room .eyebrow { color:#7bd7e4; }
   body.globe-rush-active .party-lobby { grid-template-columns:1fr; }
   body.globe-rush-active .party-mode-grid,body.globe-rush-active .party-tools-grid { grid-template-columns:1fr; }
   body.globe-rush-active .party-sidebar { grid-template-columns:1fr; }
-  .ocean-room-topbar { gap:7px; grid-template-columns:1fr auto; }
-  .ocean-brand-mark { width:29px; height:29px; font-size:14px; }
-  .ocean-brand-lockup b { font-size:15px; }
-  .ocean-room-code-pill { grid-column:1; grid-row:2; justify-self:start; }
-  .ocean-room-live-pill { grid-column:2; grid-row:2; justify-self:end; }
-  .ocean-leave-button { grid-column:2; grid-row:1; margin:0; font-size:12px; }
+  .planet-room-topbar { gap:7px; grid-template-columns:1fr auto; }
+  .planet-brand-mark { width:29px; height:29px; font-size:14px; }
+  .planet-brand-lockup b { font-size:15px; }
+  .planet-room-code-pill { grid-column:1; grid-row:2; justify-self:start; }
+  .planet-room-live-pill { grid-column:2; grid-row:2; justify-self:end; }
+  .planet-leave-button { grid-column:2; grid-row:1; margin:0; font-size:12px; }
   body.globe-rush-active .party-room { padding:8px; }
   .planet-arena { min-height:565px; }
   .planet-arena-heading { top:19px; }
