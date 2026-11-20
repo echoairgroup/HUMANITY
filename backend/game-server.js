@@ -358,7 +358,6 @@ async function maybeVerifyWithWikidata(question, answerText) {
       'VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO NOTHING',
       [question.id, key, candidate.label, JSON.stringify([]), candidate.concepturi || null, 'automatic Wikidata type match']
     );
-    engine.addApprovedAnswer(question.id, candidate.label, [], 2, candidate.concepturi || null);
     await pool.query(
       'UPDATE humanity_answer_review_queue SET status = $2, confidence = $3, source_url = $4, reviewer_note = $5, updated_at = NOW() WHERE question_id = $1 AND answer_key = $6 AND status = $7',
       [question.id, 'auto_approved', 0.96, candidate.concepturi || null, 'Exact label match and expected entity type found in Wikidata. This answer is available in future challenges.', key, 'pending']
@@ -633,7 +632,7 @@ async function dailyGuess(request, response, skip) {
     const nextIndex = index + 1;
     const complete = nextIndex >= challenge.payload.questions.length;
     await pool.query(
-      'UPDATE humanity_daily_runs SET current_question = $2, question_started_at = NOW(), provisional_score = provisional_score + $3, status = $4, completed_at = CASE WHEN $4 = $5 THEN NOW() ELSE completed_at END WHERE id = $1',
+      'UPDATE humanity_daily_runs SET current_question = $2, provisional_score = provisional_score + $3, status = $4, completed_at = CASE WHEN $4 = $5 THEN NOW() ELSE completed_at END WHERE id = $1',
       [run.id, nextIndex, match.points, complete ? 'completed' : 'in_progress', 'completed']
     );
     if (complete && identity.playerId) await updateDailyStreak(identity.playerId, String(challenge.challenge_date).slice(0, 10));
@@ -664,7 +663,7 @@ async function dailyGuess(request, response, skip) {
   const nextIndex = index + 1;
   const complete = nextIndex >= challenge.payload.questions.length;
   await pool.query(
-    'UPDATE humanity_daily_runs SET current_question = $2, question_started_at = NOW(), status = $3, completed_at = CASE WHEN $3 = $4 THEN NOW() ELSE completed_at END WHERE id = $1',
+    'UPDATE humanity_daily_runs SET current_question = $2, status = $3, completed_at = CASE WHEN $3 = $4 THEN NOW() ELSE completed_at END WHERE id = $1',
     [run.id, nextIndex, complete ? 'completed' : 'in_progress', 'completed']
   );
   if (complete && identity.playerId) await updateDailyStreak(identity.playerId, String(challenge.challenge_date).slice(0, 10));
@@ -719,12 +718,12 @@ async function dailyLeaderboard(response, date) {
   const day = date || utcDate();
   const result = await pool.query(
     'SELECT ROW_NUMBER() OVER (ORDER BY COALESCE(r.final_score,r.provisional_score) DESC, r.completed_at ASC NULLS LAST) AS rank, ' +
-    'COALESCE(p.username, CASE WHEN r.guest_id IS NOT NULL THEN ''Explorer'' ELSE ''Player'' END) AS username, ' +
+    'p.username AS username, ' +
     'COALESCE(r.final_score,r.provisional_score) AS score, r.status, r.completed_at, r.player_id ' +
     'FROM humanity_daily_runs r JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
-    'LEFT JOIN humanity_players p ON p.id = r.player_id WHERE c.challenge_date = $1 ' +
+    'JOIN humanity_players p ON p.id = r.player_id WHERE c.challenge_date = $1 AND r.status = $2 ' +
     'ORDER BY score DESC, r.completed_at ASC NULLS LAST LIMIT 50',
-    [day]
+    [day, 'completed']
   );
   sendJSON(response, 200, { ok: true, date: day, entries: result.rows });
 }
@@ -779,7 +778,6 @@ async function handleAdmin(request, response, url, user) {
         'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO UPDATE SET answer_text = EXCLUDED.answer_text, aliases = EXCLUDED.aliases, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by, approved_at = NOW()',
         [item.question_id, item.answer_key, item.answer_text, JSON.stringify([]), item.source_url || null, user.username]
       );
-      engine.addApprovedAnswer(item.question_id, item.answer_text, [], 2, item.source_url || null);
     }
     await pool.query(
       'UPDATE humanity_answer_review_queue SET status = $2, reviewer_note = $3, updated_at = NOW() WHERE id = $1',
@@ -875,10 +873,71 @@ async function handleAPI(request, response, url, party) {
     await dailyGuess(request, response, true);
     return true;
   }
+  if (request.method === 'POST' && url.pathname === '/api/daily/next') {
+    const body = await readJSON(request);
+    const identity = await getIdentity(request, body);
+    if (!identity) {
+      sendError(response, 400, 'A guest ID or account is required.', 'identity_required');
+      return true;
+    }
+    const run = await ownedRun(String(body.runId || ''), identity);
+    if (!run || run.status !== 'in_progress') {
+      sendError(response, 404, 'This Daily attempt is no longer active.', 'run_unavailable');
+      return true;
+    }
+    const result = await pool.query('SELECT payload FROM humanity_daily_challenges WHERE id = $1 LIMIT 1', [run.challenge_id]);
+    const question = runQuestion(run, result.rows[0] && result.rows[0].payload);
+    if (!question || Number(body.index) !== Number(run.current_question)) {
+      sendError(response, 409, 'That question is no longer active.', 'question_out_of_sync');
+      return true;
+    }
+    await pool.query('UPDATE humanity_daily_runs SET question_started_at = NOW() WHERE id = $1', [run.id]);
+    sendJSON(response, 200, {
+      ok: true,
+      index: Number(run.current_question),
+      question: publicDailyQuestion(question, Number(run.current_question)),
+      seconds: DAILY_SECONDS
+    });
+    return true;
+  }
+
   if (request.method === 'POST' && url.pathname === '/api/daily/hint') {
     await dailyHint(request, response);
     return true;
   }
+  const archiveDate = url.pathname.match(/^\/api\/daily\/archive\/(\d{4}-\d{2}-\d{2})$/);
+  if (request.method === 'GET' && archiveDate) {
+    const date = archiveDate[1];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= utcDate()) {
+      sendError(response, 400, 'Only completed Daily editions can be replayed.', 'archive_date_invalid');
+      return true;
+    }
+    const found = await pool.query(
+      'SELECT payload, finalised_at FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1',
+      [date]
+    );
+    if (!found.rows[0]) {
+      sendError(response, 404, 'That Daily edition is not in the archive.', 'archive_missing');
+      return true;
+    }
+    const payload = found.rows[0].payload;
+    sendJSON(response, 200, {
+      ok: true,
+      date,
+      finalised: Boolean(found.rows[0].finalised_at),
+      questions: payload.questions.map((question, index) => ({
+        ...publicDailyQuestion(question, index),
+        answers: answerReveal(question).map(item => ({
+          answer: item.answer,
+          aliases: (question.answers.find(entry => entry.name === item.answer) || {}).aliases || [],
+          level: item.level,
+          points: item.points
+        }))
+      }))
+    });
+    return true;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/daily/archive') {
     await dailyArchive(response);
     return true;
@@ -903,13 +962,51 @@ async function handleAPI(request, response, url, party) {
   }
   if (request.method === 'GET' && url.pathname === '/api/leaderboards/global') {
     const period = url.searchParams.get('period') || 'daily';
-    const dateClause = period === 'weekly' ? "challenge_date >= CURRENT_DATE - INTERVAL '6 days'"
-      : period === 'monthly' ? "challenge_date >= CURRENT_DATE - INTERVAL '29 days'"
-      : period === 'daily' ? 'challenge_date = CURRENT_DATE'
+    const identity = await optionalUser(request);
+    const dateClause = period === 'weekly' ? "c.challenge_date >= CURRENT_DATE - INTERVAL '6 days'"
+      : period === 'monthly' ? "c.challenge_date >= CURRENT_DATE - INTERVAL '29 days'"
+      : period === 'daily' ? 'c.challenge_date = CURRENT_DATE'
       : 'TRUE';
+
+    if (period === 'country') {
+      const result = await pool.query(
+        'SELECT ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(r.final_score,r.provisional_score)) DESC) AS rank, ' +
+        'p.country_code AS country, SUM(COALESCE(r.final_score,r.provisional_score))::int AS score, COUNT(*)::int AS games ' +
+        'FROM humanity_daily_runs r JOIN humanity_players p ON p.id = r.player_id ' +
+        'JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
+        'WHERE r.status = $1 AND p.country_code IS NOT NULL GROUP BY p.country_code ' +
+        'ORDER BY score DESC LIMIT 50',
+        ['completed']
+      );
+      sendJSON(response, 200, { ok: true, period, entries: result.rows });
+      return true;
+    }
+
+    if (period === 'friends') {
+      if (!identity) {
+        sendError(response, 401, 'Sign in to see your friends ranking.', 'authentication_required');
+        return true;
+      }
+      const result = await pool.query(
+        'SELECT ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(r.final_score,r.provisional_score)) DESC) AS rank, p.username, ' +
+        'SUM(COALESCE(r.final_score,r.provisional_score))::int AS score, COUNT(*)::int AS games ' +
+        'FROM humanity_daily_runs r JOIN humanity_players p ON p.id = r.player_id ' +
+        'JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
+        'WHERE r.status = $1 AND ' + dateClause + ' AND (p.id = $2 OR p.id IN (' +
+        "SELECT CASE WHEN requester_id = $2 THEN addressee_id ELSE requester_id END FROM humanity_friendships " +
+        "WHERE (requester_id = $2 OR addressee_id = $2) AND status = 'accepted')) " +
+        'GROUP BY p.id ORDER BY score DESC LIMIT 50',
+        ['completed', identity.id]
+      );
+      sendJSON(response, 200, { ok: true, period, entries: result.rows });
+      return true;
+    }
+
     const result = await pool.query(
-      'SELECT ROW_NUMBER() OVER (ORDER BY SUM(r.final_score)::int DESC) AS rank, p.username, SUM(r.final_score)::int AS score, COUNT(*)::int AS games ' +
-      'FROM humanity_daily_runs r JOIN humanity_players p ON p.id = r.player_id JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
+      'SELECT ROW_NUMBER() OVER (ORDER BY SUM(COALESCE(r.final_score,r.provisional_score))::int DESC) AS rank, p.username, ' +
+      'SUM(COALESCE(r.final_score,r.provisional_score))::int AS score, COUNT(*)::int AS games ' +
+      'FROM humanity_daily_runs r JOIN humanity_players p ON p.id = r.player_id ' +
+      'JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
       'WHERE r.status = $1 AND ' + dateClause + ' GROUP BY p.id ORDER BY score DESC LIMIT 50',
       ['completed']
     );
@@ -1028,8 +1125,6 @@ const party = createPartyServer({
 async function start() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema-geography.sql'), 'utf8');
   await pool.query(schema);
-  const approved = await pool.query('SELECT question_id, answer_text, aliases, rarity, source_url FROM humanity_approved_answers');
-  for (const item of approved.rows) engine.addApprovedAnswer(item.question_id, item.answer_text, item.aliases, item.rarity, item.source_url);
   await pool.query('DELETE FROM humanity_sessions WHERE expires_at < NOW()');
   await currentChallenge();
   server.listen(PORT, () => {

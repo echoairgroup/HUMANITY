@@ -1,12 +1,12 @@
 {
-  "name": "HUMANITY — Understand our world",
+  "name": "HUMANITY — Geography, every day",
   "short_name": "HUMANITY",
-  "description": "Explore trusted global data, compare countries and discover the stories behind the numbers.",
+  "description": "Play Atlas Daily and Globe Rush, two geography games for curious people everywhere.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f3f2ec",
-  "theme_color": "#101a19",
+  "background_color": "#f7f6f2",
+  "theme_color": "#f7f6f2",
   "icons": [
     { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]

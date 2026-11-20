@@ -1,0 +1,30 @@
+name: Publish Atlas Daily
+
+on:
+  schedule:
+    - cron: '1 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required secrets
+        env:
+          API_URL: ${{ secrets.HUMANITY_API_URL }}
+          ENGINE_SECRET: ${{ secrets.ENGINE_CRON_SECRET }}
+        run: |
+          test -n "$API_URL" || (echo "Missing HUMANITY_API_URL secret" && exit 1)
+          test -n "$ENGINE_SECRET" || (echo "Missing ENGINE_CRON_SECRET secret" && exit 1)
+      - name: Publish the UTC edition
+        env:
+          API_URL: ${{ secrets.HUMANITY_API_URL }}
+          ENGINE_SECRET: ${{ secrets.ENGINE_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request POST "$API_URL/api/engine/publish" \
+            --header "X-Engine-Secret: $ENGINE_SECRET" \
+            --header "Accept: application/json"

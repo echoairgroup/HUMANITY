@@ -1,73 +1,151 @@
-# HUMANITY — Understand our world
+# HUMANITY — Geography, every day
 
-A responsive, multi-section global data explorer built as a static website. It is designed to run on GitHub Pages, Vercel, Netlify or any ordinary static web host.
+HUMANITY is a geography game platform with two core games:
 
-## What's included
+- **Atlas Daily** — seven shared questions each UTC day, 25 seconds per question, one uninterrupted official attempt, optional hint, approved multilingual answer aliases, Discovery Levels and a global daily ranking.
+- **Globe Rush** — live multiplayer geography rounds. Players pass the Atlas Orb by submitting a valid unused answer before the shared fuse expires. Includes Quick Play, Ranked, private rooms and quarterly seasons.
 
-- **Overview:** global snapshot cards, long-range population and life-expectancy charts, and country highlights.
-- **Explore:** searchable and sortable country table, region filter, country detail panels and CSV export.
-- **Compare:** side-by-side comparison of up to three countries across the full 26-indicator catalogue.
-- **Stories:** editorial context to help visitors think critically about population, wellbeing, connectivity and emissions.
-- **Games / HUMANITY Arcade:** Atlas Expedition (shared daily five-clue world-map challenge plus unlimited practice), Mystery Country (daily and practice clue ladder), Atlas Party (live public/private rooms with up to eight players, nickname-only guest entry, three lives, timed turns, rematches and a shared party leaderboard), **Nation Builder** (choose a country, inherit its published statistics, set taxes and two yearly policy priorities, manage a simplified game treasury and debt, and advance through simulated years with scenario events and browser-saved campaigns), plus Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective.
-- **About:** 26 indicator definitions, methodology notes and direct source links.
-- Responsive layouts, keyboard accessibility, reduced-motion support, softly animated page transitions, real Natural Earth continent outlines on both illustrated globes, metadata, a web app manifest and a small offline shell cache.
+The website is a static GitHub Pages frontend. The API and live WebSocket rooms run on Render with Neon PostgreSQL.
 
-## Data and freshness
-
-HUMANITY's backend synchronizes its public data sources every six hours and stores the latest successful datasets in Neon PostgreSQL. The website checks the backend every five minutes while it is open.
-
-The 26-indicator catalogue covers population and growth, urban/rural distribution, health, education, employment, economic activity, connectivity, electricity access and environmental measures. Most series come from the World Bank Indicators API v2. Drinking-water coverage comes from the WHO/UNICEF Joint Monitoring Programme.
-
-Every published observation retains its reporting year. Different indicators and countries can have different latest years, and missing observations are displayed as unavailable rather than invented.
-
-### Population estimate
-
-The country population counter updates its display every second. It is a projection, not a live census: it starts from the latest published midyear population total and applies the latest available annual population growth rate using an exponential growth model. The underlying source observations update when the providers publish new data and the backend next synchronizes.
-
-### Games
-
-The Arcade combines solo geography and live multiplayer. Atlas Expedition gives everyone the same five geography clues each UTC day; players select countries on a world map, with less obvious correct answers awarding more distance. Unlimited practice expeditions are separate from the daily leaderboard. Mystery Country reveals up to three clues for a daily or random country. Atlas Party provides public rooms and private six-character invite codes, up to eight nickname-only guests, three lives each, a timed pass-the-atlas turn, unique valid country answers per category, host-controlled starts, rematches and a 30-day party leaderboard. Daily expedition scores and completed party results are stored in Neon PostgreSQL. Party rooms themselves are in-memory live sessions and reset when the API process restarts. Player identities are guest nicknames, not verified accounts. The five original quick games remain available: Population Guess, Population Duel, Flag Finder, Capital Cities and Data Detective.
-
-Primary sources:
-
-- World Bank Indicators API v2: https://datahelpdesk.worldbank.org/knowledgebase/articles/889392
-- WHO/UNICEF Joint Monitoring Programme: https://washdata.org/data/api
-
-## Run locally
-
-No build step or package installation is required. Open `index.html` in a browser for a quick visual check. For full data access and service-worker support, serve the folder over HTTP, for example:
-
-```bash
-python -m http.server 8000
-```
-
-Then open http://localhost:8000.
-
-## Deploy to GitHub Pages
-
-1. Put the contents of this folder in the root of a GitHub repository (or the configured Pages publishing folder).
-2. In the repository, open **Settings → Pages**.
-3. Select **Deploy from a branch**, choose the branch (usually `main`) and folder (`/ (root)`), then save.
-4. Open the published URL over HTTPS. No environment variables or secrets are required.
-
-## Notes
-
-- The World Bank is the upstream data provider; HUMANITY is an independent project and is not affiliated with or endorsed by the World Bank.
-- GDP per capita is an average, not a measure of personal income or inequality.
-- Territorial CO₂ emissions per capita are not a complete measure of climate impact or consumption-based responsibility.
-- National averages can hide large within-country differences. Use the data as a starting point for questions, not as a ranking of human worth.
-- A network connection is required for first-time data retrieval. The cached app shell and the most recently saved API responses can make later visits more resilient.
-
-## Project structure
+## Project layout
 
 ```text
-HUMANITY_FINAL_RELEASE/
-├── index.html
-├── styles.css
-├── app.js
-├── nation.js
-├── sw.js
-├── manifest.webmanifest
-├── favicon.svg
-└── README.md
+/
+  index.html
+  styles.css
+  app.js
+  favicon.svg
+  manifest.webmanifest
+  sw.js
+  backend/
+    game-server.js
+    party-server.js
+    geography-engine.js
+    schema-geography.sql
+    game-engine.test.js
+    package.json
 ```
+
+## Current game rules
+
+### Atlas Daily
+
+- A new edition is keyed to the UTC date and is shared worldwide.
+- Seven questions are assembled deterministically for that date: six geography questions and one wider culture/world question.
+- Each question has a server-enforced 25-second answer window.
+- Players can try as many answers as they like while the timer is active. Only an answer already in the approved answer set is accepted.
+- One official attempt is allowed per account or persistent guest ID per UTC day. The run is not resumable.
+- One optional hint returns three approved example answers.
+- The approved answer set is shown after each question.
+- Scores are provisional during the UTC day. At rollover, the API uses the actual answer frequencies to finalise Discovery Points.
+- Guests can play, but only completed account runs appear in official rankings.
+
+### Globe Rush
+
+- Quick Play and Ranked support 1v1, 3-player, 4–6-player and 8–10-player matchmaking groups.
+- Private rooms support 2–10 players.
+- A round uses one geography category; answers cannot be repeated during that round.
+- Players may retry invalid answers for as long as they hold the Orb and the timer is active.
+- The shared hidden fuse is randomly set between 10 and 30 seconds. If less than 8 seconds remain when a valid answer is passed, the timer is raised to 8 seconds.
+- An overload costs the current holder one Stability Point. A new round begins with a new category.
+- The last active player wins.
+- Ranked requires an account. A player's rating is soft-reset toward 1000 between quarterly seasons.
+
+The starting number of Stability Points and rarity-to-extra-heart balance are configuration choices in `backend/party-server.js`; tune these against real playtests before treating them as a final competitive balance.
+
+## Local development
+
+Requires Node.js 20 or newer and a PostgreSQL database.
+
+```bash
+cd backend
+npm install
+DATABASE_URL="postgresql://..." npm start
+```
+
+The static frontend can be served from the repository root with any static file server. The default frontend API URL is the existing Render service:
+
+`https://humanity-api-jyk5.onrender.com/api`
+
+For local development, update the `API` and `SOCKET_URL` constants at the top of `app.js` to your local API host.
+
+Run backend tests:
+
+```bash
+cd backend
+npm test
+node --check game-server.js
+node --check party-server.js
+node --check geography-engine.js
+```
+
+## Render deployment
+
+Use the existing HUMANITY Render API service, whose public origin is:
+
+`https://humanity-api-jyk5.onrender.com`
+
+Recommended service settings:
+
+- **Root Directory:** `backend`
+- **Build Command:** `npm install`
+- **Start Command:** `npm start`
+- **Runtime:** Node 20 or newer
+- **Health Check Path:** `/api/health`
+
+Required environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Existing Neon PostgreSQL connection string |
+| `ALLOWED_ORIGINS` | `https://echoairgroup.github.io` |
+| `SITE_URL` | `https://echoairgroup.github.io/HUMANITY/` |
+| `PUBLIC_API_URL` | `https://humanity-api-jyk5.onrender.com` |
+| `ADMIN_EMAILS` | Comma-separated email addresses allowed into the admin dashboard |
+| `ENGINE_CRON_SECRET` | Long random secret used by the scheduled publisher |
+
+Optional OAuth variables:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI` — `https://humanity-api-jyk5.onrender.com/api/auth/google/callback`
+- `DISCORD_CLIENT_ID`
+- `DISCORD_CLIENT_SECRET`
+- `DISCORD_REDIRECT_URI` — `https://humanity-api-jyk5.onrender.com/api/auth/discord/callback`
+
+Google and Discord OAuth are unavailable until their client credentials and callback URLs are configured in their respective developer consoles and added to Render.
+
+On startup, the API runs the additive statements in `schema-geography.sql`. It creates HUMANITY game tables and adds the season-rating column if needed; it does not drop or rewrite the existing legacy cache tables.
+
+## GitHub Pages
+
+Publish the repository root using GitHub Pages. The default site URL expected by the OAuth redirect is:
+
+`https://echoairgroup.github.io/HUMANITY/`
+
+The frontend is intentionally independent of Render deployment, so the current live website remains unchanged until the rebuild is merged into the Pages publishing branch.
+
+## Daily publisher workflow
+
+The `.github/workflows/daily-publish.yml` workflow runs at 00:01 UTC and can also be run manually. Add these repository Actions secrets:
+
+- `HUMANITY_API_URL` — `https://humanity-api-jyk5.onrender.com` (no trailing `/api`)
+- `ENGINE_CRON_SECRET` — the same value configured on Render
+
+The API also checks/creates the current UTC edition during startup and in its scheduled in-process tick, so the site does not depend on a visitor opening it to generate the daily edition.
+
+## Geography and answer engine
+
+The first release ships with a curated, reviewed seed bank that covers countries, capitals, cities, rivers, mountains, islands, lakes, seas, deserts, landmarks, languages and selected global food/culture topics. Each question includes approved names and aliases. Matching is Unicode-aware, so non-Latin scripts can be matched when those aliases are present.
+
+Unknown answers are never accepted during a live attempt. They are added to the review queue. Exact Wikidata entity-label/type matches for supported geography topics can be auto-approved for future editions; uncertain and cultural answers remain in the Admin Dashboard queue.
+
+The daily engine automatically assembles a new shared combination from this approved question bank. It is not an unrestricted generative AI system and cannot guarantee every possible place name, local term or snack on Earth is already present. Expand the curated data and review queue over time; never auto-accept an unverified answer inside an active ranked game.
+
+## Important release notes
+
+- Configure Render environment variables before switching the Render service to this branch.
+- Configure GitHub Actions secrets before relying on the scheduled publisher.
+- Configure Google/Discord OAuth before advertising those sign-in options as active.
+- Add the owner email to `ADMIN_EMAILS` to enable the admin dashboard.
+- The first stability-point and rarity-hearts balance should be playtested before a public ranked launch.
