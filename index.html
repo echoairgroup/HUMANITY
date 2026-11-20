@@ -12,6 +12,8 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
+  <script src="./globe.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -70,11 +72,7 @@
                 <div class="idle-orbit-ring ring-a"></div>
                 <div class="idle-orbit-ring ring-b"></div>
                 <div class="idle-orbit-globe">
-                  <svg viewBox="0 0 120 120" aria-hidden="true">
-                    <circle cx="60" cy="60" r="47" fill="#d9e8d0"/>
-                    <path d="M22 43 37 30l14 3 5 13-10 7-2 13-12 1-9-11-8-2Zm34 25 13-8 12 7 3 13-8 15-10-5-4-12Zm19-51 11 7 4 10-9 6-9-5-5-8Zm15 42 12 4 4 10-7 10-11-4-2-9Z" fill="#537e62"/>
-                    <circle cx="60" cy="60" r="47" fill="none" stroke="#ffffff" stroke-width="2"/>
-                  </svg>
+                  <div class="earth-globe" data-earth-globe role="img" aria-label="Real Earth with accurate country outlines"></div>
                 </div>
               </div>
               <div class="idle-copy">
@@ -192,7 +190,7 @@
           </div>
           <div class="orb-preview" aria-hidden="true">
             <div class="orb-glow"></div><div class="orb-rings ring-one"></div><div class="orb-rings ring-two"></div>
-            <div class="atlas-orb"><span></span><i></i></div>
+            <div class="atlas-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
             <div class="orb-caption">THE ATLAS ORB</div>
           </div>
         </div>
@@ -258,9 +256,9 @@
             <section class="side-card how-card">
               <span class="micro-label">HOW GLOBE RUSH WORKS</span>
               <ol class="how-list">
-                <li><span>01</span><div><strong>Read the category</strong><p>Everyone in the room gets the same prompt for the round.</p></div></li>
-                <li><span>02</span><div><strong>Answer and pass</strong><p>A valid unused answer sends the Atlas Orb to the next player.</p></div></li>
-                <li><span>03</span><div><strong>Avoid overload</strong><p>If it overloads in your hands, you lose a Stability Point.</p></div></li>
+                <li><span>01</span><div><strong>Your own turn clock</strong><p>When the Orb reaches you, your personal 12-second clock starts fresh.</p></div></li>
+                <li><span>02</span><div><strong>Answer and pass</strong><p>A valid, unused answer gives the next player a fresh 12 seconds. Wrong answers keep your clock running.</p></div></li>
+                <li><span>03</span><div><strong>Stay in the game</strong><p>If your clock reaches zero, you lose one Stability Point and a new round begins.</p></div></li>
               </ol>
             </section>
             <section class="side-card season-card">
@@ -285,12 +283,16 @@
           </div>
           <div class="room-game-state" id="room-game-state" hidden>
             <div class="rush-game-header">
-              <div><span class="micro-label">ROUND <b id="rush-round">01</b></span><h2 id="rush-category">Name a river in the world.</h2><p id="rush-note">Every answer can only be used once this round.</p></div>
-              <div class="rush-timer" id="rush-timer"><strong id="rush-seconds">—</strong><span>SEC LEFT</span></div>
+              <div><span class="micro-label">ROUND <b id="rush-round">01</b> · TURN <b id="rush-turn">01</b></span><h2 id="rush-category">Name a river in the world.</h2><p id="rush-note">Every Orb holder gets a fresh 12-second turn clock.</p></div>
+              <div class="rush-timer" id="rush-timer">
+                <strong id="rush-seconds">12</strong>
+                <span id="rush-timer-label">PLAYER TURN</span>
+                <div class="rush-timer-track" aria-hidden="true"><span id="rush-timer-fill"></span></div>
+              </div>
             </div>
             <div class="orb-stage" id="orb-stage">
               <div class="orb-stage-halo"></div><div class="stage-ring stage-ring-a"></div><div class="stage-ring stage-ring-b"></div>
-              <div class="atlas-orb stage-orb"><span></span><i></i></div>
+              <div class="atlas-orb stage-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
               <div class="orb-holder-label" id="orb-holder-label">Waiting for the first answer</div>
             </div>
             <div class="rush-answer-area" id="rush-answer-area">
