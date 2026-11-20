@@ -7,6 +7,8 @@ HUMANITY is a geography game platform with two core games:
 
 The website is a static GitHub Pages frontend. The API and live WebSocket rooms run on Render with Neon PostgreSQL.
 
+All globe illustrations use actual country polygon geometry from Natural Earth rather than hand-drawn continent shapes. The country data is bundled with the site and projected onto spherical SVG globes using D3's geographic projection tools. The bundled map is Natural Earth's 1:110m country layer, intended for global-scale displays.
+
 ## Project layout
 
 ```text
@@ -45,9 +47,11 @@ The website is a static GitHub Pages frontend. The API and live WebSocket rooms 
 - Quick Play and Ranked support 1v1, 3-player, 4–6-player and 8–10-player matchmaking groups.
 - Private rooms support 2–10 players.
 - A round uses one geography category; answers cannot be repeated during that round.
-- Players may retry invalid answers for as long as they hold the Orb and the timer is active.
-- The shared hidden fuse is randomly set between 10 and 30 seconds. If less than 8 seconds remain when a valid answer is passed, the timer is raised to 8 seconds.
-- An overload costs the current holder one Stability Point. A new round begins with a new category.
+- Every player receives a personal 12-second clock when the Orb reaches them. The full 12 seconds reset for the next player after every accepted answer and for the next round.
+- Invalid and duplicate answers do not reset the current player's clock; the player can keep trying while their own time is running.
+- The timer is controlled by the server and shown to everyone, with the active player clearly highlighted.
+- An overload costs the current holder one Stability Point. A new round begins with a new category and a fresh 12-second turn.
+- The live player list tracks each explorer's turns taken, approved answers, Stability Points and score.
 - The last active player wins.
 - Ranked requires an account. A player's rating is soft-reset toward 1000 between quarterly seasons.
 
