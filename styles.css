@@ -759,3 +759,37 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
   .admin-stat-grid { grid-template-columns: repeat(2,1fr); }
   .admin-queue-item { align-items: start; flex-direction: column; }
 }
+
+
+@media (max-width: 1080px) {
+  .party-intro { grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr); gap: 16px; }
+  .world-lobby-scene { height: 250px; }
+  .room-players { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .party-intro { grid-template-columns: 1fr; gap: 6px; }
+  .world-lobby-scene { height: 240px; }
+  .room-players { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stone-world-lobby { height: 205px; }
+}
+@media (max-width: 600px) {
+  .party-intro { padding-bottom: 20px; }
+  .world-lobby-scene { height: 210px; border-radius: 16px; }
+  .scene-globe-main { width: 120px; height: 120px; top: 25px; }
+  .scene-globe-small { width: 52px; height: 52px; }
+  .scene-globe-left { left: 8%; top: 92px; }
+  .scene-globe-right { right: 7%; top: 85px; }
+  .scene-rock-left { width: 88px; height: 50px; left: 2%; }
+  .scene-rock-right { width: 94px; height: 54px; right: 2%; }
+  .scene-caption { font-size: 7px; letter-spacing: .1em; }
+  .stone-world-lobby { height: 190px; margin: 16px 0 15px; border-radius: 14px; }
+  .lobby-earth { width: 108px; height: 108px; top: 17px; }
+  .lobby-floating-rock { width: 79px; height: 42px; }
+  .lobby-rock-left { left: 4%; top: 91px; }
+  .lobby-rock-right { right: 4%; top: 85px; }
+  .lobby-stone-base { width: 210px; height: 70px; }
+  .lobby-roster-heading { font-size: 7px; }
+  .room-players { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .room-player { min-height: 100px; }
+  .category-cycle { grid-template-columns: 1fr; gap: 9px; padding: 10px; }
+}
