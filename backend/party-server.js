@@ -6,6 +6,8 @@ const engine = require('./geography-engine');
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const PLAYER_TURN_MS = 12000;
+const MAX_WRONG_ANSWERS_PER_CATEGORY = 2;
+const MAX_TURNS_PER_CATEGORY = 10;
 const STARTING_HEARTS = 2;
 const MAX_HEARTS = 3;
 const HEART_METER = [0, 5, 10, 35, 55, 100];
@@ -87,6 +89,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       } : null,
       currentHolderId: room.currentHolderId,
       turnNumber: room.turnNumber,
+      wrongAnswersThisCategory: room.wrongAnswersThisCategory,
+      turnsThisCategory: room.turnsThisCategory,
+      maxWrongAnswersPerCategory: MAX_WRONG_ANSWERS_PER_CATEGORY,
+      maxTurnsPerCategory: MAX_TURNS_PER_CATEGORY,
       timerRemainingMs: remaining,
       timerDurationMs: room.timerDurationMs,
       usedAnswers: room.usedAnswers.map(item => item.name),
@@ -147,6 +153,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       usedAnswers: [],
       currentHolderId: null,
       turnNumber: 0,
+      wrongAnswersThisCategory: 0,
+      turnsThisCategory: 0,
       timerEndsAt: null,
       timerDurationMs: null,
       lastTimerBroadcastAt: 0,
@@ -288,13 +296,15 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     if (holder) holder.turnsTaken += 1;
   }
 
-  function newRound(room, afterPlayerId) {
+  function newRound(room, afterPlayerId, reason) {
     const category = engine.getPartyQuestion(room.lastCategoryId);
     room.category = category;
     room.lastCategoryId = category.id;
     room.round += 1;
     room.usedAnswers = [];
     room.turnNumber = 0;
+    room.wrongAnswersThisCategory = 0;
+    room.turnsThisCategory = 0;
     const next = nextAlive(room, afterPlayerId);
     startPlayerTurn(room, next ? next.id : null);
     broadcast(room, {
@@ -307,7 +317,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         note: category.note
       },
       timerDurationMs: room.timerDurationMs,
-      holderId: room.currentHolderId
+      holderId: room.currentHolderId,
+      reason: reason || 'round_start'
     });
     broadcastState(room);
   }
@@ -565,19 +576,32 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       const resolved = engine.matchAnswer(room.category, message.answer);
       if (!resolved) {
         player.invalidAnswers += 1;
+        room.wrongAnswersThisCategory += 1;
         await queueUnknownAnswer(room.category, message.answer);
-        sendError(socket, 'That answer is not in the approved answer set. Your turn clock keeps running.', 'answer_not_approved');
+        if (room.wrongAnswersThisCategory >= MAX_WRONG_ANSWERS_PER_CATEGORY) {
+          sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
+          newRound(room, player.id, 'mistakes');
+          return;
+        }
+        sendError(socket, 'That answer is not approved. One more incorrect answer changes the category.', 'answer_not_approved');
         broadcastState(room);
         return;
       }
       if (room.usedAnswers.some(item => item.key === resolved.key)) {
         player.invalidAnswers += 1;
-        sendError(socket, 'That answer has already been used this round. Your turn clock keeps running.', 'answer_used');
+        room.wrongAnswersThisCategory += 1;
+        if (room.wrongAnswersThisCategory >= MAX_WRONG_ANSWERS_PER_CATEGORY) {
+          sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
+          newRound(room, player.id, 'mistakes');
+          return;
+        }
+        sendError(socket, 'That answer was already used. One more incorrect answer changes the category.', 'answer_used');
         broadcastState(room);
         return;
       }
 
       room.usedAnswers.push({ key: resolved.key, name: resolved.name });
+      room.turnsThisCategory += 1;
       player.answersGiven += 1;
       player.score += resolved.points;
       player.rarityMeter += HEART_METER[resolved.rarity] || 0;
@@ -595,6 +619,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         points: resolved.points,
         gainedHeart
       });
+      if (room.turnsThisCategory >= MAX_TURNS_PER_CATEGORY) {
+        newRound(room, player.id, 'turn_limit');
+        return;
+      }
       const next = nextAlive(room, player.id);
       // Every player gets a fresh personal turn clock when the Orb reaches them.
       // Invalid or duplicate answers do not reset the current holder's clock.
@@ -614,6 +642,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       room.lastCategoryId = null;
       room.round = 0;
       room.usedAnswers = [];
+      room.turnNumber = 0;
+      room.wrongAnswersThisCategory = 0;
+      room.turnsThisCategory = 0;
       room.players.forEach(item => {
         item.hearts = STARTING_HEARTS;
         item.rarityMeter = 0;
