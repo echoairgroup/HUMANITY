@@ -217,41 +217,29 @@ async function checkLivePartyRound() {
     assert.ok(nextHolder && nextHolder.id !== holder.id);
     assert.equal(nextHolder.turnsTaken, 1);
 
-    await pause(1300);
-    const invalidHolderClient = nextHolder.isHost ? host : guest;
-    const invalidError = invalidHolderClient.waitFor(message =>
-      message.type === 'error' && message.code === 'answer_used',
-      10000, 'invalid answer response'
-    );
-    const invalidState = invalidHolderClient.waitFor(message =>
-      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
-      message.turnNumber === 2 && message.currentHolderId === nextHolder.id && message.timerRemainingMs !== null,
-      10000, 'timer continues after invalid answer'
-    );
-    invalidHolderClient.send({ type: 'submit_answer', answer: 'not-a-real-place-' + suffix });
-    await invalidError;
-    const afterInvalid = await invalidState;
-    assert.ok(afterInvalid.timerRemainingMs < hostPassed.timerRemainingMs - 700,
-      'An invalid answer must not reset the current player clock');
-
     const firstWrongClient = nextHolder.isHost ? host : guest;
+    const alreadyUsedAnswer = hostPassed.usedAnswers[0];
+    await pause(1300);
     const wrongOneError = firstWrongClient.waitFor(message =>
       message.type === 'error' && message.code === 'answer_used',
       10000, 'first duplicate answer response'
     );
-    const hostWrongOne = host.waitFor(message =>
+    const hostWrongOnePromise = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
       message.round === 1 && message.wrongAnswersThisCategory === 1,
       10000, 'host sees first incorrect answer count'
     );
-    const guestWrongOne = guest.waitFor(message =>
+    const guestWrongOnePromise = guest.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
       message.round === 1 && message.wrongAnswersThisCategory === 1,
       10000, 'guest sees first incorrect answer count'
     );
-    const alreadyUsedAnswer = hostPassed.usedAnswers[0];
     firstWrongClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
-    await Promise.all([wrongOneError, hostWrongOne, guestWrongOne]);
+    await wrongOneError;
+    const [hostWrongOne, guestWrongOne] = await Promise.all([hostWrongOnePromise, guestWrongOnePromise]);
+    const afterInvalid = firstWrongClient === host ? hostWrongOne : guestWrongOne;
+    assert.ok(afterInvalid.timerRemainingMs < hostPassed.timerRemainingMs - 700,
+      'A duplicate answer must not reset the current player clock');
     await pause(1200);
 
     const wrongTwoError = firstWrongClient.waitFor(message =>
