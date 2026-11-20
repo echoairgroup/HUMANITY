@@ -1,0 +1,31 @@
+name: Publish Atlas Daily
+
+on:
+  schedule:
+    - cron: '1 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ensure-daily-edition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wake the API and ensure today's UTC edition exists
+        run: |
+          node --input-type=module <<'NODE'
+          const response = await fetch('https://humanity-api-jyk5.onrender.com/api/daily/current', {
+            headers: {
+              Accept: 'application/json',
+              'X-Humanity-Guest': 'daily-publisher-workflow'
+            },
+            cache: 'no-store'
+          });
+          const payload = await response.json();
+          if (!response.ok || payload.ok !== true || payload.questionCount !== 7) {
+            throw new Error('Atlas Daily did not publish correctly: ' + JSON.stringify(payload));
+          }
+          console.log('Atlas Daily is ready for ' + payload.date + ' with ' + payload.questionCount + ' questions.');
+          NODE
