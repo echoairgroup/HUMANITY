@@ -261,14 +261,13 @@
     $('#answer-sheet-list').innerHTML = reveal.map(item =>
       '<span class="answer-chip">' + esc(item.answer) + ' <b>' + number.format(item.points || 0) + '</b></span>'
     ).join('');
-    $('#daily-next').textContent = state.pendingNextIndex >= 7 ? 'See your result' : 'Next question →';
-    clearTimeout(state.advanceTimer);
-    state.advanceTimer = setTimeout(() => { state.advanceTimer = null; nextDailyQuestion(); }, 1800);
+    const nextButton = $('#daily-next');
+    nextButton.textContent = state.pendingNextIndex >= 7 ? 'See your result' : 'Next question →';
+    // Keep the result on screen until the player explicitly continues.
+    nextButton.focus({ preventScroll: true });
   }
   async function nextDailyQuestion() {
     if (!state.runId || state.pendingNextIndex === null || state.advancing) return;
-    clearTimeout(state.advanceTimer);
-    state.advanceTimer = null;
     state.advancing = true;
     const index = state.pendingNextIndex;
     if (index >= 7) {
@@ -764,6 +763,14 @@
     $('#daily-start').addEventListener('click', startDaily);
     $('#daily-answer-form').addEventListener('submit', submitDailyAnswer);
     $('#daily-next').addEventListener('click', nextDailyQuestion);
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.repeat) return;
+      const resultPanel = $('#daily-result');
+      if (!resultPanel || resultPanel.hidden || state.pendingNextIndex === null) return;
+      if (event.target && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))) return;
+      event.preventDefault();
+      nextDailyQuestion();
+    });
     $('#daily-hint').addEventListener('click', useDailyHint);
     $('#daily-share').addEventListener('click', async () => {
       const text = 'I completed today’s HUMANITY Atlas Daily with ' + $('#complete-score').textContent + ' provisional Discovery Points.';
