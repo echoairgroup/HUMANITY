@@ -81,7 +81,8 @@ h1 em { color: var(--green); font-style: normal; }
 .ring-a { inset: 2%; transform: rotate(28deg) scaleY(.7); }
 .ring-b { inset: 9%; transform: rotate(-38deg) scaleY(.77); border-color: #eadfd2; }
 .idle-orbit-globe { width: 66%; height: 66%; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg, #eef3e9, #d5e4d5); box-shadow: 0 24px 50px rgba(61,111,78,.13), inset -12px -12px 28px rgba(73,116,76,.11); animation: float-globe 5s ease-in-out infinite; }
-.idle-orbit-globe svg { width: 86%; }
+.idle-orbit-globe > .earth-globe { position: relative; z-index: 1; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
+.earth-globe > svg { display: block; width: 100%; height: 100%; }
 @keyframes float-globe { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-7px) rotate(4deg); } }
 .idle-copy { max-width: 455px; }
 .micro-label { display: block; color: #989b92; font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
@@ -197,10 +198,9 @@ h1 em { color: var(--green); font-style: normal; }
 .orb-rings { position: absolute; width: 210px; height: 85px; border: 1px solid #dfe7d9; border-radius: 50%; }
 .ring-one { transform: rotate(-28deg); }
 .ring-two { transform: rotate(52deg); border-color: #eadfd4; }
-.atlas-orb { position: relative; z-index: 1; width: 116px; height: 116px; overflow: hidden; border-radius: 50%; background: radial-gradient(circle at 33% 26%, #eaf3e4 0%, #adc9aa 26%, #6f9977 56%, #3f6e53 100%); box-shadow: inset -12px -15px 22px rgba(29,71,48,.33), 0 18px 34px rgba(39,89,57,.18); }
-.atlas-orb::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 33% 24%, rgba(255,255,255,.9), transparent 33%); z-index: 2; }
-.atlas-orb span { position: absolute; width: 45px; height: 30px; top: 28px; left: 16px; background: #dfead5; border-radius: 51% 27% 45% 34%; transform: rotate(-28deg); box-shadow: 40px 26px 0 -8px #d8e5d0, 19px 51px 0 -13px #dce9d5, 67px -4px 0 -17px #e2edda; }
-.atlas-orb i { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,.55); }
+.atlas-orb { position: relative; z-index: 1; width: 116px; height: 116px; overflow: hidden; border-radius: 50%; background: #104866; box-shadow: inset -12px -15px 22px rgba(8,27,44,.32), 0 18px 34px rgba(39,89,57,.18); }
+.atlas-orb > svg { position: relative; z-index: 1; display: block; width: 100%; height: 100%; }
+.atlas-orb::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(circle at 31% 23%, rgba(255,255,255,.34), transparent 36%); }
 .orb-caption { position: absolute; bottom: 0; color: #a3a99a; font: 9px var(--font-mono); letter-spacing: .15em; }
 .tiny-orb { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg,#dcebd5,#4f895f); box-shadow: 0 0 0 3px #eff4ed; }
 .party-lobby { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .78fr); gap: 22px; align-items: start; }
@@ -264,10 +264,13 @@ h1 em { color: var(--green); font-style: normal; }
 .rush-game-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .rush-game-header h2 { margin: 7px 0 3px; font: 600 clamp(25px,3vw,37px)/1.1 var(--font-display); letter-spacing: -.055em; }
 .rush-game-header p { margin: 0; color: #92968d; font-size: 10px; }
-.rush-timer { display: grid; justify-items: center; min-width: 78px; padding: 11px; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5; }
-.rush-timer strong { font: 600 24px var(--font-mono); }
-.rush-timer span { color: #9da197; font: 8px var(--font-mono); }
+.rush-timer { display: grid; justify-items: center; gap: 5px; min-width: 88px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5; }
+.rush-timer strong { font: 600 24px var(--font-mono); font-variant-numeric: tabular-nums; }
+.rush-timer > span { color: #9da197; font: 7px var(--font-mono); letter-spacing: .05em; }
+.rush-timer-track { width: 100%; height: 4px; overflow: hidden; border-radius: 99px; background: #e9e9df; }
+.rush-timer-track span { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--green); transition: width .22s linear; }
 .rush-timer.urgent { color: var(--red); border-color: #efd5d1; background: #fcf4f2; }
+.rush-timer.urgent .rush-timer-track span { background: var(--red); }
 .orb-stage { position: relative; display: grid; place-items: center; min-height: 264px; margin: 10px auto 4px; overflow: hidden; }
 .orb-stage-halo { position: absolute; width: 190px; height: 190px; border-radius: 50%; background: rgba(77,133,94,.12); filter: blur(26px); }
 .stage-ring { position: absolute; width: 260px; height: 103px; border: 1px solid #e0e7dc; border-radius: 50%; }
@@ -285,9 +288,14 @@ h1 em { color: var(--green); font-style: normal; }
 .used-answer-chip { padding: 5px 8px; color: #83887e; background: #f4f3ed; border-radius: 5px; font-size: 9px; }
 .empty-used { color: #aaada5; font-size: 10px; }
 #rush-player-list { display: grid; gap: 8px; }
-.rush-player-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 9px; font-size: 10px; }
+.rush-player-row { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 9px; font-size: 10px; }
 .rush-player-row.current { color: var(--green-dark); font-weight: 700; }
-.rush-player-row.out { color: #b0b2ab; text-decoration: line-through; }
+.rush-player-row.out { color: #b0b2ab; }
+.rush-player-row.out .rush-player-name > b { text-decoration: line-through; }
+.rush-player-name { display: grid; gap: 2px; min-width: 0; }
+.rush-player-name > b { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.rush-player-name small { color: #a1a59b; font: 8px var(--font-mono); font-weight: 400; }
+.rush-player-row.current .rush-player-name small { color: #6f9276; }
 .rush-player-hearts { color: #d17b69; letter-spacing: 1px; font-size: 10px; }
 .rush-player-score { color: #8b9086; font: 9px var(--font-mono); }
 .room-results-state { padding: 32px 5% 10px; text-align: center; }
