@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700;800&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&family=VT323&display=swap');
 
 :root {
   color-scheme: light;
@@ -888,4 +888,410 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
   .room-players { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .room-player { min-height: 100px; }
   .category-cycle { grid-template-columns: 1fr; gap: 9px; padding: 10px; }
+}
+
+
+/* GLOBE RUSH — original pixel-art underwater world */
+body.globe-rush-active {
+  --ocean-ink: #d9f3f8;
+  --ocean-muted: #7fa9bd;
+  --ocean-line: #24506a;
+  --ocean-deep: #061426;
+  --ocean-panel: #0a1d32;
+  --ocean-panel-light: #102b45;
+  --ocean-blue: #5fd5e9;
+  --ocean-pink: #ee78b5;
+  color-scheme: dark;
+  color: var(--ocean-ink);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(29, 92, 128, .25), transparent 43%),
+    #061426;
+}
+body.globe-rush-active .site-shell { width: min(1460px, calc(100% - 48px)); }
+body.globe-rush-active .topbar {
+  min-height: 72px;
+  border-color: rgba(92, 162, 191, .25);
+  background: rgba(5, 19, 34, .78);
+}
+body.globe-rush-active .brand-symbol { color: #81d9e9; }
+body.globe-rush-active .brand-name { color: #e4faff; font-family: 'VT323', monospace; font-size: 29px; letter-spacing: .04em; }
+body.globe-rush-active .brand-name span { color: var(--ocean-pink); }
+body.globe-rush-active .nav-item { color: #82a9bd; border-radius: 3px; font-family: 'VT323', monospace; font-size: 19px; letter-spacing: .04em; }
+body.globe-rush-active .nav-item:hover { color: #edfbff; background: rgba(86, 173, 202, .12); }
+body.globe-rush-active .nav-item.active { color: #051625; background: #72d7e7; box-shadow: 0 3px 0 #276b85; }
+body.globe-rush-active .utc-pill { color: #7299ad; }
+body.globe-rush-active .live-dot { background: #5de0bf; box-shadow: 0 0 0 3px rgba(93,224,191,.13); }
+body.globe-rush-active .account-button { color: #d7eff5; border: 1px solid #2b5670; border-radius: 3px; background: #0b2138; }
+body.globe-rush-active .avatar-dot { color: #082036; background: #65cfe0; border-radius: 2px; }
+body.globe-rush-active .view { padding-top: 26px; }
+body.globe-rush-active .page-intro { color: var(--ocean-ink); }
+body.globe-rush-active .eyebrow, body.globe-rush-active .micro-label { color: #69c7dc; }
+body.globe-rush-active .eyebrow-line { background: var(--ocean-pink); }
+body.globe-rush-active .party-intro {
+  min-height: 190px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(350px, .95fr);
+  align-items: center;
+  gap: 28px;
+  padding: 0 0 22px;
+}
+.party-intro-copy { min-width: 0; }
+body.globe-rush-active .party-intro h1 {
+  margin: 12px 0 9px;
+  color: #e6f9ff;
+  font: 24px/1.35 'Press Start 2P', monospace;
+  letter-spacing: -.08em;
+  text-shadow: 3px 3px 0 #174b70, 6px 6px 0 rgba(0,0,0,.2);
+}
+body.globe-rush-active .party-intro p { max-width: 620px; color: #9fc2d0; font-size: 13px; line-height: 1.55; }
+.party-intro-stats { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-top: 14px; color: #71b4ca; font: 14px 'VT323', monospace; letter-spacing: .09em; }
+.party-intro-stats i { width: 4px; height: 4px; background: #e879b2; transform: rotate(45deg); }
+.party-preview-ocean {
+  position: relative;
+  height: 164px;
+  min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border: 2px solid #1c4965;
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse at 50% 90%, rgba(50, 147, 160, .44), transparent 49%),
+    linear-gradient(180deg, #06162d 0%, #0c2c4b 56%, #174d63 100%);
+  box-shadow: 0 7px 0 #03101f, inset 0 0 35px rgba(0,0,0,.22);
+  image-rendering: pixelated;
+}
+.party-preview-ocean::after, .ocean-arena::after {
+  content: '';
+  position: absolute;
+  z-index: 15;
+  inset: 0;
+  pointer-events: none;
+  opacity: .18;
+  background: repeating-linear-gradient(0deg, rgba(200,240,255,.12) 0 1px, transparent 1px 4px);
+}
+.preview-water-rays {
+  position: absolute;
+  inset: -20% 0 18%;
+  opacity: .36;
+  background: repeating-conic-gradient(from 170deg at 55% 0%, transparent 0deg 9deg, rgba(120,213,228,.13) 10deg 12deg, transparent 13deg 24deg);
+}
+.preview-sea-floor {
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  bottom: -25px;
+  height: 74px;
+  background: linear-gradient(180deg, #527983, #263f52 78%);
+  clip-path: polygon(0 42%, 16% 26%, 28% 37%, 42% 18%, 56% 34%, 70% 25%, 84% 41%, 100% 26%, 100% 100%, 0 100%);
+}
+.preview-rock { position: absolute; bottom: 25px; z-index: 2; background: #314b5e; border-top: 4px solid #668899; box-shadow: inset -7px -4px #20394b; image-rendering: pixelated; }
+.preview-rock-one { width: 82px; height: 31px; left: 13%; clip-path: polygon(0 68%,18% 16%,74% 0,100% 58%,83% 100%,12% 100%); }
+.preview-rock-two { width: 110px; height: 39px; right: 12%; clip-path: polygon(0 58%,23% 12%,66% 0,100% 62%,84% 100%,12% 100%); }
+.preview-kelp { position: absolute; bottom: 35px; z-index: 3; width: 9px; height: 60px; background: #1d6c69; box-shadow: 9px 18px #1d6c69, -9px 30px #1d6c69; clip-path: polygon(0 100%,0 22%,35% 0,45% 42%,100% 14%,74% 60%,100% 78%,60% 73%,48% 100%); }
+.preview-kelp-one { left: 8%; transform: rotate(-10deg); }
+.preview-kelp-two { right: 8%; height: 48px; transform: rotate(9deg) scaleX(-1); }
+.preview-bubbles {
+  position: absolute;
+  z-index: 4;
+  left: 25%; top: 14px; width: 5px; height: 5px; border: 1px solid #75cedc; border-radius: 50%;
+  box-shadow: 24px 28px 0 -1px transparent, 24px 28px 0 0 #75cedc, 61px -1px 0 -1px transparent, 61px -1px 0 0 #75cedc, 222px 24px 0 0 #75cedc, 235px 6px 0 0 #75cedc;
+  animation: ocean-bubble-rise 5s ease-in-out infinite;
+}
+.preview-creature { position: absolute; z-index: 5; width: 25px; height: 27px; bottom: 57px; }
+.preview-creature i { position:absolute; left:5px; top:6px; width:15px; height:17px; background:#ef8b70; box-shadow: 3px 3px #c85e65; clip-path:polygon(15% 0,85% 0,100% 30%,83% 100%,17% 100%,0 30%); }
+.preview-creature b { position:absolute; left:19px; top:8px; width:8px; height:9px; background:#f5b18a; clip-path:polygon(0 0,100% 50%,0 100%); }
+.preview-creature-one { left: 35%; animation: ocean-float 3s ease-in-out infinite; }
+.preview-creature-two { right: 34%; transform:scale(.76); filter:hue-rotate(80deg); animation: ocean-float 3.4s ease-in-out infinite reverse; }
+.preview-ray-fish { position:absolute; z-index:5; right:27%; top:37px; width:48px; height:25px; background:#6bd9df; clip-path:polygon(0 48%,20% 0,72% 0,100% 44%,75% 100%,22% 100%); filter:drop-shadow(0 5px 0 rgba(0,0,0,.25)); animation: ocean-float 4s ease-in-out infinite; }
+.preview-ray-fish i { position:absolute; width:5px; height:5px; background:#08243b; right:9px; top:7px; }
+.preview-ray-fish b { position:absolute; width:15px; height:7px; right:-9px; top:9px; background:#6bd9df; clip-path:polygon(0 0,100% 50%,0 100%); }
+.preview-caption { position:absolute; z-index:8; right:12px; bottom:8px; color:#b5dce5; font:11px 'VT323',monospace; letter-spacing:.12em; }
+@keyframes ocean-float { 0%,100% { translate:0 0; } 50% { translate:0 -7px; } }
+@keyframes ocean-bubble-rise { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+
+/* Main multiplayer lobby panels */
+body.globe-rush-active .party-lobby { grid-template-columns:minmax(0,1.62fr) minmax(280px,.78fr); gap:16px; }
+body.globe-rush-active .party-lobby .game-panel,
+body.globe-rush-active .party-lobby .side-card {
+  color: #d9eef5;
+  border: 1px solid #1c4965;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(19,53,78,.68), rgba(7,24,43,.97)),
+    #091b30;
+  box-shadow: 0 5px 0 #03101f, inset 0 1px 0 rgba(164,220,233,.08);
+}
+body.globe-rush-active .party-play-panel { padding: 20px; }
+body.globe-rush-active .party-play-panel .panel-topline { border-bottom:1px solid #1b4661; padding-bottom:12px; }
+body.globe-rush-active .panel-kicker { color:#80d6e4; font:14px 'VT323',monospace; letter-spacing:.12em; }
+body.globe-rush-active .attempt-label { color:#789eb0; font:12px 'VT323',monospace; letter-spacing:.1em; }
+body.globe-rush-active .display-name-row { border:1px solid #28536b; border-radius:2px; background:#07182b; }
+body.globe-rush-active .display-name-row label,
+body.globe-rush-active .field-label { color:#83aebf; font:12px 'VT323',monospace; letter-spacing:.1em; }
+body.globe-rush-active .display-name-row input { color:#e5f7fc; font:16px 'VT323',monospace; }
+body.globe-rush-active .display-name-row input::placeholder { color:#5f8093; }
+body.globe-rush-active .party-mode-grid { gap:11px; }
+body.globe-rush-active .mode-card {
+  padding:18px;
+  border:1px solid #28546e;
+  border-radius:2px;
+  color:#d9eff6;
+  background:linear-gradient(180deg,#10304c,#091d33);
+  box-shadow:inset 0 1px 0 rgba(155,218,235,.08);
+}
+body.globe-rush-active .ranked-card { background:linear-gradient(180deg,#142941,#0a1b2e); }
+body.globe-rush-active .mode-icon { border-radius:2px; color:#051b2a; background:#6bd5e5; }
+body.globe-rush-active .ranked-icon { color:#061a2a; background:#df83b4; }
+body.globe-rush-active .mode-card h2 { color:#effaff; font:21px 'VT323',monospace; letter-spacing:.03em; }
+body.globe-rush-active .mode-card p { color:#89adbd; font-size:11px; }
+body.globe-rush-active .select-input,
+body.globe-rush-active .code-input,
+body.globe-rush-active .room-tool input {
+  color:#d9eff6; border:1px solid #2b5873; border-radius:2px; background:#06182c;
+}
+body.globe-rush-active .select-input option { background:#06182c; color:#e3f6fb; }
+body.globe-rush-active .mode-footnote { color:#779bae; }
+body.globe-rush-active .room-tool { border:1px solid #28546e; border-radius:2px; background:linear-gradient(180deg,#102d47,#091b31); }
+body.globe-rush-active .room-tool strong { color:#d9f3f8; font:16px 'VT323',monospace; }
+body.globe-rush-active .room-tool p { color:#7fa7b8; font-size:10px; }
+body.globe-rush-active .room-tool-icon { border-radius:2px; color:#061d30; background:#6bd5e5; }
+body.globe-rush-active .party-lobby .side-card { padding:17px; }
+body.globe-rush-active .side-card-head h3 { color:#e4f7fb; font:21px 'VT323',monospace; letter-spacing:.03em; }
+body.globe-rush-active .side-card p { color:#89adbd; }
+body.globe-rush-active .mini-link { color:#70d1e2; }
+body.globe-rush-active .public-room-row { border-color:#214d68; }
+body.globe-rush-active .public-room-row strong { color:#d8f4fa; font-family:'VT323',monospace; font-size:17px; }
+body.globe-rush-active .public-room-row small,
+body.globe-rush-active .empty-room-note { color:#789db0; }
+body.globe-rush-active .how-list li { border-color:#204761; }
+body.globe-rush-active .how-list li > span { color:#75cddd; }
+body.globe-rush-active .how-list strong { color:#d9f4fa; }
+body.globe-rush-active .how-list p { color:#7fa6b8; }
+body.globe-rush-active .season-card { background:#102b44; border-color:#28516b; }
+body.globe-rush-active .season-title { color:#e5f8fc; font-family:'VT323',monospace; font-size:22px; }
+body.globe-rush-active .season-card > p,
+body.globe-rush-active .season-stats span { color:#8badbc; }
+body.globe-rush-active .season-stats { border-color:#28516b; }
+body.globe-rush-active .season-stats b { color:#dff6fb; }
+
+/* Private room: open underwater arena + fixed control column */
+body.globe-rush-active .party-room {
+  padding:14px;
+  border:1px solid #214b66;
+  border-radius:3px;
+  color:#d9eff6;
+  background:linear-gradient(180deg,#0b2239,#061629);
+  box-shadow:0 8px 0 #020b16, 0 24px 55px rgba(0,0,0,.24);
+}
+.ocean-room-topbar {
+  display:grid;
+  grid-template-columns:minmax(170px,1fr) auto auto auto;
+  align-items:center;
+  gap:14px;
+  margin-bottom:14px;
+  padding:5px 3px 13px;
+  border-bottom:1px solid #214963;
+}
+.ocean-brand-lockup { display:flex; align-items:center; gap:10px; min-width:0; }
+.ocean-brand-mark {
+  display:grid; place-items:center; width:34px; height:34px;
+  color:#082039; background:#72d6e6; border:2px solid #c6f5fa; box-shadow:3px 3px 0 #174e6c;
+  font:18px 'Press Start 2P',monospace;
+}
+.ocean-brand-lockup b { display:block; color:#e4f8fc; font:17px 'VT323',monospace; letter-spacing:.14em; }
+.ocean-brand-lockup small { display:block; margin-top:2px; color:#719db1; font:11px 'VT323',monospace; letter-spacing:.18em; }
+.ocean-room-code-pill,.ocean-room-live-pill { display:grid; gap:3px; padding:7px 11px; border:1px solid #27526c; background:#071a2e; }
+.ocean-room-code-pill span,.ocean-room-live-pill span { color:#75a5b9; font:10px 'VT323',monospace; letter-spacing:.13em; }
+.ocean-room-code-pill strong { color:#7fe4ef; font:23px 'VT323',monospace; letter-spacing:.16em; }
+.ocean-room-live-pill strong { color:#e98ab9; font:16px 'VT323',monospace; letter-spacing:.08em; }
+.ocean-leave-button { padding:9px 11px; border:1px solid #3a647b; border-radius:2px; color:#a9cad4; background:#0a2138; cursor:pointer; font:13px 'VT323',monospace; letter-spacing:.08em; }
+.ocean-leave-button:hover { color:#fff; border-color:#e28ab7; background:#2a203b; }
+.ocean-room-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:13px; align-items:stretch; }
+.ocean-arena {
+  position:relative;
+  min-width:0;
+  min-height:570px;
+  overflow:hidden;
+  isolation:isolate;
+  border:2px solid #235270;
+  border-radius:2px;
+  background:
+    radial-gradient(ellipse at 50% 95%, rgba(87,164,164,.5), transparent 45%),
+    radial-gradient(ellipse at 22% 30%, rgba(34,112,152,.2), transparent 40%),
+    linear-gradient(180deg,#06152d 0%,#0a2a49 42%,#14516a 79%,#496c73 100%);
+  box-shadow:inset 0 0 60px rgba(0,0,0,.34), 0 4px 0 #03101d;
+  image-rendering:pixelated;
+}
+.ocean-water-rays { position:absolute; z-index:0; inset:-18% 0 12%; opacity:.3; background:repeating-conic-gradient(from 170deg at 52% -5%,transparent 0deg 8deg,rgba(101,202,221,.14) 9deg 11deg,transparent 12deg 22deg); }
+.ocean-water-grain { position:absolute; z-index:1; inset:0; opacity:.17; background-image:radial-gradient(1px 1px at 12% 22%,#d8f7f7 50%,transparent 100%),radial-gradient(1px 1px at 67% 16%,#d8f7f7 50%,transparent 100%),radial-gradient(1px 1px at 81% 37%,#d8f7f7 50%,transparent 100%),radial-gradient(1px 1px at 33% 52%,#d8f7f7 50%,transparent 100%); background-size:137px 91px; }
+.ocean-horizon { position:absolute; z-index:2; left:-5%; right:-5%; bottom:20%; height:28%; background:linear-gradient(180deg,rgba(22,74,91,.7),rgba(13,50,67,.9)); clip-path:polygon(0 44%,8% 26%,16% 39%,25% 15%,35% 35%,44% 18%,55% 38%,67% 13%,77% 32%,88% 18%,100% 42%,100% 100%,0 100%); opacity:.72; }
+.ocean-distant-reef { position:absolute; z-index:3; bottom:18%; width:30%; height:90px; background:#183f52; opacity:.86; clip-path:polygon(0 82%,10% 48%,20% 60%,30% 18%,43% 54%,51% 0,65% 48%,75% 27%,100% 70%,100% 100%,0 100%); }
+.reef-left { left:-4%; }
+.reef-right { right:-4%; transform:scaleX(-1); }
+.ocean-kelp { position:absolute; z-index:4; bottom:20%; width:11px; height:125px; background:#1d706e; box-shadow:12px 30px #1d706e,-11px 52px #1d706e,20px 79px #1d706e; clip-path:polygon(0 100%,0 18%,34% 0,45% 41%,100% 12%,72% 60%,100% 77%,59% 74%,50% 100%); transform-origin:bottom center; }
+.arena-kelp-one { left:5%; transform:rotate(-8deg); }
+.arena-kelp-two { right:7%; height:160px; transform:rotate(9deg) scaleX(-1); }
+.arena-kelp-three { left:22%; height:75px; opacity:.55; transform:rotate(-4deg); }
+.ocean-coral { position:absolute; z-index:4; bottom:18%; width:44px; height:72px; background:#b66c74; clip-path:polygon(42% 100%,42% 44%,12% 22%,0 0,22% 0,52% 31%,71% 9%,72% 0,100% 0,87% 32%,60% 55%,62% 100%); opacity:.82; }
+.coral-left { left:14%; }
+.coral-right { right:19%; transform:scale(.75) rotate(7deg); background:#cb8a72; }
+.ocean-rock { position:absolute; z-index:5; height:41px; background:linear-gradient(180deg,#688797 0 16%,#344e60 17% 100%); box-shadow:inset -12px -7px #223c51; clip-path:polygon(0 65%,14% 22%,36% 13%,58% 0,84% 27%,100% 67%,88% 100%,9% 100%); }
+.rock-mid-left { left:30%; bottom:29%; width:102px; }
+.rock-mid-right { right:24%; bottom:34%; width:87px; height:34px; }
+.ocean-bubble { position:absolute; z-index:6; width:7px; height:7px; border:1px solid rgba(144,225,234,.8); border-radius:50%; box-shadow:inset 1px 1px rgba(255,255,255,.5); animation:ocean-bubble-rise 5s ease-in-out infinite; }
+.bubble-a { left:14%; bottom:35%; }
+.bubble-b { left:57%; bottom:44%; animation-delay:1.2s; transform:scale(.7); }
+.bubble-c { right:13%; bottom:50%; animation-delay:2.1s; transform:scale(.8); }
+.ocean-arena-title { position:absolute; z-index:7; top:26px; left:0; right:0; display:grid; justify-items:center; gap:5px; text-align:center; text-shadow:2px 2px #09223a; }
+.ocean-title-small { color:#80c9d8; font:12px 'VT323',monospace; letter-spacing:.28em; }
+.ocean-arena-title strong { color:#f0fbff; font:24px 'Press Start 2P',monospace; letter-spacing:-.08em; text-shadow:3px 3px 0 #e47fb2,6px 6px 0 #164e72; }
+.ocean-arena-title b { color:#73d8e6; font:17px 'Press Start 2P',monospace; letter-spacing:.02em; }
+.ocean-arena-title small { color:#a0cbd6; font:12px 'VT323',monospace; letter-spacing:.2em; }
+.ocean-ray-creature { position:absolute; z-index:8; right:13%; top:43%; width:74px; height:48px; animation:ocean-float 3.8s ease-in-out infinite; filter:drop-shadow(0 7px 0 rgba(0,0,0,.28)); }
+.ocean-ray-creature::before { content:''; position:absolute; inset:4px 5px 4px 0; background:#71d3d9; border:2px solid #baf3ed; clip-path:polygon(0 50%,19% 0,67% 0,100% 48%,77% 100%,20% 100%); }
+.ocean-ray-creature i { position:absolute; z-index:2; top:16px; right:19px; width:5px; height:5px; background:#08263c; box-shadow:0 0 0 2px rgba(255,255,255,.15); }
+.ocean-ray-creature b { position:absolute; z-index:2; right:-12px; top:21px; width:23px; height:12px; background:#71d3d9; clip-path:polygon(0 50%,100% 0,74% 100%); }
+.ocean-ray-creature em { position:absolute; z-index:2; left:-5px; top:19px; width:18px; height:15px; background:#4ca8c1; clip-path:polygon(100% 0,0 0,70% 100%); }
+.ocean-player-field { position:absolute; z-index:10; left:12px; right:12px; bottom:35px; display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); align-items:end; gap:3px; }
+.ocean-seat { position:relative; display:flex; min-width:0; height:145px; flex-direction:column; align-items:center; justify-content:flex-end; padding:0 2px 3px; text-align:center; }
+.ocean-seat-creature { position:relative; z-index:3; display:block; width:27px; height:42px; margin-bottom:-2px; filter:hue-rotate(var(--sprite-hue)); }
+.ocean-seat-creature i { position:absolute; left:5px; top:11px; width:17px; height:23px; background:#ed977e; border:2px solid #ffd2a3; box-shadow:3px 3px 0 #a84f67; clip-path:polygon(15% 0,85% 0,100% 22%,88% 100%,12% 100%,0 22%); }
+.ocean-seat-creature b { position:absolute; left:0; top:18px; width:10px; height:10px; background:#f4b18b; clip-path:polygon(100% 0,0 30%,100% 100%); }
+.ocean-seat-creature em { position:absolute; right:0; top:6px; width:11px; height:12px; background:#e6c16b; clip-path:polygon(0 100%,12% 0,100% 25%,66% 100%); }
+.ocean-seat-rock { position:absolute; z-index:1; bottom:29px; width:min(76px,95%); height:35px; border-top:4px solid #789bab; background:linear-gradient(180deg,#496c80,#223e56); box-shadow:inset -8px -5px #1a344c; clip-path:polygon(0 66%,17% 21%,61% 0,100% 48%,88% 100%,9% 100%); }
+.ocean-seat-name { position:relative; z-index:4; display:block; width:100%; overflow:hidden; margin-top:4px; color:#e2f8fc; font:12px 'VT323',monospace; text-overflow:ellipsis; white-space:nowrap; text-shadow:1px 2px #07192c; }
+.ocean-seat-status { position:relative; z-index:4; display:block; width:100%; overflow:hidden; color:#76a9bd; font:9px 'VT323',monospace; letter-spacing:.03em; text-overflow:ellipsis; white-space:nowrap; }
+.ocean-seat.open { opacity:.55; }
+.ocean-seat.open .ocean-seat-creature { opacity:.13; }
+.ocean-seat.open .ocean-seat-name { color:#a2c6d0; }
+.ocean-seat.open .ocean-seat-rock { border-top-style:dashed; opacity:.64; }
+.ocean-seat.is-you .ocean-seat-rock { border-top-color:#f08cbd; box-shadow:0 0 14px rgba(237,125,184,.25),inset -8px -5px #1a344c; }
+.ocean-seat.is-you .ocean-seat-name { color:#ffb0d5; }
+.ocean-floor-caption { position:absolute; z-index:11; bottom:9px; left:0; right:0; text-align:center; color:#abcdd2; font:10px 'VT323',monospace; letter-spacing:.22em; opacity:.76; }
+.ocean-floor-caption span { color:#f08cbd; padding:0 5px; }
+.ocean-console { display:flex; min-width:0; flex-direction:column; gap:9px; }
+.ocean-console-card { padding:12px; border:1px solid #214c68; border-radius:2px; background:linear-gradient(180deg,#102d47,#091a30); box-shadow:inset 0 1px rgba(180,230,242,.06); }
+.ocean-console-heading { display:flex; align-items:center; justify-content:space-between; gap:7px; margin-bottom:8px; color:#83bed0; font:13px 'VT323',monospace; letter-spacing:.12em; }
+.ocean-console-heading i { color:#e58cb7; font:10px 'VT323',monospace; font-style:normal; }
+.ocean-room-code-value { display:block; color:#82e5ee; font:36px 'VT323',monospace; letter-spacing:.23em; text-shadow:2px 2px #174b6b; }
+.ocean-room-code-card p { margin:4px 0 10px; color:#8aaebd; font:13px 'VT323',monospace; line-height:1.18; }
+.ocean-copy-button { width:100%; min-height:33px; display:flex; justify-content:space-between; align-items:center; padding:0 10px; border:1px solid #3b7892; border-radius:2px; color:#a9eff2; background:#0b3854; cursor:pointer; font:13px 'VT323',monospace; letter-spacing:.1em; }
+.ocean-copy-button:hover { background:#12516c; }
+.ocean-player-roster { display:grid; gap:5px; }
+.ocean-roster-row { display:grid; grid-template-columns:8px minmax(0,1fr) auto; align-items:center; gap:7px; color:#cce7ee; font:14px 'VT323',monospace; }
+.ocean-roster-dot { width:6px; height:6px; background:#62dabb; box-shadow:0 0 0 2px rgba(98,218,187,.12); }
+.ocean-roster-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ocean-roster-row small { color:#78a2b4; font:10px 'VT323',monospace; }
+.ocean-roster-row.is-you .ocean-roster-name { color:#ffadd1; }
+.ocean-roster-row.is-you .ocean-roster-dot { background:#ed85b8; }
+.ocean-roster-empty { color:#789aac; font:13px 'VT323',monospace; }
+.ocean-rule-line { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-top:1px solid rgba(59,111,137,.3); color:#7fa9bc; font:12px 'VT323',monospace; }
+.ocean-rule-line b { color:#d0f0f4; font:13px 'VT323',monospace; }
+body.globe-rush-active .ocean-start-button { width:100%; min-height:43px; border:2px solid #b9f1f4; border-radius:2px; color:#062035; background:#66d2e3; box-shadow:0 4px 0 #1c5e7d; font:13px 'VT323',monospace; letter-spacing:.12em; }
+body.globe-rush-active .ocean-start-button:hover:not(:disabled) { background:#9aebed; transform:translateY(-1px); }
+body.globe-rush-active .ocean-start-button:disabled { color:#6c9aac; border-color:#315c73; background:#17374e; box-shadow:0 4px 0 #06182a; cursor:wait; }
+.ocean-chat-card { display:flex; min-height:185px; flex:1; flex-direction:column; }
+.ocean-chat-log { display:flex; min-height:105px; max-height:185px; flex:1; flex-direction:column; gap:7px; overflow-y:auto; padding:3px 2px 8px; }
+.ocean-chat-entry { display:grid; grid-template-columns:auto 1fr; gap:1px 7px; color:#a9cad5; font:12px 'VT323',monospace; overflow-wrap:anywhere; }
+.ocean-chat-entry > span { color:#668da3; font-size:10px; }
+.ocean-chat-entry b { color:#7cdae5; font-size:13px; }
+.ocean-chat-entry p { grid-column:1/-1; margin:0; color:#c3dfe7; line-height:1.2; }
+.ocean-chat-empty { color:#7397aa; font:13px 'VT323',monospace; }
+.ocean-chat-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px; margin-top:8px; padding-top:8px; border-top:1px solid #234d68; }
+.ocean-chat-form input { min-width:0; height:32px; padding:0 8px; border:1px solid #2a5670; border-radius:2px; color:#e1f6fa; background:#06182a; font:14px 'VT323',monospace; }
+.ocean-chat-form input::placeholder { color:#64879b; }
+.ocean-chat-form button { padding:0 8px; border:1px solid #36718a; border-radius:2px; color:#a9edf0; background:#0a3651; cursor:pointer; font:13px 'VT323',monospace; }
+body.globe-rush-active .party-room .room-game-state,
+body.globe-rush-active .party-room .room-results-state {
+  color:#d9f0f6;
+}
+body.globe-rush-active .party-room .room-results-state {
+  border:1px solid #214c68;
+  border-radius:3px;
+  background:linear-gradient(180deg,#102d47,#071a2e);
+}
+body.globe-rush-active .rush-game-header h2 { color:#e4f6fb; font-family:'VT323',monospace; font-size:33px; letter-spacing:.02em; }
+body.globe-rush-active .rush-game-header p { color:#80a8b9; }
+body.globe-rush-active .rush-timer { border-color:#2a5873; border-radius:2px; color:#87e0eb; background:#071b30; }
+body.globe-rush-active .rush-timer > span { color:#80a7b8; font:12px 'VT323',monospace; }
+body.globe-rush-active .category-cycle { border-color:#24516b; border-radius:2px; background:#0b2138; }
+body.globe-rush-active .category-cycle-stat > span { color:#86b2c2; }
+body.globe-rush-active .category-cycle-stat > b { color:#e0f7fa; }
+body.globe-rush-active .category-cycle-stat > i { background:#17384e; }
+body.globe-rush-active .orb-stage { border-radius:2px; background:linear-gradient(180deg,#0a2440,#123b53); }
+body.globe-rush-active .orb-stage::before { background:radial-gradient(ellipse at 50% 20%,#537988,#213e55 70%); border-color:#6b8a98; }
+body.globe-rush-active .orb-stage .stage-ring { border-color:rgba(120,208,223,.35); }
+body.globe-rush-active .orb-holder-label { color:#b3d5dd; }
+body.globe-rush-active .rush-answer-area .answer-form input { color:#e6f7fa; background:#06182a; border-color:#315d75; }
+body.globe-rush-active .rush-answer-area .answer-form input::placeholder { color:#7399aa; }
+body.globe-rush-active .rush-feedback { color:#9fc3d0; }
+body.globe-rush-active .used-answers,
+body.globe-rush-active .rush-players { border-color:#25516a; background:#091d32; }
+body.globe-rush-active .used-answers .micro-label,
+body.globe-rush-active .rush-players .micro-label { color:#7fc8d8; }
+body.globe-rush-active .final-ranking-row { border-color:#28516b; color:#d9eef5; background:#0c2941; }
+body.globe-rush-active .final-ranking-row.winner { background:#173b4b; border-color:#5d9bab; }
+body.globe-rush-active .party-room .complete-icon { color:#75d9e8; }
+body.globe-rush-active .party-room .eyebrow { color:#77d0df; }
+
+/* Responsive undersea room: keep the game scene first on narrow screens */
+@media (max-width: 1050px) {
+  .ocean-room-layout { grid-template-columns:minmax(0,1fr) 270px; }
+  .ocean-arena { min-height:540px; }
+  .ocean-player-field { grid-template-columns:repeat(5,minmax(0,1fr)); row-gap:0; }
+  .ocean-seat { height:125px; }
+  .ocean-seat:nth-child(n+6) { display:none; }
+}
+@media (max-width: 820px) {
+  body.globe-rush-active .site-shell { width:calc(100% - 28px); }
+  body.globe-rush-active .party-intro { grid-template-columns:1fr; gap:12px; }
+  .party-preview-ocean { height:130px; }
+  .ocean-room-topbar { grid-template-columns:1fr auto; }
+  .ocean-room-live-pill { justify-self:end; }
+  .ocean-leave-button { grid-column:2; grid-row:1; justify-self:end; margin-top:45px; }
+  .ocean-room-layout { grid-template-columns:1fr; }
+  .ocean-arena { min-height:510px; }
+  .ocean-player-field { grid-template-columns:repeat(10,minmax(0,1fr)); }
+  .ocean-seat:nth-child(n+6) { display:flex; }
+  .ocean-console { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+  .ocean-chat-card { grid-column:1/-1; min-height:170px; }
+}
+@media (max-width: 600px) {
+  body.globe-rush-active .site-shell { width:calc(100% - 16px); }
+  body.globe-rush-active .topbar { gap:7px; padding:10px 0; }
+  body.globe-rush-active .brand-symbol { width:29px; height:29px; }
+  body.globe-rush-active .brand-name { font-size:24px; }
+  body.globe-rush-active .account-button { font-size:9px; }
+  body.globe-rush-active .main-nav { gap:3px; padding-top:7px; }
+  body.globe-rush-active .nav-item { font-size:16px; padding:7px 4px; }
+  body.globe-rush-active .party-intro h1 { font-size:19px; }
+  body.globe-rush-active .party-intro p { font-size:12px; }
+  .party-intro-stats { font-size:12px; gap:7px; }
+  .party-preview-ocean { height:110px; }
+  body.globe-rush-active .party-lobby { grid-template-columns:1fr; }
+  body.globe-rush-active .party-mode-grid { grid-template-columns:1fr; }
+  body.globe-rush-active .party-tools-grid { grid-template-columns:1fr; }
+  body.globe-rush-active .party-sidebar { grid-template-columns:1fr; }
+  .ocean-room-topbar { gap:7px; grid-template-columns:1fr auto; }
+  .ocean-brand-mark { width:29px; height:29px; font-size:14px; }
+  .ocean-brand-lockup b { font-size:15px; }
+  .ocean-room-code-pill { grid-column:1; grid-row:2; justify-self:start; }
+  .ocean-room-live-pill { grid-column:2; grid-row:2; justify-self:end; }
+  .ocean-leave-button { grid-column:2; grid-row:1; margin:0; font-size:12px; }
+  body.globe-rush-active .party-room { padding:8px; }
+  .ocean-arena { min-height:550px; }
+  .ocean-arena-title { top:19px; }
+  .ocean-arena-title strong { font-size:17px; }
+  .ocean-arena-title b { font-size:13px; }
+  .ocean-ray-creature { right:7%; top:39%; transform:scale(.75); }
+  .ocean-player-field { left:5px; right:5px; bottom:30px; grid-template-columns:repeat(5,minmax(0,1fr)); row-gap:0; }
+  .ocean-seat { height:118px; }
+  .ocean-seat:nth-child(n+6) { display:flex; }
+  .ocean-seat-name { font-size:10px; }
+  .ocean-console { grid-template-columns:1fr; }
+  .ocean-chat-card { grid-column:auto; }
+  .ocean-console-card { padding:11px; }
+  .ocean-rule-line { font-size:11px; }
+  .rush-game-header { gap:8px; }
+  .rush-answer-area .answer-form { display:grid; grid-template-columns:minmax(0,1fr) auto; }
 }
