@@ -358,8 +358,9 @@
         <label for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" minlength="10" placeholder="At least 10 characters" required>
         <button class="button button-primary button-wide" id="auth-submit" type="submit">Sign in</button>
       </form>
-      <div class="auth-divider"><span>OR CONTINUE WITH</span></div>
-      <div class="oauth-buttons"><button class="button button-outline" id="google-signin" type="button">Google</button><button class="button button-outline" id="discord-signin" type="button">Discord</button></div>
+      <div class="auth-divider" id="oauth-divider"><span>OR CONTINUE WITH</span></div>
+      <div class="oauth-buttons" id="oauth-buttons"><button class="button button-outline" id="google-signin" type="button" hidden>Google</button><button class="button button-outline" id="discord-signin" type="button" hidden>Discord</button></div>
+      <p class="modal-note" id="oauth-config-note">Google and Discord sign-in are not configured yet. You can still create an account with your username and password.</p>
       <p class="modal-note">A free account saves your progress and unlocks official rankings. Guest play is always available.</p>
     </div>
     <div id="account-signed-in" hidden>
