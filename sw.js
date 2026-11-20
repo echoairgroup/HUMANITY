@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'humanity-ocean-lobby-v4';
+const CACHE_NAME = 'humanity-globe-orbit-v5';
 const SHELL = [
   './',
   './index.html',
