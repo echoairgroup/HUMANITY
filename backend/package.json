@@ -1,11 +1,12 @@
 {
-  "name": "humanity-data-api",
-  "version": "1.0.0",
+  "name": "humanity-geography-api",
+  "version": "2.0.0",
   "private": true,
-  "description": "Server-side data API and Neon cache for HUMANITY.",
-  "main": "server.js",
+  "description": "HUMANITY Atlas Daily and Globe Rush API with Neon PostgreSQL.",
+  "main": "game-server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node game-server.js",
+    "test": "node --test game-engine.test.js"
   },
   "engines": {
     "node": ">=20"
