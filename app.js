@@ -580,7 +580,7 @@
       state.room = message;
       renderRoomState(message);
     } else if (message.type === 'timer') {
-      updatePartyTimer(message.remainingMs, message.holderId);
+      updatePartyTimer(message.remainingMs, message.holderId, message.durationMs);
     } else if (message.type === 'answer_accepted') {
       $('#rush-feedback').textContent = message.nickname + ' named ' + message.answer + ' · ' + message.level +
         ' · +' + message.points + ' Discovery Points' + (message.gainedHeart ? ' · +1 Stability Point!' : '');
@@ -628,6 +628,7 @@
     $('#room-start').disabled = room.players.length < 2;
     if (playing && room.category) {
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
+      $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
       $('#rush-note').textContent = room.category.note || 'An answer can only be used once per round.';
       $('#used-answer-list').innerHTML = room.usedAnswers.length
@@ -635,7 +636,8 @@
         : '<span class="empty-used">No answers yet.</span>';
       $('#rush-player-list').innerHTML = room.players.map(player =>
         '<div class="rush-player-row ' + (player.isHolder ? 'current' : '') + ' ' + (!player.alive ? 'out' : '') + '">' +
-        '<span>' + (player.isHolder ? '● ' : '') + esc(player.nickname) + (player.isYou ? ' (you)' : '') + '</span>' +
+        '<span class="rush-player-name"><b>' + (player.isHolder ? '● ' : '') + esc(player.nickname) + (player.isYou ? ' (you)' : '') + '</b>' +
+        '<small>' + number.format(player.turnsTaken || 0) + ' turns · ' + number.format(player.answersGiven || 0) + ' valid answers</small></span>' +
         '<span class="rush-player-hearts">' + '♥'.repeat(player.hearts) + '♡'.repeat(Math.max(0,3-player.hearts)) + '</span>' +
         '<span class="rush-player-score">' + number.format(player.score) + '</span></div>'
       ).join('');
@@ -646,16 +648,25 @@
       $('#orb-holder-label').textContent = holder ? 'THE ORB IS WITH ' + holder.nickname.toUpperCase() : 'THE ORB IS MOVING';
       $('#rush-answer').disabled = !holding;
       if (!holding) $('#rush-answer').value = '';
-      if (room.timerRemainingMs !== null) updatePartyTimer(room.timerRemainingMs, room.currentHolderId);
+      if (room.timerRemainingMs !== null) updatePartyTimer(room.timerRemainingMs, room.currentHolderId, room.timerDurationMs);
     }
     if (finished && state.result) renderPartyResults(state.result);
   }
-  function updatePartyTimer(remainingMs, holderId) {
-    const seconds = Math.max(0, Math.ceil(Number(remainingMs || 0) / 1000));
+  function updatePartyTimer(remainingMs, holderId, durationMs) {
+    const remaining = Math.max(0, Number(remainingMs || 0));
+    const duration = Math.max(1, Number(durationMs || state.room?.timerDurationMs || 12000));
+    const seconds = Math.ceil(remaining / 1000);
+    const progress = Math.max(0, Math.min(100, (remaining / duration) * 100));
     $('#rush-seconds').textContent = String(seconds);
-    $('#rush-timer').classList.toggle('urgent', seconds <= 7);
+    $('#rush-timer-fill').style.width = progress + '%';
+    $('#rush-timer').classList.toggle('urgent', seconds <= 4);
     const holder = state.room && state.room.players.find(player => player.id === holderId);
-    if (holder) $('#orb-holder-label').textContent = 'THE ORB IS WITH ' + holder.nickname.toUpperCase();
+    if (holder) {
+      $('#rush-timer-label').textContent = holder.isYou ? 'YOUR TURN' : 'PLAYER TURN';
+      $('#orb-holder-label').textContent = holder.isYou
+        ? 'THE ORB IS WITH YOU'
+        : 'THE ORB IS WITH ' + holder.nickname.toUpperCase();
+    }
   }
   function renderPartyResults(results) {
     if (!results) return;
