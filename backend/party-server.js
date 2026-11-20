@@ -351,7 +351,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         await finishGame(room);
         return;
       }
-      newRound(room, holder.id);
+      newRound(room, holder.id, 'overload');
     } finally {
       room.fuseBusy = false;
     }
