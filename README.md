@@ -125,14 +125,9 @@ Publish the repository root using GitHub Pages. The default site URL expected by
 
 The frontend is intentionally independent of Render deployment, so the current live website remains unchanged until the rebuild is merged into the Pages publishing branch.
 
-## Daily publisher workflow
+## Daily challenge scheduling
 
-The `.github/workflows/daily-publish.yml` workflow runs at 00:01 UTC and can also be run manually. Add these repository Actions secrets:
-
-- `HUMANITY_API_URL` — `https://humanity-api-jyk5.onrender.com` (no trailing `/api`)
-- `ENGINE_CRON_SECRET` — the same value configured on Render
-
-The API also checks/creates the current UTC edition during startup and in its scheduled in-process tick, so the site does not depend on a visitor opening it to generate the daily edition.
+No external cron secret or GitHub Actions schedule is required. The API creates the current UTC edition on startup and checks the active edition on requests. The daily challenge is deterministic for its UTC date, so every player receives the same seven questions even when the free Render service has been idle and wakes on the next request.
 
 ## Geography and answer engine
 
