@@ -309,6 +309,269 @@ h1 em { color: var(--green); font-style: normal; }
 .final-ranking-row b { font: 10px var(--font-mono); }
 .final-ranking-row small { color: #c67c6e; font-size: 9px; }
 
+
+/* Globe Rush — original stone-world hub */
+.party-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(350px, .95fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 300px;
+  padding-bottom: 30px;
+}
+.world-lobby-scene {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  height: 284px;
+  overflow: hidden;
+  border: 1px solid rgba(100, 131, 112, .2);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 51% 54%, rgba(110, 153, 125, .24), transparent 44%),
+    radial-gradient(ellipse at 82% 22%, rgba(126, 143, 161, .16), transparent 28%),
+    linear-gradient(145deg, #202d32 0%, #17252b 50%, #101a21 100%);
+  box-shadow: 0 22px 48px rgba(23, 36, 30, .14);
+}
+.world-scene-stars {
+  position: absolute;
+  inset: 0;
+  opacity: .66;
+  background-image:
+    radial-gradient(1px 1px at 13% 22%, #d7e8d7 50%, transparent 100%),
+    radial-gradient(1px 1px at 27% 65%, #d7e8d7 50%, transparent 100%),
+    radial-gradient(1px 1px at 43% 15%, #d7e8d7 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 76% 33%, #d7e8d7 50%, transparent 100%),
+    radial-gradient(1px 1px at 89% 70%, #d7e8d7 50%, transparent 100%);
+}
+.scene-orbit {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 43%;
+  width: 295px;
+  height: 110px;
+  border: 1px solid rgba(209, 226, 212, .2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-23deg);
+}
+.scene-orbit-b {
+  width: 235px;
+  height: 180px;
+  transform: translate(-50%, -50%) rotate(48deg);
+  border-color: rgba(209, 226, 212, .12);
+}
+.scene-globe {
+  position: absolute;
+  z-index: 4;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #104866;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, .35), inset -10px -12px 20px rgba(0, 0, 0, .24);
+}
+.scene-globe-main {
+  width: 144px;
+  height: 144px;
+  left: 50%;
+  top: 34px;
+  transform: translateX(-50%);
+}
+.scene-globe-small {
+  width: 67px;
+  height: 67px;
+}
+.scene-globe-left { left: 13%; top: 104px; transform: rotate(-12deg); }
+.scene-globe-right { right: 12%; top: 89px; transform: rotate(15deg); }
+.scene-globe > svg, .lobby-earth > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.scene-rock, .lobby-floating-rock {
+  position: absolute;
+  z-index: 2;
+  background:
+    linear-gradient(145deg, rgba(210, 200, 177, .92), rgba(117, 119, 104, .96) 40%, #414d4a 100%);
+  filter: drop-shadow(0 15px 12px rgba(0, 0, 0, .28));
+  clip-path: polygon(9% 21%, 34% 3%, 66% 10%, 93% 32%, 100% 75%, 74% 94%, 28% 100%, 0 68%);
+}
+.scene-rock-back { width: 215px; height: 75px; left: 50%; bottom: 41px; transform: translateX(-50%); opacity: .8; }
+.scene-rock-left { width: 116px; height: 63px; left: 6%; bottom: 29px; transform: rotate(-8deg); }
+.scene-rock-right { width: 128px; height: 70px; right: 5%; bottom: 28px; transform: rotate(8deg); }
+.scene-rock-front { width: 160px; height: 46px; left: 50%; bottom: 14px; transform: translateX(-50%); background: linear-gradient(160deg, #c1b7a0, #59665e 62%, #34423e); }
+.scene-caption {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  color: rgba(236, 240, 225, .75);
+  text-align: center;
+  font: 9px var(--font-mono);
+  letter-spacing: .17em;
+}
+.scene-caption span { color: #c5a879; padding: 0 4px; }
+.stone-world-lobby {
+  position: relative;
+  isolation: isolate;
+  height: 218px;
+  margin: 21px 0 18px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 145, 133, .22);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 58%, rgba(86, 137, 106, .32), transparent 46%),
+    linear-gradient(155deg, #1c2a2d 0%, #142126 56%, #101a1f 100%);
+  box-shadow: inset 0 -30px 60px rgba(0, 0, 0, .17);
+}
+.lobby-sky {
+  position: absolute;
+  inset: 0;
+  opacity: .55;
+  background-image:
+    radial-gradient(1px 1px at 14% 22%, #d9e8d5 50%, transparent),
+    radial-gradient(1px 1px at 32% 43%, #d9e8d5 50%, transparent),
+    radial-gradient(1px 1px at 80% 25%, #d9e8d5 50%, transparent),
+    radial-gradient(1px 1px at 91% 60%, #d9e8d5 50%, transparent);
+}
+.lobby-orbit {
+  position: absolute;
+  z-index: 1;
+  width: 270px;
+  height: 90px;
+  left: 50%;
+  top: 45%;
+  border: 1px solid rgba(215, 229, 215, .18);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+}
+.lobby-orbit-b {
+  width: 205px;
+  height: 150px;
+  transform: translate(-50%, -50%) rotate(52deg);
+}
+.lobby-earth {
+  position: absolute;
+  z-index: 4;
+  width: 126px;
+  height: 126px;
+  left: 50%;
+  top: 20px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #104866;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .4), inset -11px -12px 20px rgba(0, 0, 0, .25);
+  transform: translateX(-50%);
+}
+.lobby-floating-rock {
+  z-index: 2;
+  width: 106px;
+  height: 54px;
+}
+.lobby-rock-left { left: 12%; top: 93px; transform: rotate(-9deg); }
+.lobby-rock-right { right: 10%; top: 85px; transform: rotate(10deg); }
+.lobby-rock-back { width: 182px; height: 57px; left: 50%; bottom: 14px; transform: translateX(-50%); opacity: .85; }
+.lobby-stone-base {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: -24px;
+  width: 250px;
+  height: 88px;
+  border: 1px solid rgba(220, 213, 189, .2);
+  border-radius: 50%;
+  background: linear-gradient(165deg, #a7a18b 0%, #69756b 42%, #394844 100%);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, .18), inset 0 8px 8px rgba(255,255,255,.09);
+  transform: translateX(-50%);
+}
+.lobby-scene-caption {
+  position: absolute;
+  z-index: 5;
+  left: 16px;
+  bottom: 13px;
+  color: rgba(235, 240, 227, .73);
+  font: 8px var(--font-mono);
+  letter-spacing: .13em;
+}
+.lobby-scene-caption span { color: #d7b77e; margin-right: 7px; }
+.lobby-roster-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 2px 10px;
+  color: #9b9f94;
+  font: 8px var(--font-mono);
+  letter-spacing: .12em;
+}
+.room-players {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 22px;
+}
+.room-player {
+  position: relative;
+  min-width: 0;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  gap: 6px;
+  overflow: hidden;
+  padding: 12px 7px 11px;
+  border: 1px solid rgba(184, 184, 164, .46);
+  border-radius: 13px;
+  background:
+    linear-gradient(154deg, rgba(255,255,255,.54), transparent 34%),
+    linear-gradient(180deg, #e9e6d9, #d3d0c1 55%, #b8b6a7);
+  box-shadow: inset 0 -9px 14px rgba(64, 70, 60, .1), 0 9px 17px rgba(31, 43, 34, .08);
+}
+.room-player::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  top: 0;
+  height: 4px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(90deg, #a7a38f, #e8e2ca, #888f7d);
+}
+.room-player-stone {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 38px;
+  margin-bottom: 1px;
+  border: 1px solid rgba(70, 91, 78, .33);
+  border-radius: 12px 12px 9px 9px;
+  background: linear-gradient(150deg, #e2d8b5, #94a18b 60%, #52675d);
+  box-shadow: inset 0 3px 5px rgba(255,255,255,.36), 0 4px 7px rgba(40, 53, 43, .16);
+  clip-path: polygon(13% 0, 87% 0, 100% 73%, 80% 100%, 20% 100%, 0 73%);
+}
+.room-player-stone i { color: #253c35; font: 700 15px var(--font-display); font-style: normal; }
+.room-player strong { max-width: 100%; overflow: hidden; color: #303b34; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.room-player small { color: #71786c; font: 7px var(--font-mono); text-align: center; letter-spacing: .04em; }
+.room-player.you { border-color: #87a58a; box-shadow: 0 0 0 2px rgba(95, 143, 103, .13), 0 9px 17px rgba(31, 43, 34, .08); }
+.room-player-empty { opacity: .5; background: linear-gradient(155deg, #dcdacd, #aaa99e); border-style: dashed; }
+.room-player-empty .room-player-stone { background: linear-gradient(150deg, #d9d5c4, #9d9f92 60%, #7b877d); }
+.room-player-empty .room-player-stone i { color: #657066; }
+.category-cycle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 11px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid #e7e5dc;
+  border-radius: 11px;
+  background: #f7f6f0;
+}
+.category-cycle-stat { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
+.category-cycle-stat > span { color: #969b90; font: 8px var(--font-mono); letter-spacing: .08em; }
+.category-cycle-stat > b { color: #4e6554; font: 600 10px var(--font-mono); }
+.category-cycle-stat > i { grid-column: 1 / -1; display: block; height: 4px; overflow: hidden; border-radius: 9px; background: #e5e6dc; }
+.category-cycle-stat > i > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #7e9f7d, #d3ab6c); transition: width .2s ease; }
+
 /* Rankings */
 .rankings-intro { min-height: 190px; }
 .rankings-panel { padding: 22px 25px 25px; }
