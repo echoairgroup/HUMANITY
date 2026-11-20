@@ -174,6 +174,21 @@ async function checkLivePartyRound() {
     assert.ok(hostLobby.players.some(player => player.isYou && player.isHost));
     assert.ok(guestLobby.players.some(player => player.isYou && !player.isHost));
 
+    const chatText = 'Ready to explore the deep.';
+    const hostChatPromise = host.waitFor(message =>
+      message.type === 'room_chat' && message.nickname === 'Host' + suffix && message.text === chatText,
+      8000, 'host receives room chat'
+    );
+    const guestChatPromise = guest.waitFor(message =>
+      message.type === 'room_chat' && message.nickname === 'Host' + suffix && message.text === chatText,
+      8000, 'guest receives room chat'
+    );
+    host.send({ type: 'chat_message', text: chatText });
+    const [hostChatMessage, guestChatMessage] = await Promise.all([hostChatPromise, guestChatPromise]);
+    assert.equal(hostChatMessage.id, guestChatMessage.id, 'All room members should receive the same chat event');
+    assert.equal(hostChatMessage.text, chatText);
+    console.log('PASS: private room chat broadcasts to every connected player.');
+
     const hostPlayingPromise = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' && message.round === 1
     );
