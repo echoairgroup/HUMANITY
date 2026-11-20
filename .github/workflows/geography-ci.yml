@@ -42,4 +42,4 @@ jobs:
           node --check game-engine.test.js
           node --check ../app.js
           node --check ../globe.js
-          node -e "const w = require('../world-countries.geojson'); if (w.type !== 'FeatureCollection' || !Array.isArray(w.features) || w.features.length < 150) process.exit(1); console.log('Validated ' + w.features.length + ' Natural Earth country features.')"
+          node -e "const fs = require('node:fs'); const w = JSON.parse(fs.readFileSync('../world-countries.geojson', 'utf8')); if (w.type !== 'FeatureCollection' || !Array.isArray(w.features) || w.features.length < 150) process.exit(1); console.log('Validated ' + w.features.length + ' Natural Earth country features.')"
