@@ -362,43 +362,51 @@
             </div>
           </div>
           <div class="room-game-state" id="room-game-state" hidden>
-            <div class="rush-game-header">
-              <div><span class="micro-label">ROUND <b id="rush-round">01</b> · TURN <b id="rush-turn">01</b></span><h2 id="rush-category">Name a river in the world.</h2><p id="rush-note">Every Orb holder gets a fresh 12-second turn clock.</p></div>
-              <div class="rush-timer" id="rush-timer">
-                <strong id="rush-seconds">12</strong>
-                <span id="rush-timer-label">PLAYER TURN</span>
-                <div class="rush-timer-track" aria-hidden="true"><span id="rush-timer-fill"></span></div>
-              </div>
-            </div>
-            <div class="category-cycle" id="category-cycle" aria-live="polite">
-              <div class="category-cycle-stat"><span>WRONG ANSWERS</span><b>0 / 2</b><i><span style="width:0%"></span></i></div>
-              <div class="category-cycle-stat"><span>ACCEPTED TURNS</span><b>0 / 10</b><i><span style="width:0%"></span></i></div>
-            </div>
-            <div class="orb-stage" id="orb-stage">
-              <div class="orb-stage-halo"></div><div class="stage-ring stage-ring-a"></div><div class="stage-ring stage-ring-b"></div>
-              <div class="atlas-orb stage-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
-              <div class="orb-holder-label" id="orb-holder-label">Waiting for the first answer</div>
-            </div>
-            <div class="rush-answer-area" id="rush-answer-area">
-              <form id="rush-answer-form" class="answer-form">
-                <label class="visually-hidden" for="rush-answer">Your answer</label>
-                <input id="rush-answer" maxlength="80" autocomplete="off" placeholder="Your geography answer…" required>
-                <button class="button button-primary" type="submit">Pass the Orb ↗</button>
-              </form>
-              <div class="answer-feedback" id="rush-feedback" role="status" aria-live="polite"></div>
-            </div>
-            <div class="rush-bottom-grid">
-              <div class="used-answers"><span class="micro-label">ALREADY NAMED THIS ROUND</span><div id="used-answer-list"><span class="empty-used">No answers yet.</span></div></div>
-              <div class="rush-players"><span class="micro-label">YOUR CREW</span><div id="rush-player-list"></div></div>
-            </div>
-          </div>
-          <div class="room-results-state" id="room-results-state" hidden>
-            <div class="complete-icon">✦</div><div class="eyebrow">GLOBE RUSH COMPLETE</div>
-            <h2 id="rush-winner">Explorer wins!</h2><p>The Atlas Orb has come to rest. Here's how the room finished.</p>
-            <div class="final-ranking" id="rush-final-ranking"></div>
-            <button class="button button-primary" id="room-rematch" type="button">Play again</button>
-          </div>
-        </section>
+  <div class="rush-game-header">
+    <div class="rush-heading-copy">
+      <span class="micro-label rush-round-label">ORBIT <b id="rush-round">01</b> · TURN <b id="rush-turn">01</b></span>
+      <h2 id="rush-category">Name a river in the world.</h2>
+      <p id="rush-note">Every Orb holder gets a fresh 12-second turn clock.</p>
+    </div>
+    <div class="rush-timer" id="rush-timer"><strong id="rush-seconds">12</strong><span id="rush-timer-label">PLAYER TURN</span><div class="rush-timer-track" aria-hidden="true"><span id="rush-timer-fill"></span></div></div>
+  </div>
+  <div class="category-cycle" id="category-cycle" aria-live="polite">
+    <div class="category-cycle-stat"><span>WRONG ANSWERS</span><b>0 / 2</b><i><span style="width:0%"></span></i></div>
+    <div class="category-cycle-stat"><span>ACCEPTED TURNS</span><b>0 / 10</b><i><span style="width:0%"></span></i></div>
+  </div>
+  <div class="orb-stage" id="orb-stage">
+    <div class="rush-stage-stars" aria-hidden="true"></div>
+    <div class="rush-stage-nebula rush-nebula-left" aria-hidden="true"></div><div class="rush-stage-nebula rush-nebula-right" aria-hidden="true"></div>
+    <div class="rush-stage-orbit rush-orbit-one" aria-hidden="true"></div><div class="rush-stage-orbit rush-orbit-two" aria-hidden="true"></div><div class="rush-stage-orbit rush-orbit-three" aria-hidden="true"></div>
+    <div class="rush-stage-moon rush-moon-one" aria-hidden="true"></div><div class="rush-stage-moon rush-moon-two" aria-hidden="true"></div>
+    <div class="rush-stage-satellite rush-satellite-one" aria-hidden="true"><i></i></div><div class="rush-stage-satellite rush-satellite-two" aria-hidden="true"><i></i></div>
+    <div class="rush-stage-island rush-island-left" aria-hidden="true"></div><div class="rush-stage-island rush-island-right" aria-hidden="true"></div>
+    <div class="rush-stage-kicker">THE ATLAS ORB IS IN CIRCULATION</div>
+    <div class="orb-stage-halo"></div><div class="stage-ring stage-ring-a"></div><div class="stage-ring stage-ring-b"></div>
+    <div class="atlas-orb stage-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
+    <div class="orb-holder-label" id="orb-holder-label">Waiting for the first answer</div>
+    <div class="rush-stage-footer">ONE PLANET · ONE ORB · ONE WINNER</div>
+  </div>
+  <div class="rush-answer-area" id="rush-answer-area">
+    <form id="rush-answer-form" class="answer-form"><label class="visually-hidden" for="rush-answer">Your answer</label><input id="rush-answer" maxlength="80" autocomplete="off" placeholder="Name a place on Earth…" required><button class="button button-primary" type="submit">PASS THE ORB <span aria-hidden="true">↗</span></button></form>
+    <div class="answer-feedback" id="rush-feedback" role="status" aria-live="polite"></div>
+  </div>
+  <div class="rush-bottom-grid">
+    <div class="used-answers"><span class="micro-label">ALREADY NAMED THIS ROUND</span><div id="used-answer-list"><span class="empty-used">No answers yet.</span></div></div>
+    <div class="rush-players"><span class="micro-label">YOUR ORBIT CREW</span><div id="rush-player-list"></div></div>
+  </div>
+</div>
+<div class="room-results-state" id="room-results-state" hidden>
+  <div class="results-orbit-scene" aria-hidden="true">
+    <div class="results-orbit-ring results-ring-a"></div><div class="results-orbit-ring results-ring-b"></div>
+    <div class="results-earth" data-earth-globe></div>
+    <span class="results-spark spark-one"></span><span class="results-spark spark-two"></span><span class="results-spark spark-three"></span>
+  </div>
+  <div class="eyebrow">MISSION COMPLETE · GLOBE RUSH</div>
+  <h2 id="rush-winner">Explorer wins!</h2><p>The Atlas Orb has come to rest. Here's how the crew finished.</p>
+  <div class="final-ranking" id="rush-final-ranking"></div>
+  <button class="button button-primary" id="room-rematch" type="button">PLAY AGAIN <span aria-hidden="true">↗</span></button>
+</div></section>
       </section>
 
       <section class="view" id="view-rankings" data-view-panel="rankings" hidden>
