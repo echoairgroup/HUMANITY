@@ -98,3 +98,54 @@ test('Globe Rush uses every category once before allowing a repeat', () => {
   const nextCycleQuestion = engine.getPartyQuestion(history);
   assert.notEqual(nextCycleQuestion.id, history[history.length - 1]);
 });
+
+
+test('private Globe Rush lobby settings have safe defaults', () => {
+  assert.deepEqual(partyRules.normaliseRoomSettings(), {
+    startingLives: 2,
+    maxLives: 3,
+    turnDurationSeconds: 0,
+    maxWrongAnswersPerCategory: 2,
+    maxTurnsPerCategory: 10
+  });
+});
+
+test('private Globe Rush lobby settings are clamped and keep max lives above starting lives', () => {
+  assert.deepEqual(partyRules.normaliseRoomSettings({
+    startingLives: 5,
+    maxLives: 2,
+    turnDurationSeconds: 15,
+    maxWrongAnswersPerCategory: 4,
+    maxTurnsPerCategory: 20
+  }), {
+    startingLives: 5,
+    maxLives: 5,
+    turnDurationSeconds: 15,
+    maxWrongAnswersPerCategory: 4,
+    maxTurnsPerCategory: 20
+  });
+
+  assert.deepEqual(partyRules.normaliseRoomSettings({
+    startingLives: 99,
+    maxLives: 99,
+    turnDurationSeconds: 7,
+    maxWrongAnswersPerCategory: 0,
+    maxTurnsPerCategory: 99
+  }), {
+    startingLives: 5,
+    maxLives: 5,
+    turnDurationSeconds: 0,
+    maxWrongAnswersPerCategory: 1,
+    maxTurnsPerCategory: 10
+  });
+});
+
+test('private Globe Rush category rules use each room custom thresholds', () => {
+  const settings = partyRules.normaliseRoomSettings({
+    maxWrongAnswersPerCategory: 3,
+    maxTurnsPerCategory: 15
+  });
+  assert.equal(partyRules.categoryRotationReason(2, 14, settings), null);
+  assert.equal(partyRules.categoryRotationReason(3, 14, settings), 'mistakes');
+  assert.equal(partyRules.categoryRotationReason(0, 15, settings), 'turn_limit');
+});
