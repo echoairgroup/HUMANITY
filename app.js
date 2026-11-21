@@ -14,6 +14,8 @@
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null, ascentPoints: 0,
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
+    dailyAdvanceTimer: null,
+    partySuggestionTimer: null, partySuggestionSequence: 0, pendingPartySuggestion: null,
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
     orbOverloadTimer: null, onlineRefreshTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
     animations: localStorage.getItem('humanity-motion') !== 'false'
@@ -147,6 +149,44 @@
       panel.innerHTML = '';
     }
   }
+  function clearDailyReaction() {
+    clearTimeout(state.dailyAdvanceTimer);
+    state.dailyAdvanceTimer = null;
+    const panel = $('#daily-answer-reaction');
+    if (panel) { panel.hidden = true; panel.classList.remove('visible'); }
+  }
+  function clearPartySuggestion() {
+    clearTimeout(state.partySuggestionTimer);
+    state.partySuggestionTimer = null;
+    state.partySuggestionSequence += 1;
+    state.pendingPartySuggestion = null;
+    const panel = $('#rush-suggestion');
+    if (panel) { panel.hidden = true; panel.innerHTML = ''; }
+  }
+  function schedulePartySuggestion() {
+    clearTimeout(state.partySuggestionTimer);
+    state.partySuggestionTimer = null;
+    const input = $('#rush-answer');
+    const typed = input.value.trim();
+    clearPartySuggestion();
+    if (!state.room || state.room.phase !== 'playing' || typed.length < 4) return;
+    const sequence = state.partySuggestionSequence;
+    const categoryId = state.room.category && state.room.category.id;
+    if (!categoryId) return;
+    state.partySuggestionTimer = setTimeout(() => {
+      sendSocket({ type: 'suggest_answer', answer: typed, categoryId, requestId: sequence });
+    }, 260);
+  }
+  function usePartySuggestion() {
+    const suggestion = state.pendingPartySuggestion;
+    const input = $('#rush-answer');
+    if (!suggestion || norm(input.value) !== norm(suggestion.input)) return false;
+    input.value = suggestion.answer;
+    clearPartySuggestion();
+    $('#rush-feedback').textContent = 'Suggestion inserted. Press Enter when the Orb reaches you.';
+    input.focus();
+    return true;
+  }
   function editDistance(left, right) {
     const a = String(left || '');
     const b = String(right || '');
@@ -229,51 +269,32 @@
     return true;
   }
   function setAscentVisible(visible) {
-    const panel = $('#daily-ascent-panel');
-    if (panel) panel.hidden = !visible;
-    $('#daily-archive-exit').hidden = !(visible && state.practice);
+    const exit = $('#daily-archive-exit');
+    if (exit) exit.hidden = !(visible && state.practice);
   }
-  function updateAscentProgress(points, level) {
-    const previous = state.ascentPoints;
-    state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0)));
+  function updateAscentProgress(points) {
     if (Number.isFinite(Number(points))) {
-      state.ascentPoints = Math.max(0, Math.min(700, state.ascentPoints + Number(points)));
+      state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0) + Number(points)));
+    } else {
+      state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0)));
     }
-    const ratio = Math.max(0, Math.min(1, state.ascentPoints / 700));
-    const explorer = $('#ascent-explorer');
-    const scene = $('#rarity-ascent-scene');
-    const progress = $('#ascent-progress');
+    const ratio = state.ascentPoints / 700;
+    // Exponential progress keeps early discoveries subtle, then accelerates
+    // the camera as Discovery Points accumulate.
+    const eased = (Math.exp(6.4 * ratio) - 1) / (Math.exp(6.4) - 1);
+    const focus = 26.5 + eased * 302;
+    const zoom = 1.16 - eased * 0.985;
+    const offset = 50 - focus * zoom;
     const view = $('#view-daily');
-    if (view) view.style.setProperty('--flight-progress', ratio.toFixed(4));
     const world = $('#atlas-space-world');
-    if (world) world.style.setProperty('--flight-progress', ratio.toFixed(4));
-    if (!explorer || !scene || !progress) return;
-    const levelDescriptions = [
-      'Leaving Earth behind.',
-      'Cruising past the inner planets.',
-      'Passing the giant planets.',
-      'Sailing beyond the familiar worlds.',
-      'Crossing into the outer solar system.',
-      'Heading into deep space.'
-    ];
-    const levelIndex = Number.isFinite(Number(level)) ? Math.max(0, Math.min(5, Math.round(Number(level)))) : 0;
-    const sector = Math.min(7, Math.floor(ratio * 7) + (ratio > 0 ? 1 : 0));
-    scene.dataset.level = String(levelIndex);
-    explorer.style.left = (ratio * 100).toFixed(2) + '%';
-    explorer.style.bottom = '0';
-    progress.style.width = (ratio * 100).toFixed(2) + '%';
-    progress.style.height = '100%';
-    $('#ascent-altitude-label').textContent = number.format(state.ascentPoints) + ' PTS';
-    $('#ascent-level-label').textContent = sector + ' / 7 SPACE SECTORS';
-    $('#ascent-description').textContent = points
-      ? levelDescriptions[levelIndex]
-      : 'Every discovery moves your flight further from Earth.';
-    if (points && state.ascentPoints > previous) {
-      const flare = $('#ascent-rise-flare');
-      flare.classList.remove('climbing');
-      void flare.offsetWidth;
-      flare.classList.add('climbing');
-    }
+    [view, world].filter(Boolean).forEach(element => {
+      element.style.setProperty('--flight-progress', ratio.toFixed(4));
+      element.style.setProperty('--flight-eased', eased.toFixed(5));
+      element.style.setProperty('--flight-camera', focus.toFixed(2) + 'vw');
+      element.style.setProperty('--flight-zoom', zoom.toFixed(4));
+      element.style.setProperty('--flight-offset', offset.toFixed(2) + 'vw');
+      element.style.setProperty('--flight-stars-offset', (eased * 45).toFixed(2) + 'vw');
+    });
   }
   function resetAscent() {
     state.ascentPoints = 0;
@@ -353,6 +374,7 @@
   }
   function updateQuestion(question, index) {
     clearDailySuggestion();
+    clearDailyReaction();
     state.question = question;
     state.questionIndex = index;
     state.pendingNextIndex = null;
@@ -365,6 +387,7 @@
       el.classList.toggle('active', i === index);
     });
     $('#daily-answer').value = '';
+    $('#daily-answer').disabled = false;
     $('#daily-feedback').textContent = '';
     $('#daily-feedback').classList.remove('success');
     $('#hint-box').hidden = true;
@@ -443,7 +466,7 @@
     } catch (error) {
       $('#daily-feedback').textContent = error.message;
       if (error.status === 409) { stopDailyTimer(); toast('This question has already been completed.'); }
-    } finally { $('#daily-submit').disabled = false; }
+    } finally { $('#daily-submit').disabled = state.pendingNextIndex !== null; }
   }
   async function skipDailyQuestion() {
     if (!state.runId || !state.question || state.pendingNextIndex !== null) return;
@@ -468,25 +491,33 @@
     finally { $('#daily-submit').disabled = false; }
   }
   function showDailyResult(accepted, answer, level, points, reveal, sameAnswerCount, rarity) {
-    setDailySection('daily-result');
-    $('#result-stamp').textContent = accepted ? 'ANSWER ACCEPTED' : 'TIME IS UP';
-    $('#result-title').textContent = accepted ? 'Nicely found.' : 'The next question awaits.';
-    $('#result-description').textContent = accepted
-      ? (state.practice
-        ? '“' + answer + '” is approved in this archived edition. This replay does not affect official rankings.'
-        : '“' + answer + '” is approved. ' + number.format(sameAnswerCount || 1) + ' player(s) have named it so far.')
-      : 'No answer was locked in this round. Here are some approved answers to learn from.';
-    $('#result-level').textContent = accepted ? String(level || 'Known').toUpperCase() : '—';
-    $('#result-points').textContent = number.format(points || 0);
-    if (accepted) updateAscentProgress(points, rarity);
-    $('#answer-sheet-count').textContent = reveal.length + ' approved answers';
-    $('#answer-sheet-list').innerHTML = reveal.map(item =>
-      '<span class="answer-chip">' + esc(item.answer) + ' <b>' + number.format(item.points || 0) + '</b></span>'
-    ).join('');
-    const nextButton = $('#daily-next');
-    nextButton.textContent = state.pendingNextIndex >= 7 ? 'See your result' : 'Next question →';
-    // Keep the result on screen until the player explicitly continues.
-    nextButton.focus({ preventScroll: true });
+    const panel = $('#daily-answer-reaction');
+    if (!panel) return;
+    clearTimeout(state.dailyAdvanceTimer);
+    if ($('#daily-play').hidden) setDailySection('daily-play');
+
+    if (accepted) updateAscentProgress(points);
+    panel.dataset.rarity = String(Math.max(0, Math.min(5, Number(rarity) || 0)));
+    $('#daily-reaction-level').textContent = accepted ? String(level || 'Known').toUpperCase() : 'TIME UP';
+    $('#daily-reaction-points').textContent = accepted
+      ? '+' + number.format(points || 0) + ' DISCOVERY POINTS'
+      : 'NO POINTS THIS ORBIT';
+    $('#daily-reaction-answer').textContent = accepted
+      ? String(answer || '').toUpperCase() + (sameAnswerCount > 1 ? ' · ' + number.format(sameAnswerCount) + ' FOUND' : '')
+      : 'The next orbit is ready';
+    panel.hidden = false;
+    panel.classList.remove('visible');
+    void panel.offsetWidth;
+    panel.classList.add('visible');
+
+    $('#daily-answer').disabled = true;
+    $('#daily-submit').disabled = true;
+    state.dailyAdvanceTimer = setTimeout(() => {
+      panel.classList.remove('visible');
+      panel.hidden = true;
+      state.dailyAdvanceTimer = null;
+      nextDailyQuestion();
+    }, 5400);
   }
 function renderFlightDistribution(result) {
     const participants = Math.max(0, Number(result.participants) || 0);
@@ -606,7 +637,7 @@ function renderFlightDistribution(result) {
       await Promise.all([loadDailyMiniRanking(), loadProfile(true)]);
       return;
     }
-    const button = $('#daily-next');
+    const button = $('#daily-submit');
     button.disabled = true;
     try {
       const result = await api('/daily/next', {
@@ -895,16 +926,37 @@ function renderFlightDistribution(result) {
       clearGlobeRushEffects();
       $('#party-room').scrollIntoView({ behavior: state.animations ? 'smooth' : 'auto', block: 'start' });
     } else if (message.type === 'room_state') {
+      const previousRoom = state.room;
       state.room = message;
-      renderRoomState(message);
+      renderRoomState(message, previousRoom);
     } else if (message.type === 'room_settings_saved') {
       $('#private-settings-feedback').textContent = 'Settings saved for this room.';
     } else if (message.type === 'timer') {
       updatePartyTimer(message.remainingMs, message.holderId, message.durationMs);
+    } else if (message.type === 'answer_suggestion') {
+      const input = $('#rush-answer');
+      if (Number(message.requestId) !== state.partySuggestionSequence ||
+          message.categoryId !== state.room?.category?.id ||
+          input.value.trim() !== message.typed) return;
+      const panel = $('#rush-suggestion');
+      if (!message.suggestion) {
+        state.pendingPartySuggestion = null;
+        panel.hidden = true;
+        panel.innerHTML = '';
+      } else {
+        state.pendingPartySuggestion = { input: message.typed, answer: message.suggestion };
+        panel.innerHTML = '<span class="suggestion-copy">DID YOU MEAN?</span><button class="suggestion-choice" type="button" data-use-rush-suggestion>' +
+          esc(message.suggestion) + '<span>PRESS ENTER TO USE</span></button>';
+        panel.hidden = false;
+      }
     } else if (message.type === 'answer_accepted') {
       $('#rush-feedback').textContent = message.nickname + ' named ' + message.answer + ' · ' + message.level +
         ' · +' + message.points + ' Discovery Points' + (message.gainedHeart ? ' · +1 Stability Point!' : '');
       $('#rush-feedback').classList.add('success');
+      if (message.playerId && message.playerId === state.playerId) {
+        $('#rush-answer').value = '';
+        clearPartySuggestion();
+      }
       playTone('success');
     } else if (message.type === 'orb_overload') {
       const stage = $('#orb-stage');
@@ -933,7 +985,8 @@ function renderFlightDistribution(result) {
       $('#rush-feedback').classList.remove('success');
       showCategoryAnnouncement(message.category, message.reason);
     } else if (message.type === 'match_ready') {
-      $('#room-status-note').textContent = 'Match begins in a few seconds…';
+      $('#room-status-note').textContent = 'Match begins automatically in a few seconds…';
+      $('#room-start').hidden = true;
     } else if (message.type === 'room_chat') {
       renderRoomChatMessage(message);
     } else if (message.type === 'game_over') {
@@ -1029,7 +1082,12 @@ function renderFlightDistribution(result) {
     }).join('');
   }
 
-  function renderRoomState(room) {
+  function renderRoomState(room, previousRoom) {
+    if (previousRoom && previousRoom.phase === 'playing' && room.phase === 'playing' &&
+        previousRoom.category?.id !== room.category?.id) {
+      $('#rush-answer').value = '';
+      clearPartySuggestion();
+    }
     const lobby = room.phase === 'lobby';
     const playing = room.phase === 'playing';
     const finished = room.phase === 'finished';
@@ -1065,8 +1123,13 @@ function renderFlightDistribution(result) {
       $('#private-category-misses').value = String(Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)));
       $('#private-category-turns').value = String(Math.max(5, Number(settings.maxTurnsPerCategory || 10)));
     }
+    const autoStarting = room.autoStartInMs !== null && room.autoStartInMs !== undefined;
+    const nearlyFull = lobby && room.visibility === 'private' &&
+      room.players.length >= Math.max(2, Number(room.targetMin || 2), capacity - 1);
     $('#room-status-note').textContent = lobby
-      ? room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.'
+      ? (autoStarting || nearlyFull
+        ? 'The lobby is nearly full · Globe Rush will launch automatically.'
+        : room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.')
       : room.players.length + ' explorers on this mission.';
     const seats = Array.from({ length: capacity }, (_, index) => {
       const player = room.players[index];
@@ -1090,7 +1153,7 @@ function renderFlightDistribution(result) {
       '<span class="planet-roster-dot"></span><span class="planet-roster-name">' + esc(player.nickname) + '</span>' +
       '<small>' + (player.isHost ? 'HOST' : (player.isConnected ? 'ONLINE' : 'OFFLINE')) + '</small></div>'
     ).join('') || '<div class="planet-roster-empty">Waiting for explorers…</div>';
-    $('#room-start').hidden = !lobby || !hostIsYou;
+    $('#room-start').hidden = !lobby || !hostIsYou || autoStarting || nearlyFull;
     $('#room-start').disabled = room.players.length < 2;
     $('#room-start').textContent = room.players.length < 2 ? 'WAITING FOR YOUR CREW' : 'START GLOBE RUSH';
     renderRoomChat(room.chatMessages || []);
@@ -1127,12 +1190,25 @@ function renderFlightDistribution(result) {
         '<span class="rush-player-score">' + number.format(player.score) + '</span></div>'
       ).join('');
       const me = room.players.find(player => player.isYou);
+      const previousMe = previousRoom && previousRoom.players && previousRoom.players.find(player => player.isYou);
       const holding = Boolean(me && me.isHolder && me.alive);
-      $('#rush-answer-area').hidden = !holding;
+      $('#rush-answer-area').hidden = false;
       const holder = room.players.find(player => player.id === room.currentHolderId);
       $('#orb-holder-label').textContent = holder ? 'THE ORB IS WITH ' + holder.nickname.toUpperCase() : 'THE ORB IS MOVING';
-      $('#rush-answer').disabled = !holding;
-      if (!holding) $('#rush-answer').value = '';
+      $('#rush-answer').disabled = !me || !me.alive;
+      $('#rush-answer').placeholder = holding ? 'Your turn — press Enter…' : 'Prepare your next answer…';
+      $('#rush-submit').disabled = !holding;
+      $('#rush-submit').innerHTML = holding
+        ? 'PASS THE ORB <span aria-hidden="true">↗</span>'
+        : 'READY FOR YOUR TURN';
+      if (holding && (!previousMe || !previousMe.isHolder) && $('#rush-answer').value.trim()) {
+        $('#rush-feedback').textContent = 'Your draft is ready — press Enter to pass the Orb.';
+        $('#rush-feedback').classList.remove('success');
+      }
+      if (me && !me.alive) {
+        $('#rush-answer').placeholder = 'You are out of this round';
+        $('#rush-feedback').textContent = 'You can follow the match, but cannot submit another answer.';
+      }
       if (room.timerRemainingMs !== null) updatePartyTimer(room.timerRemainingMs, room.currentHolderId, room.timerDurationMs);
     }
     if (finished && state.result) renderPartyResults(state.result);
@@ -1234,7 +1310,9 @@ function renderFlightDistribution(result) {
   }
   function resetRoomUI() {
     clearGlobeRushEffects();
+    clearPartySuggestion();
     state.room = null; state.roomCode = null; state.playerId = null; state.result = null;
+    if ($('#rush-answer')) $('#rush-answer').value = '';
     $('#party-room').hidden = true;
     $('#party-lobby').hidden = false;
     if (state.ws) { try { state.ws.close(); } catch (_) {} }
@@ -1483,12 +1561,28 @@ function renderFlightDistribution(result) {
     });
     $('#room-start').addEventListener('click', () => sendSocket({ type: 'start_game' }));
     $('#room-rematch').addEventListener('click', () => sendSocket({ type: 'rematch' }));
+    $('#rush-answer').addEventListener('input', schedulePartySuggestion);
+    $('#rush-suggestion').addEventListener('click', event => {
+      if (event.target.closest('[data-use-rush-suggestion]')) usePartySuggestion();
+    });
     $('#rush-answer-form').addEventListener('submit', event => {
       event.preventDefault();
-      const answer = $('#rush-answer').value.trim();
+      if (usePartySuggestion()) return;
+      const input = $('#rush-answer');
+      const answer = input.value.trim();
       if (!answer) return;
+      const room = state.room;
+      const me = room && room.players.find(player => player.isYou);
+      if (!room || room.phase !== 'playing' || !me || !me.alive) return;
+      if (!me.isHolder) {
+        $('#rush-feedback').textContent = 'Draft saved. Press Enter when the Orb reaches you.';
+        $('#rush-feedback').classList.remove('success');
+        return;
+      }
       sendSocket({ type: 'submit_answer', answer });
-      $('#rush-answer').value = '';
+      $('#rush-submit').disabled = true;
+      $('#rush-feedback').textContent = 'Checking your answer…';
+      $('#rush-feedback').classList.remove('success');
     });
     $('#open-rooms-list').addEventListener('click', event => {
       const button = event.target.closest('[data-join-room]');
