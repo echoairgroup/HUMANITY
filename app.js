@@ -14,7 +14,7 @@
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null,
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
-    orbOverloadTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
+    orbOverloadTimer: null, onlineRefreshTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
     animations: localStorage.getItem('humanity-motion') !== 'false'
   };
 
@@ -84,7 +84,15 @@
     $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     document.body.classList.add('globe-rush-active');
     requestAnimationFrame(updateNavigationIndicator);
-    if (view === 'party') { loadOpenRooms(); loadPartyMiniRanking(); loadSeason(); }
+    if (view === 'party') {
+      loadOpenRooms(); loadPartyMiniRanking(); loadSeason(); loadOnlinePlayers();
+      if (!state.onlineRefreshTimer) state.onlineRefreshTimer = window.setInterval(() => {
+        if (!document.hidden) loadOnlinePlayers();
+      }, 15000);
+    } else if (state.onlineRefreshTimer) {
+      window.clearInterval(state.onlineRefreshTimer);
+      state.onlineRefreshTimer = null;
+    }
     if (view === 'rankings') loadRankings(state.currentRanking);
     history.replaceState(null, '', '#' + view);
     window.scrollTo({ top: 0, behavior: state.animations ? 'smooth' : 'auto' });
@@ -241,7 +249,7 @@
       stopDailyTimer();
       state.provisionalScore += Number(result.provisionalPoints || 0);
       state.pendingNextIndex = result.nextIndex;
-      showDailyResult(true, result.answer, result.level, result.provisionalPoints, result.reveal || [], result.sameAnswerCount || 1);
+      showDailyResult(true, result.answer, result.level, result.provisionalPoints, result.reveal || [], result.sameAnswerCount || 1, result.rarity);
       playTone('success');
     } catch (error) {
       $('#daily-feedback').textContent = error.message;
@@ -262,7 +270,7 @@
     } catch (error) { toast(error.message); }
     finally { $('#daily-submit').disabled = false; }
   }
-  function showDailyResult(accepted, answer, level, points, reveal, sameAnswerCount) {
+  function showDailyResult(accepted, answer, level, points, reveal, sameAnswerCount, rarity) {
     setDailySection('daily-result');
     $('#result-stamp').textContent = accepted ? 'ANSWER ACCEPTED' : 'TIME IS UP';
     $('#result-title').textContent = accepted ? 'Nicely found.' : 'The next question awaits.';
@@ -271,6 +279,28 @@
       : 'No answer was locked in this round. Here are some approved answers to learn from.';
     $('#result-level').textContent = accepted ? String(level || 'Known').toUpperCase() : '—';
     $('#result-points').textContent = number.format(points || 0);
+    const ascent = $('#rarity-ascent');
+    ascent.hidden = !accepted;
+    if (accepted) {
+      const levels = [
+        { bottom: 10, altitude: 'GROUND LEVEL', detail: 'A familiar discovery starts your climb.' },
+        { bottom: 29, altitude: 'LOW CLOUDS', detail: 'A less familiar answer lifts you above the skyline.' },
+        { bottom: 48, altitude: 'CLOUD LAYER', detail: 'An uncommon discovery carries you higher.' },
+        { bottom: 67, altitude: 'HIGH ALTITUDE', detail: 'A rare answer pushes you into the upper sky.' },
+        { bottom: 86, altitude: 'STRATOSPHERE', detail: 'A remarkable answer takes you close to the edge of space.' },
+        { bottom: 105, altitude: 'EDGE OF SPACE', detail: 'Exceptional rarity sends your explorer into orbit.' }
+      ];
+      const levelNames = ['Familiar', 'Known', 'Uncommon', 'Rare', 'Remarkable', 'Exceptional'];
+      const levelIndex = Number.isFinite(Number(rarity))
+        ? Math.max(0, Math.min(5, Math.round(Number(rarity))))
+        : Math.max(0, levelNames.indexOf(String(level || 'Known')));
+      const ascentLevel = levels[levelIndex];
+      $('#rarity-ascent-scene').dataset.level = String(levelIndex);
+      $('#ascent-explorer').style.setProperty('--ascent-bottom', ascentLevel.bottom + 'px');
+      $('#ascent-altitude-label').textContent = ascentLevel.altitude;
+      $('#ascent-description').textContent = ascentLevel.detail;
+      $('#ascent-level-label').textContent = 'DISCOVERY LEVEL ' + (levelIndex + 1) + ' / 6';
+    }
     $('#answer-sheet-count').textContent = reveal.length + ' approved answers';
     $('#answer-sheet-list').innerHTML = reveal.map(item =>
       '<span class="answer-chip">' + esc(item.answer) + ' <b>' + number.format(item.points || 0) + '</b></span>'
@@ -667,11 +697,20 @@
     if (!field || !stream) return;
     const players = Array.isArray(room.players) ? room.players : [];
     const count = players.length;
-    if (!count) { field.innerHTML = ''; stream.innerHTML = ''; return; }
+    if (!count) { field.innerHTML = ''; stream.innerHTML = ''; field.classList.remove('is-crowded'); return; }
 
+    const crowded = count > 6;
+    field.classList.toggle('is-crowded', crowded);
     const positions = players.map((player, index) => {
+      if (crowded) {
+        const rowIndex = Math.floor(index / 5);
+        const rowCount = Math.min(5, count - rowIndex * 5);
+        const columnIndex = index % 5;
+        const x = rowCount === 1 ? 50 : 12 + (76 * columnIndex / (rowCount - 1));
+        return { x, y: rowIndex === 0 ? 17 : 83 };
+      }
       const angle = -Math.PI / 2 + Math.PI / count + (Math.PI * 2 * index / count);
-      return { x: 50 + Math.cos(angle) * 39, y: 50 + Math.sin(angle) * 35 };
+      return { x: 50 + Math.cos(angle) * 34, y: 50 + Math.sin(angle) * 29 };
     });
     field.innerHTML = players.map((player, index) => {
       const holder = player.id === room.currentHolderId || player.isHolder;
@@ -687,6 +726,19 @@
         '<span class="orb-player-copy"><b>' + esc(player.nickname) + '</b><small>' + label +
         '</small></span></div>';
     }).join('');
+
+    // Clamp each card using its rendered dimensions so no nameplate can be cropped by the arena.
+    const bounds = field.getBoundingClientRect();
+    if (bounds.width && bounds.height) {
+      [...field.querySelectorAll('.orb-player-marker')].forEach((marker, index) => {
+        const insetX = (marker.offsetWidth / 2 + 7) / bounds.width * 100;
+        const insetY = (marker.offsetHeight / 2 + 7) / bounds.height * 100;
+        const x = Math.max(insetX, Math.min(100 - insetX, positions[index].x));
+        const y = Math.max(insetY, Math.min(100 - insetY, positions[index].y));
+        marker.style.left = x.toFixed(2) + '%';
+        marker.style.top = y.toFixed(2) + '%';
+      });
+    }
 
     const holderIndex = players.findIndex(player => player.id === room.currentHolderId || player.isHolder);
     if (holderIndex < 0) { stream.innerHTML = ''; return; }
@@ -713,6 +765,15 @@
     $('#lobby-seat-count').textContent = room.players.length + ' / ' + capacity + ' PLAYERS';
     $('#planet-room-code').textContent = room.code;
     $('#planet-capacity').textContent = 'UP TO ' + capacity;
+    const settings = room.settings || {};
+    const startingLives = Math.max(1, Number(settings.startingLives || 2));
+    const maximumLives = Math.max(startingLives, Number(settings.maxLives || 3));
+    $('#planet-starting-lives').textContent = startingLives + (startingLives === 1 ? ' LIFE' : ' LIVES');
+    $('#planet-max-lives').textContent = maximumLives + ' LIVES';
+    $('#planet-turn-clock').textContent = Number(settings.turnDurationSeconds) > 0
+      ? Number(settings.turnDurationSeconds) + ' SEC' : 'RANDOM 10–30 SEC';
+    $('#planet-category-rule').textContent = Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)) +
+      ' MISSES / ' + Math.max(1, Number(settings.maxTurnsPerCategory || 10)) + ' TURNS';
     $('#room-status-note').textContent = lobby
       ? room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.'
       : room.players.length + ' explorers on this mission.';
@@ -747,8 +808,13 @@
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
-      $('#rush-note').textContent = 'Random 10–30 second turns · 2 misses or 10 accepted turns rotate the category. ' +
-        (room.category.note || 'Answers can only be used once per category.');
+      const turnDescription = Number(room.settings?.turnDurationSeconds) > 0
+        ? Number(room.settings.turnDurationSeconds) + '-second turns'
+        : 'Random 10–30 second turns';
+      const missLimit = Math.max(1, Number(room.settings?.maxWrongAnswersPerCategory || 2));
+      const turnLimit = Math.max(1, Number(room.settings?.maxTurnsPerCategory || 10));
+      $('#rush-note').textContent = turnDescription + ' · ' + missLimit + ' misses or ' + turnLimit +
+        ' accepted turns rotate the category. ' + (room.category.note || 'Answers can only be used once per category.');
       const wrongCount = Math.max(0, Number(room.wrongAnswersThisCategory || 0));
       const turnCount = Math.max(0, Number(room.turnsThisCategory || 0));
       const wrongLimit = Math.max(1, Number(room.maxWrongAnswersPerCategory || 2));
@@ -761,11 +827,12 @@
       $('#used-answer-list').innerHTML = room.usedAnswers.length
         ? room.usedAnswers.map(answer => '<span class="used-answer-chip">' + esc(answer) + '</span>').join('')
         : '<span class="empty-used">No answers yet.</span>';
+      const maxLives = Math.max(1, Number(room.settings?.maxLives || 3));
       $('#rush-player-list').innerHTML = room.players.map(player =>
         '<div class="rush-player-row ' + (player.isHolder ? 'current' : '') + ' ' + (!player.alive ? 'out' : '') + '">' +
         '<span class="rush-player-name"><b>' + (player.isHolder ? '● ' : '') + esc(player.nickname) + (player.isYou ? ' (you)' : '') + '</b>' +
         '<small>' + number.format(player.turnsTaken || 0) + ' turns · ' + number.format(player.answersGiven || 0) + ' valid answers</small></span>' +
-        '<span class="rush-player-hearts">' + '♥'.repeat(player.hearts) + '♡'.repeat(Math.max(0,3-player.hearts)) + '</span>' +
+        '<span class="rush-player-hearts">' + '♥'.repeat(player.hearts) + '♡'.repeat(Math.max(0,maxLives-player.hearts)) + '</span>' +
         '<span class="rush-player-score">' + number.format(player.score) + '</span></div>'
       ).join('');
       const me = room.players.find(player => player.isYou);
@@ -918,6 +985,21 @@
       ).join('');
     }).catch(() => { $('#open-rooms-list').innerHTML = '<div class="empty-room-note">Open rooms are temporarily unavailable.</div>'; });
   }
+  async function loadOnlinePlayers() {
+    const count = $('#globe-online-count');
+    const label = $('#globe-online-label');
+    if (!count || !label) return;
+    try {
+      const result = await api('/party/online');
+      const players = Math.max(0, Number(result.players) || 0);
+      count.textContent = number.format(players);
+      label.textContent = players === 1 ? 'PLAYER IN LIVE GAMES' : 'PLAYERS IN LIVE GAMES';
+    } catch (_) {
+      count.textContent = '—';
+      label.textContent = 'LIVE PLAYER COUNT';
+    }
+  }
+
   async function loadAdmin() {
     if (!state.player || !state.player.isAdmin) return;
     try {
@@ -995,7 +1077,17 @@
     $('#ranked-play').addEventListener('click', () => queueMatch('ranked', $('#ranked-group').value));
     $('#create-room-form').addEventListener('submit', event => {
       event.preventDefault();
-      connectSocket({ type: 'create_room', visibility: 'private', mode: 'private', capacity: Number($('#private-capacity').value || 10), nickname: nickname(), token: state.token || undefined });
+      connectSocket({
+        type: 'create_room', visibility: 'private', mode: 'private',
+        capacity: Number($('#private-capacity').value || 10), nickname: nickname(), token: state.token || undefined,
+        settings: {
+          startingLives: Number($('#private-starting-lives').value || 2),
+          maxLives: Number($('#private-max-lives').value || 3),
+          turnDurationSeconds: Number($('#private-turn-duration').value || 0),
+          maxWrongAnswersPerCategory: Number($('#private-category-misses').value || 2),
+          maxTurnsPerCategory: Number($('#private-category-turns').value || 10)
+        }
+      });
     });
     $('#join-room-form').addEventListener('submit', event => { event.preventDefault(); joinRoom($('#join-code').value); });
     $('#refresh-rooms').addEventListener('click', loadOpenRooms);
