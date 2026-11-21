@@ -70,3 +70,31 @@ test('Globe Rush changes category after ten accepted turns', () => {
 test('two mistakes take priority when both category limits are reached', () => {
   assert.equal(partyRules.categoryRotationReason(2, 10), 'mistakes');
 });
+
+
+test('daily challenge avoids yesterday’s seven prompts', () => {
+  const yesterday = engine.generateDailyChallenge('2026-11-20');
+  const previousIds = yesterday.questions.map(question => question.id);
+  const today = engine.generateDailyChallenge('2026-11-21', previousIds);
+  const previous = new Set(previousIds);
+
+  assert.equal(today.questions.length, 7);
+  assert.equal(today.questions.some(question => previous.has(question.id)), false);
+  assert.equal(today.questions.filter(question => question.domain === 'geography').length, 6);
+  assert.equal(today.questions.filter(question => question.domain === 'culture').length, 1);
+});
+
+test('Globe Rush uses every category once before allowing a repeat', () => {
+  const questionCount = engine.listQuestionBank().length;
+  const history = [];
+
+  for (let index = 0; index < questionCount; index += 1) {
+    const next = engine.getPartyQuestion(history);
+    assert.ok(next);
+    assert.equal(history.includes(next.id), false);
+    history.push(next.id);
+  }
+
+  const nextCycleQuestion = engine.getPartyQuestion(history);
+  assert.notEqual(nextCycleQuestion.id, history[history.length - 1]);
+});

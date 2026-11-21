@@ -172,7 +172,13 @@ async function loadApprovedAnswers(questionIds) {
 }
 
 async function buildChallenge(date) {
-  const generated = engine.generateDailyChallenge(date);
+  const previousDate = new Date(Date.parse(date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const previousEdition = await pool.query(
+    'SELECT payload FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1',
+    [previousDate]
+  );
+  const previousQuestionIds = (previousEdition.rows[0]?.payload?.questions || []).map(item => item.id);
+  const generated = engine.generateDailyChallenge(date, previousQuestionIds);
   const approved = await loadApprovedAnswers(generated.questions.map(item => item.id));
   for (const extra of approved) {
     const question = generated.questions.find(item => item.id === extra.question_id);

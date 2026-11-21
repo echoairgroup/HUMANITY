@@ -63,6 +63,17 @@
     }
     return payload;
   }
+  function updateNavigationIndicator() {
+    const nav = $('.main-nav');
+    const indicator = $('#nav-active-indicator');
+    const active = $('.main-nav .nav-item.active');
+    if (!nav || !indicator || !active) return;
+    indicator.style.width = active.offsetWidth + 'px';
+    indicator.style.height = active.offsetHeight + 'px';
+    indicator.style.transform = 'translate3d(' + active.offsetLeft + 'px,' + active.offsetTop + 'px,0)';
+    indicator.classList.add('ready');
+  }
+
   function setView(view) {
     if (!['daily', 'party', 'rankings'].includes(view)) view = 'daily';
     $$('[data-view-panel]').forEach(panel => {
@@ -70,8 +81,9 @@
       panel.hidden = !active;
       panel.classList.toggle('active', active);
     });
-    $('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+    $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     document.body.classList.add('globe-rush-active');
+    requestAnimationFrame(updateNavigationIndicator);
     if (view === 'party') { loadOpenRooms(); loadPartyMiniRanking(); loadSeason(); }
     if (view === 'rankings') loadRankings(state.currentRanking);
     history.replaceState(null, '', '#' + view);
@@ -649,6 +661,45 @@
     state.room.chatMessages = [...history, message].slice(-30);
     renderRoomChat(state.room.chatMessages);
   }
+  function renderOrbCrew(room) {
+    const field = $('#orb-player-field');
+    const stream = $('#orb-player-stream');
+    if (!field || !stream) return;
+    const players = Array.isArray(room.players) ? room.players : [];
+    const count = players.length;
+    if (!count) { field.innerHTML = ''; stream.innerHTML = ''; return; }
+
+    const positions = players.map((player, index) => {
+      const angle = -Math.PI / 2 + Math.PI / count + (Math.PI * 2 * index / count);
+      return { x: 50 + Math.cos(angle) * 39, y: 50 + Math.sin(angle) * 35 };
+    });
+    field.innerHTML = players.map((player, index) => {
+      const holder = player.id === room.currentHolderId || player.isHolder;
+      const eliminated = player.alive === false;
+      const label = holder ? 'HOLDING THE ORB' : eliminated ? 'ELIMINATED' :
+        player.isConnected ? 'IN ORBIT' : 'RECONNECTING';
+      return '<div class="orb-player-marker' + (holder ? ' is-holder' : '') +
+        (eliminated ? ' is-out' : '') + '" style="left:' + positions[index].x.toFixed(2) +
+        '%;top:' + positions[index].y.toFixed(2) + '" title="' + esc(player.nickname) +
+        (holder ? ' — current turn' : '') + '">' +
+        '<span class="orb-player-avatar" aria-hidden="true">' +
+        esc(String(player.nickname || '?').slice(0, 1).toUpperCase()) + '</span>' +
+        '<span class="orb-player-copy"><b>' + esc(player.nickname) + '</b><small>' + label +
+        '</small></span></div>';
+    }).join('');
+
+    const holderIndex = players.findIndex(player => player.id === room.currentHolderId || player.isHolder);
+    if (holderIndex < 0) { stream.innerHTML = ''; return; }
+    const start = positions[holderIndex];
+    stream.innerHTML = [0.24, 0.48, 0.72].map((fraction, index) => {
+      const x = start.x + (50 - start.x) * fraction;
+      const y = start.y + (50 - start.y) * fraction;
+      return '<i class="orb-player-bubble bubble-' + (index + 1) +
+        '" style="left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) +
+        '%;--bubble-delay:' + (index * 0.18) + 's"></i>';
+    }).join('');
+  }
+
   function renderRoomState(room) {
     const lobby = room.phase === 'lobby';
     const playing = room.phase === 'playing';
@@ -692,6 +743,7 @@
     $('#room-start').textContent = room.players.length < 2 ? 'WAITING FOR YOUR CREW' : 'START GLOBE RUSH';
     renderRoomChat(room.chatMessages || []);
     if (playing && room.category) {
+      renderOrbCrew(room);
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
@@ -735,6 +787,14 @@
     $('#rush-seconds').textContent = String(seconds);
     $('#rush-timer-fill').style.width = progress + '%';
     $('#rush-timer').classList.toggle('urgent', seconds <= 4);
+
+    const answerTrack = $('#rush-answer-time-track');
+    const answerFill = $('#rush-answer-time-fill');
+    if (answerTrack && answerFill) {
+      answerFill.style.width = progress + '%';
+      answerTrack.classList.toggle('urgent', seconds <= 5);
+      answerTrack.setAttribute('aria-valuenow', String(Math.round(progress)));
+    }
 
     const stage = $('#orb-stage');
     const pressure = Math.max(0, Math.min(1, (5000 - remaining) / 5000));
@@ -904,6 +964,7 @@
 
   function initEvents() {
     $$('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+    window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
     $('#daily-start').addEventListener('click', startDaily);
     $('#daily-answer-form').addEventListener('submit', submitDailyAnswer);
     $('#daily-next').addEventListener('click', nextDailyQuestion);

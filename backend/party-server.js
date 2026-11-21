@@ -158,6 +158,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       round: 0,
       category: null,
       lastCategoryId: null,
+      categoryHistory: [],
       usedAnswers: [],
       chatMessages: [],
       currentHolderId: null,
@@ -307,9 +308,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   }
 
   function newRound(room, afterPlayerId, reason) {
-    const category = engine.getPartyQuestion(room.lastCategoryId);
+    const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId);
     room.category = category;
     room.lastCategoryId = category.id;
+    room.categoryHistory = [...(room.categoryHistory || []), category.id];
     room.round += 1;
     room.usedAnswers = [];
     room.turnNumber = 0;
@@ -375,6 +377,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       player.eliminatedAt = 0;
     });
     room.round = 0;
+    room.lastCategoryId = null;
+    room.categoryHistory = [];
     newRound(room, room.players[crypto.randomInt(0, room.players.length)].id);
     broadcast(room, { type: 'game_started' });
     return true;
@@ -674,6 +678,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       room.results = null;
       room.category = null;
       room.lastCategoryId = null;
+      room.categoryHistory = [];
       room.round = 0;
       room.usedAnswers = [];
       room.turnNumber = 0;

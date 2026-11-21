@@ -419,11 +419,17 @@ function seededShuffle(items, seed) {
   })).sort((a, b) => a.key - b.key).map(entry => entry.item);
 }
 
-function generateDailyChallenge(date) {
+function generateDailyChallenge(date, excludedQuestionIds = []) {
   const geo = Q.filter(item => item.domain === 'geography');
   const culture = Q.filter(item => item.domain === 'culture');
-  const selectedGeo = seededShuffle(geo, 'HUMANITY-GEO-' + date).slice(0, 6);
-  const selectedCulture = seededShuffle(culture, 'HUMANITY-CULTURE-' + date).slice(0, 1);
+  const excluded = new Set(Array.isArray(excludedQuestionIds) ? excludedQuestionIds : []);
+  const selectFresh = (items, count, seed) => {
+    const fresh = items.filter(item => !excluded.has(item.id));
+    const source = fresh.length >= count ? fresh : items;
+    return seededShuffle(source, seed).slice(0, count);
+  };
+  const selectedGeo = selectFresh(geo, 6, 'HUMANITY-GEO-' + date);
+  const selectedCulture = selectFresh(culture, 1, 'HUMANITY-CULTURE-' + date);
   const ordered = seededShuffle(selectedGeo.concat(selectedCulture), 'HUMANITY-ORDER-' + date);
 
   return {
@@ -498,8 +504,17 @@ function getQuestion(id) {
   return QUESTION_BY_ID.get(id) || null;
 }
 
-function getPartyQuestion(excludeId) {
-  const eligible = Q.filter(item => item.id !== excludeId);
+function getPartyQuestion(excludedIds) {
+  const excluded = excludedIds instanceof Set
+    ? excludedIds
+    : new Set(Array.isArray(excludedIds) ? excludedIds : (excludedIds ? [excludedIds] : []));
+  let eligible = Q.filter(item => !excluded.has(item.id));
+  if (!eligible.length) {
+    const lastId = Array.isArray(excludedIds)
+      ? excludedIds[excludedIds.length - 1]
+      : (excludedIds instanceof Set ? Array.from(excludedIds).pop() : excludedIds);
+    eligible = Q.filter(item => item.id !== lastId);
+  }
   return eligible[crypto.randomInt(0, eligible.length)];
 }
 

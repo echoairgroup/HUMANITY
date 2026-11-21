@@ -1846,3 +1846,75 @@ body.globe-rush-active .orb-explosion > i:nth-child(8) { --burst-x:-148px; --bur
   body.globe-rush-active .orb-explosion::after,
   body.globe-rush-active .orb-explosion > i { animation-duration:.01ms; }
 }
+
+
+/* The original light-blue active tab now travels with the selected page. */
+body.globe-rush-active .main-nav { position:relative;isolation:isolate; }
+body.globe-rush-active .nav-active-indicator {
+  position:absolute;z-index:0;top:0;left:0;display:block;width:0;height:100%;
+  border-radius:3px;opacity:0;pointer-events:none;
+  background:#81dbea;box-shadow:0 3px 0 #315f91;
+  transform:translate3d(0,0,0);
+  transition:transform .32s cubic-bezier(.22,.78,.24,1),width .32s cubic-bezier(.22,.78,.24,1),height .18s ease,opacity .12s ease;
+  will-change:transform,width;
+}
+body.globe-rush-active .nav-active-indicator.ready { opacity:1; }
+body.globe-rush-active .main-nav .nav-item { position:relative;z-index:1;background:transparent;transition:color .2s ease; }
+body.globe-rush-active .main-nav .nav-item.active { color:#07162d;background:transparent !important;box-shadow:none !important; }
+
+/* Player markers and the three light bubbles make the current Orb holder visible around Earth. */
+body.globe-rush-active .orb-player-field,
+body.globe-rush-active .orb-player-stream { position:absolute;inset:0;pointer-events:none; }
+body.globe-rush-active .orb-player-stream { z-index:7; }
+body.globe-rush-active .orb-player-field { z-index:10; }
+body.globe-rush-active .orb-player-marker {
+  position:absolute;display:flex;align-items:center;gap:6px;
+  width:clamp(88px,12%,128px);min-width:0;min-height:35px;padding:4px 6px;
+  border:1px solid rgba(114,164,198,.55);border-radius:3px;
+  color:#eaf5ff;background:linear-gradient(145deg,rgba(17,43,72,.97),rgba(7,23,44,.97));
+  box-shadow:0 3px 0 rgba(2,10,24,.45),0 0 13px rgba(66,151,198,.12);
+  transform:translate(-50%,-50%);
+  transition:border-color .2s ease,background .2s ease,box-shadow .2s ease,opacity .2s ease;
+}
+body.globe-rush-active .orb-player-marker.is-holder {
+  border-color:#efc078;background:linear-gradient(145deg,rgba(78,61,48,.98),rgba(22,43,67,.98));
+  box-shadow:0 0 0 2px rgba(240,190,115,.12),0 0 20px rgba(240,183,106,.24);
+}
+body.globe-rush-active .orb-player-marker.is-out { opacity:.42;filter:saturate(.55); }
+body.globe-rush-active .orb-player-avatar {
+  display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;
+  border:1px solid rgba(146,218,235,.65);border-radius:2px;
+  color:#08213a;background:linear-gradient(145deg,#a4edf1,#63c6da);font:16px 'VT323',monospace;
+}
+body.globe-rush-active .orb-player-marker.is-holder .orb-player-avatar { border-color:#f4d29a;background:linear-gradient(145deg,#ffe2a6,#d5a15c); }
+body.globe-rush-active .orb-player-copy { display:grid;min-width:0;gap:1px; }
+body.globe-rush-active .orb-player-copy b { overflow:hidden;color:#f0f8ff;font:14px 'VT323',monospace;text-overflow:ellipsis;white-space:nowrap; }
+body.globe-rush-active .orb-player-copy small { overflow:hidden;color:#92b3cc;font:10px 'VT323',monospace;letter-spacing:.025em;text-overflow:ellipsis;white-space:nowrap; }
+body.globe-rush-active .orb-player-marker.is-holder .orb-player-copy small { color:#ffd092; }
+body.globe-rush-active .orb-player-bubble {
+  position:absolute;z-index:7;width:7px;height:7px;border-radius:50%;
+  border:1px solid rgba(214,250,255,.9);background:#81dbea;
+  box-shadow:0 0 7px rgba(104,218,239,.9),0 0 16px rgba(83,183,225,.55);
+  transform:translate(-50%,-50%);animation:orb-player-bubble 1.15s ease-in-out infinite;
+  animation-delay:var(--bubble-delay,0s);
+}
+@keyframes orb-player-bubble { 0%,100% { opacity:.45;scale:.72; } 50% { opacity:1;scale:1.18; } }
+
+/* A slim remaining-time line sits directly above the existing Globe Rush answer field. */
+body.globe-rush-active .rush-answer-time-track {
+  height:4px;margin:0 0 7px;overflow:hidden;border:1px solid #31577b;
+  border-radius:1px;background:#07172f;box-shadow:0 0 8px rgba(69,156,201,.12);
+}
+body.globe-rush-active .rush-answer-time-track > span {
+  display:block;width:100%;height:100%;background:#81dbea;
+  box-shadow:0 0 9px rgba(105,218,237,.55);transition:width .22s linear,background .18s ease;
+}
+body.globe-rush-active .rush-answer-time-track.urgent { border-color:#dba568; }
+body.globe-rush-active .rush-answer-time-track.urgent > span { background:#f0bb72;box-shadow:0 0 10px rgba(240,187,114,.55); }
+@media(max-width:600px) {
+  body.globe-rush-active .orb-player-marker { width:clamp(76px,22vw,96px);min-height:32px;padding:3px 5px;gap:4px; }
+  body.globe-rush-active .orb-player-avatar { flex-basis:19px;width:19px;height:19px;font-size:14px; }
+  body.globe-rush-active .orb-player-copy b { font-size:12px; }
+  body.globe-rush-active .orb-player-copy small { font-size:9px; }
+}
+@media(prefers-reduced-motion:reduce) { body.globe-rush-active .orb-player-bubble { animation:none;opacity:.85; } }

@@ -31,6 +31,7 @@
       </a>
 
       <nav class="main-nav" aria-label="Main navigation">
+        <span class="nav-active-indicator" id="nav-active-indicator" aria-hidden="true"></span>
         <button class="nav-item active" type="button" data-view="daily">Atlas Daily</button>
         <button class="nav-item" type="button" data-view="party">Globe Rush</button>
         <button class="nav-item" type="button" data-view="rankings">Rankings</button>
@@ -390,11 +391,14 @@
     </div>
     <div class="orb-stage-halo"></div><div class="stage-ring stage-ring-a"></div><div class="stage-ring stage-ring-b"></div>
     <div class="atlas-orb stage-orb" data-earth-globe role="img" aria-label="Real-world Earth globe"></div>
+    <div class="orb-player-stream" id="orb-player-stream" aria-hidden="true"></div>
+    <div class="orb-player-field" id="orb-player-field" aria-label="Players around the Atlas Orb"></div>
     <div class="orb-explosion" id="orb-explosion" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div class="orb-holder-label" id="orb-holder-label">Waiting for the first answer</div>
     <div class="rush-stage-footer">ONE PLANET · ONE ORB · ONE WINNER</div>
   </div>
   <div class="rush-answer-area" id="rush-answer-area">
+    <div class="rush-answer-time-track" id="rush-answer-time-track" role="progressbar" aria-label="Time remaining for your answer" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span id="rush-answer-time-fill"></span></div>
     <form id="rush-answer-form" class="answer-form"><label class="visually-hidden" for="rush-answer">Your answer</label><input id="rush-answer" maxlength="80" autocomplete="off" placeholder="Name a place on Earth…" required><button class="button button-primary" type="submit">PASS THE ORB <span aria-hidden="true">↗</span></button></form>
     <div class="answer-feedback" id="rush-feedback" role="status" aria-live="polite"></div>
   </div>
