@@ -828,6 +828,12 @@ function renderFlightDistribution(result) {
         const result = await api('/daily/hint', { method: 'POST', body: { guestId: state.guestId, runId: state.runId } });
         examples = result.examples || [];
       }
+      state.hintUsed = true;
+      $('#hint-counter').textContent = '0 / 1';
+      $('#hint-box').hidden = false;
+      $('#hint-box').textContent = 'Examples: ' + examples.join(' · ');
+    } catch (error) { toast(error.message); $('#daily-hint').disabled = false; }
+  }
 
   async function loadPracticePacks() {
     const panel=$('#practice-pack-list');
