@@ -709,6 +709,8 @@
     } else if (message.type === 'room_state') {
       state.room = message;
       renderRoomState(message);
+    } else if (message.type === 'room_settings_saved') {
+      $('#private-settings-feedback').textContent = 'Settings saved for this room.';
     } else if (message.type === 'timer') {
       updatePartyTimer(message.remainingMs, message.holderId, message.durationMs);
     } else if (message.type === 'answer_accepted') {
@@ -750,6 +752,9 @@
       state.result = message.results;
       renderPartyResults(message.results);
     } else if (message.type === 'error') {
+      if (message.code === 'invalid_capacity' || message.code === 'settings_locked' || message.code === 'not_room_host') {
+        $('#private-settings-feedback').textContent = message.message || 'Room settings could not be saved.';
+      }
       $('#rush-feedback').textContent = message.message || 'That action could not be completed.';
       $('#rush-feedback').classList.remove('success');
       if (message.code !== 'category_changed') toast(message.message || 'Globe Rush action failed.');
@@ -858,6 +863,20 @@
       ? Number(settings.turnDurationSeconds) + ' SEC' : 'RANDOM 10–30 SEC';
     $('#planet-category-rule').textContent = Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)) +
       ' MISSES / ' + Math.max(1, Number(settings.maxTurnsPerCategory || 10)) + ' TURNS';
+    const privateSettings = $('#planet-private-settings');
+    const canEditPrivateSettings = lobby && hostIsYou && room.mode === 'private' && room.visibility === 'private';
+    privateSettings.hidden = !canEditPrivateSettings;
+    if (canEditPrivateSettings) {
+      $('#private-capacity').value = String(capacity);
+      [...$('#private-capacity').options].forEach(option => {
+        option.disabled = Number(option.value) < room.players.length;
+      });
+      $('#private-starting-lives').value = String(startingLives);
+      $('#private-max-lives').value = String(maximumLives);
+      $('#private-turn-duration').value = String(Number(settings.turnDurationSeconds || 0));
+      $('#private-category-misses').value = String(Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)));
+      $('#private-category-turns').value = String(Math.max(5, Number(settings.maxTurnsPerCategory || 10)));
+    }
     $('#room-status-note').textContent = lobby
       ? room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.'
       : room.players.length + ' explorers on this mission.';
