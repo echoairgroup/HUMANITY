@@ -18,7 +18,11 @@
     dailyAdvanceTimer: null,
     partySuggestionTimer: null, partySuggestionSequence: 0, pendingPartySuggestion: null,
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
-    orbOverloadTimer: null, onlineRefreshTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
+    orbOverloadTimer: null, onlineRefreshTimer: null,
+    sounds: localStorage.getItem('humanity-sound') !== 'false',
+    soundVolume: Math.max(0, Math.min(100, Number(localStorage.getItem('humanity-sound-volume') || 68))),
+    audioContext: null, audioMaster: null, audioNoiseBuffer: null,
+    dailySoundMarks: [], rushSoundKey: '', rushSoundMarks: [],
     animations: localStorage.getItem('humanity-motion') !== 'false'
   };
 
@@ -105,26 +109,205 @@
     document.body.classList.toggle('reduce-motion', !state.animations);
     if ($('#setting-sound')) $('#setting-sound').checked = state.sounds;
     if ($('#setting-motion')) $('#setting-motion').checked = state.animations;
+    const volume = $('#setting-sound-volume');
+    const volumeLabel = $('#setting-sound-volume-label');
+    if (volume) volume.value = String(state.soundVolume);
+    if (volumeLabel) volumeLabel.textContent = state.soundVolume + '%';
   }
-  function playTone(kind) {
-    if (!state.sounds) return;
+  function getAudioContext() {
     try {
       const AudioClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioClass) return;
-      const ctx = new AudioClass();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = kind === 'error' ? 180 : kind === 'overload' ? 95 : 520;
-      gain.gain.setValueAtTime(.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(.05, ctx.currentTime + .015);
-      gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .15);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + .16);
-      osc.onended = () => ctx.close();
-    } catch (_) {}
+      if (!AudioClass) return null;
+      if (!state.audioContext) {
+        const context = new AudioClass();
+        const master = context.createGain();
+        master.gain.value = (state.soundVolume / 100) * 0.68;
+        master.connect(context.destination);
+        state.audioContext = context;
+        state.audioMaster = master;
+      }
+      return state.audioContext;
+    } catch (_) {
+      return null;
+    }
   }
-  function openModal(id) { const el = $('#' + id); if (el && !el.open) el.showModal(); }
+  function unlockAudio() {
+    if (!state.sounds || state.soundVolume <= 0) return;
+    const context = getAudioContext();
+    if (context && context.state === 'suspended') context.resume().catch(() => {});
+  }
+  function soundVoice(context, frequency, offset, duration, amplitude, waveform, glideTo) {
+    const at = context.currentTime + Math.max(0, offset || 0);
+    const oscillator = context.createOscillator();
+    const envelope = context.createGain();
+    oscillator.type = waveform || 'sine';
+    oscillator.frequency.setValueAtTime(Math.max(30, frequency), at);
+    if (glideTo) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, glideTo), at + duration * 0.82);
+    envelope.gain.setValueAtTime(0.0001, at);
+    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0002, amplitude || 0.025), at + Math.min(0.016, duration * 0.2));
+    envelope.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+    oscillator.connect(envelope);
+    envelope.connect(state.audioMaster);
+    oscillator.start(at);
+    oscillator.stop(at + duration + 0.015);
+  }
+  function soundNoise(context, offset, duration, amplitude, cutoff) {
+    if (!state.audioNoiseBuffer) {
+      const length = Math.ceil(context.sampleRate * 0.34);
+      const buffer = context.createBuffer(1, length, context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let index = 0; index < length; index += 1) data[index] = (Math.random() * 2 - 1) * (1 - index / length * 0.35);
+      state.audioNoiseBuffer = buffer;
+    }
+    const at = context.currentTime + Math.max(0, offset || 0);
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const envelope = context.createGain();
+    source.buffer = state.audioNoiseBuffer;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(Math.max(180, cutoff || 2200), at);
+    filter.Q.value = 0.65;
+    envelope.gain.setValueAtTime(0.0001, at);
+    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0002, amplitude || 0.018), at + Math.min(0.025, duration * 0.25));
+    envelope.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+    source.connect(filter);
+    filter.connect(envelope);
+    envelope.connect(state.audioMaster);
+    source.start(at);
+    source.stop(at + duration + 0.01);
+  }
+  function playSound(name, options) {
+    if (!state.sounds || state.soundVolume <= 0) return;
+    const context = getAudioContext();
+    if (!context || !state.audioMaster) return;
+    if (context.state === 'suspended') context.resume().catch(() => {});
+    const config = options || {};
+    const voice = (frequency, offset, duration, amplitude, waveform, glideTo) =>
+      soundVoice(context, frequency, offset, duration, amplitude, waveform, glideTo);
+    const chord = (notes, spacing, duration, amplitude, waveform) =>
+      notes.forEach((frequency, index) => voice(frequency, index * (spacing || 0), duration, amplitude, waveform));
+    switch (name) {
+      case 'hover': voice(1046, 0, 0.045, 0.008, 'sine'); break;
+      case 'click':
+        voice(720, 0, 0.045, 0.018, 'sine');
+        voice(1040, 0.012, 0.035, 0.009, 'sine');
+        break;
+      case 'submit':
+        voice(460, 0, 0.07, 0.025, 'triangle');
+        voice(690, 0.045, 0.085, 0.018, 'sine');
+        break;
+      case 'navigation':
+        voice(440, 0, 0.075, 0.022, 'sine');
+        voice(660, 0.045, 0.09, 0.019, 'sine');
+        break;
+      case 'modal-open':
+        voice(330, 0, 0.12, 0.024, 'sine');
+        voice(494, 0.055, 0.14, 0.021, 'sine');
+        voice(659, 0.105, 0.16, 0.015, 'sine');
+        break;
+      case 'modal-close':
+        voice(659, 0, 0.09, 0.018, 'sine');
+        voice(494, 0.045, 0.11, 0.017, 'sine');
+        voice(330, 0.09, 0.12, 0.014, 'sine');
+        break;
+      case 'toggle':
+        voice(620, 0, 0.055, 0.022, 'sine');
+        voice(880, 0.05, 0.07, 0.016, 'sine');
+        break;
+      case 'launch':
+        soundNoise(context, 0, 0.22, 0.018, 1700);
+        chord([220, 330, 440, 660, 880], 0.065, 0.19, 0.024, 'sine');
+        break;
+      case 'question':
+        voice(440, 0, 0.11, 0.02, 'triangle');
+        voice(554, 0.075, 0.13, 0.018, 'sine');
+        break;
+      case 'hint':
+        soundNoise(context, 0, 0.18, 0.012, 4200);
+        chord([587, 784, 1175], 0.055, 0.2, 0.022, 'sine');
+        break;
+      case 'answer': {
+        const rarity = Math.max(0, Math.min(5, Number(config.rarity) || 0));
+        const scales = [
+          [440, 554, 659], [494, 622, 740], [523, 659, 784],
+          [587, 740, 880, 1175], [659, 831, 988, 1318], [784, 988, 1175, 1568]
+        ];
+        chord(scales[rarity], 0.065, rarity >= 4 ? 0.25 : 0.19, rarity >= 4 ? 0.033 : 0.026, 'sine');
+        if (rarity >= 3) soundNoise(context, 0.02, 0.17, 0.009, 3200);
+        break;
+      }
+      case 'miss':
+        voice(330, 0, 0.12, 0.028, 'triangle', 250);
+        voice(247, 0.09, 0.16, 0.025, 'triangle', 185);
+        break;
+      case 'skip':
+        voice(440, 0, 0.085, 0.02, 'sine');
+        voice(349, 0.07, 0.13, 0.019, 'sine');
+        voice(262, 0.14, 0.15, 0.014, 'sine');
+        break;
+      case 'countdown': voice(740, 0, 0.06, 0.018, 'square'); break;
+      case 'warning':
+        voice(660, 0, 0.075, 0.024, 'triangle');
+        voice(880, 0.11, 0.085, 0.021, 'triangle');
+        break;
+      case 'critical':
+        voice(880, 0, 0.08, 0.027, 'square');
+        voice(660, 0.1, 0.08, 0.023, 'square');
+        break;
+      case 'daily-complete':
+        chord([523, 659, 784, 1046, 1318], 0.09, 0.32, 0.028, 'sine');
+        soundNoise(context, 0.18, 0.22, 0.012, 3400);
+        break;
+      case 'queue':
+        voice(392, 0, 0.09, 0.022, 'sine');
+        voice(523, 0.09, 0.11, 0.022, 'sine');
+        voice(659, 0.18, 0.15, 0.018, 'sine');
+        break;
+      case 'join': chord([392, 523, 659], 0.07, 0.2, 0.024, 'sine'); break;
+      case 'orb-pass':
+        soundNoise(context, 0, 0.15, 0.022, 2500);
+        voice(330, 0, 0.12, 0.024, 'triangle', 660);
+        voice(660, 0.09, 0.15, 0.023, 'sine', 990);
+        break;
+      case 'overload':
+        soundNoise(context, 0, 0.29, 0.055, 900);
+        voice(180, 0, 0.34, 0.06, 'sawtooth', 48);
+        voice(95, 0.04, 0.28, 0.035, 'triangle', 42);
+        break;
+      case 'category':
+        soundNoise(context, 0, 0.16, 0.012, 3000);
+        chord([392, 494, 587, 784], 0.075, 0.23, 0.024, 'sine');
+        break;
+      case 'match-ready': chord([440, 554, 659, 880], 0.085, 0.23, 0.028, 'triangle'); break;
+      case 'chat':
+        voice(880, 0, 0.055, 0.015, 'sine');
+        voice(1175, 0.055, 0.075, 0.012, 'sine');
+        break;
+      case 'victory':
+        chord([523, 659, 784, 1046, 1318], 0.1, 0.38, 0.034, 'sine');
+        voice(1568, 0.42, 0.3, 0.025, 'sine');
+        soundNoise(context, 0.16, 0.24, 0.014, 3600);
+        break;
+      case 'defeat':
+        voice(392, 0, 0.18, 0.027, 'triangle', 330);
+        voice(330, 0.14, 0.2, 0.024, 'triangle', 262);
+        voice(262, 0.29, 0.26, 0.021, 'sine', 196);
+        break;
+      case 'preview':
+        chord([440, 554, 659], 0.11, 0.22, 0.026, 'sine');
+        voice(880, 0.46, 0.15, 0.022, 'sine');
+        soundNoise(context, 0.62, 0.19, 0.012, 3200);
+        break;
+      default: voice(520, 0, 0.09, 0.02, 'sine');
+    }
+  }
+  function openModal(id) {
+    const el = $('#' + id);
+    if (el && !el.open) {
+      el.showModal();
+      playSound('modal-open');
+    }
+  }
   function closeModal(id) { const el = $('#' + id); if (el && el.open) el.close(); }
   function fmtDate(value) {
     const date = new Date(value + 'T00:00:00Z');
@@ -372,6 +555,7 @@
     }
   }
   async function startDaily() {
+    playSound('launch');
     const button = $('#daily-start');
     button.disabled = true;
     button.textContent = 'Preparing today’s Atlas…';
@@ -401,6 +585,7 @@
     }
   }
   function updateQuestion(question, index) {
+    if (state.question) playSound('question');
     clearDailySuggestion();
     clearDailyReaction();
     state.question = question;
@@ -451,10 +636,15 @@
   }
   function startDailyTimer(seconds) {
     stopDailyTimer();
+    state.dailySoundMarks = [];
     state.secondsLeft = seconds || 25;
     renderDailyClock();
     state.timer = setInterval(() => {
       state.secondsLeft -= 1;
+      if ([10, 5, 3, 2, 1].includes(state.secondsLeft) && !state.dailySoundMarks.includes(state.secondsLeft)) {
+        state.dailySoundMarks.push(state.secondsLeft);
+        playSound(state.secondsLeft <= 3 ? 'critical' : 'countdown');
+      }
       renderDailyClock();
       if (state.secondsLeft <= 0) { stopDailyTimer(); skipDailyQuestion(); }
     }, 1000);
@@ -475,14 +665,14 @@
         });
         if(!result.accepted) {
           $('#daily-feedback').textContent=result.message||'That answer is not approved yet. Try another.';
-          playTone('error');input.select();return;
+          playSound('miss');input.select();return;
         }
         stopDailyTimer();
         state.provisionalScore+=Number(result.provisionalPoints||0);
         state.unlimited.questionsPlayed=Number(result.nextIndex||0);
         state.pendingNextIndex=state.unlimited.questionsPlayed;
         showDailyResult(true,result.answer,result.level,result.provisionalPoints,result.reveal||[],1,result.rarity);
-        playTone('success');
+        playSound('answer');
       } catch(error) {
         $('#daily-feedback').textContent=error.message;
       } finally { $('#daily-submit').disabled=state.pendingNextIndex!==null; }
@@ -498,7 +688,7 @@
         );
         if (!entry) {
           $('#daily-feedback').textContent = 'That answer is not in this edition’s approved set. Try another.';
-          playTone('error');
+          playSound('miss');
           input.select();
           return;
         }
@@ -507,7 +697,7 @@
         state.pendingNextIndex = state.questionIndex + 1;
         const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
         showDailyResult(true, entry.answer, entry.level, entry.points, reveal, 1, entry.rarity);
-        playTone('success');
+        playSound('answer');
         return;
       }
       const result = await api('/daily/answer', {
@@ -522,7 +712,7 @@
       }
       if (!result.accepted) {
         $('#daily-feedback').textContent = result.message || 'That answer is not in today’s approved answer set. Try another.';
-        playTone('error');
+        playSound('miss');
         input.select();
         return;
       }
@@ -530,7 +720,7 @@
       state.provisionalScore += Number(result.provisionalPoints || 0);
       state.pendingNextIndex = result.nextIndex;
       showDailyResult(true, result.answer, result.level, result.provisionalPoints, result.reveal || [], result.sameAnswerCount || 1, result.rarity);
-      playTone('success');
+      playSound('answer');
     } catch (error) {
       $('#daily-feedback').textContent = error.message;
       if (error.status === 409) { stopDailyTimer(); toast('This question has already been completed.'); }
@@ -547,7 +737,7 @@
         state.unlimited.questionsPlayed=Number(result.nextIndex||0);
         state.pendingNextIndex=state.unlimited.questionsPlayed;
         showDailyResult(false,'','','',result.reveal||[]);
-        playTone('error');
+        playSound('skip');
         return;
       }
       if (state.practice) {
@@ -555,7 +745,7 @@
         state.pendingNextIndex = state.questionIndex + 1;
         const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
         showDailyResult(false, '', '', 0, reveal);
-        playTone('error');
+        playSound('skip');
         return;
       }
       const result = await api('/daily/skip', {
@@ -564,7 +754,7 @@
       });
       state.pendingNextIndex = result.nextIndex;
       showDailyResult(false, '', '', 0, result.reveal || []);
-      playTone('error');
+      playSound('skip');
     } catch (error) { toast(error.message); }
     finally { $('#daily-submit').disabled = state.pendingNextIndex !== null; }
   }
@@ -761,6 +951,7 @@ function renderFlightDistribution(result) {
       if (index >= state.practice.questions.length) {
         stopDailyTimer();
         state.practice.finished = true;
+        playSound('daily-complete');
         clearDailyReaction();
         setDailySection('daily-complete');
         renderDailyRecap();
@@ -786,6 +977,7 @@ function renderFlightDistribution(result) {
       return;
     }
     if (index >= 7) {
+      playSound('daily-complete');
       clearDailyReaction();
       setDailySection('daily-complete');
       renderDailyRecap();
@@ -829,6 +1021,7 @@ function renderFlightDistribution(result) {
         examples = result.examples || [];
       }
       state.hintUsed = true;
+      playSound('hint');
       $('#hint-counter').textContent = '0 / 1';
       $('#hint-box').hidden = false;
       $('#hint-box').textContent = 'Examples: ' + examples.join(' · ');
@@ -851,6 +1044,7 @@ function renderFlightDistribution(result) {
   }
 
   async function startUnlimited(packId) {
+    playSound('launch');
     const buttons=$$('[data-practice-pack]');
     buttons.forEach(button=>button.disabled=true);
     try {
@@ -886,6 +1080,7 @@ function renderFlightDistribution(result) {
     try {
       const result=await api('/practice/finish',{method:'POST',body:{guestId:state.guestId,runId:state.runId}});
       state.unlimited.finished=true;
+      playSound('daily-complete');
       state.provisionalScore=Number(result.score||state.provisionalScore);
       state.lastPracticeLabel=result.pack.title;
       state.runId=null;
@@ -1175,6 +1370,7 @@ function renderFlightDistribution(result) {
     if (message.type === 'connected') {
       if (state.wsPending) { const pending = state.wsPending; state.wsPending = null; sendSocket(pending); }
     } else if (message.type === 'joined') {
+      playSound('join');
       state.roomCode = message.roomCode;
       state.playerId = message.playerId;
       $('#room-code-display').textContent = message.roomCode;
@@ -1218,7 +1414,7 @@ function renderFlightDistribution(result) {
         $('#rush-answer').value = '';
         clearPartySuggestion();
       }
-      playTone('success');
+      playSound('orb-pass');
     } else if (message.type === 'orb_overload') {
       const stage = $('#orb-stage');
       clearTimeout(state.orbOverloadTimer);
@@ -1233,8 +1429,9 @@ function renderFlightDistribution(result) {
       $('#rush-feedback').textContent = message.nickname + ' held the Atlas Orb when it overloaded.' +
         (message.eliminated ? ' Eliminated.' : ' One Stability Point lost.');
       $('#rush-feedback').classList.remove('success');
-      playTone('overload');
+      playSound('overload');
     } else if (message.type === 'new_round') {
+      playSound('category');
       const reason = message.reason === 'mistakes'
         ? 'Two incorrect answers · new category'
         : message.reason === 'turn_limit'
@@ -1246,14 +1443,19 @@ function renderFlightDistribution(result) {
       $('#rush-feedback').classList.remove('success');
       showCategoryAnnouncement(message.category, message.reason);
     } else if (message.type === 'match_ready') {
+      playSound('match-ready');
       $('#room-status-note').textContent = 'Match begins automatically in a few seconds…';
       $('#room-start').hidden = true;
     } else if (message.type === 'room_chat') {
+      if (message.nickname !== nickname()) playSound('chat');
       renderRoomChatMessage(message);
     } else if (message.type === 'game_over') {
+      const localPlayer = state.room && state.room.players.find(player => player.isYou);
+      playSound(localPlayer && localPlayer.nickname === message.results.winner ? 'victory' : 'defeat');
       state.result = message.results;
       renderPartyResults(message.results);
     } else if (message.type === 'error') {
+      playSound('miss');
       if (message.code === 'invalid_capacity' || message.code === 'settings_locked' || message.code === 'not_room_host') {
         $('#private-settings-feedback').textContent = message.message || 'Room settings could not be saved.';
       }
@@ -1475,9 +1677,15 @@ function renderFlightDistribution(result) {
     if (finished && state.result) renderPartyResults(state.result);
   }
   function updatePartyTimer(remainingMs, holderId, durationMs) {
+    const soundKey = String(state.room && state.room.round || 0) + ':' + String(state.room && state.room.turnNumber || 0) + ':' + String(holderId || '');
+    if (soundKey !== state.rushSoundKey) { state.rushSoundKey = soundKey; state.rushSoundMarks = []; }
     const remaining = Math.max(0, Number(remainingMs || 0));
     const duration = Math.max(1, Number(durationMs || state.room?.timerDurationMs || 20000));
     const seconds = Math.ceil(remaining / 1000);
+    if (seconds > 0 && seconds <= 5 && !state.rushSoundMarks.includes(seconds)) {
+      state.rushSoundMarks.push(seconds);
+      playSound(seconds <= 2 ? 'critical' : 'warning');
+    }
     const progress = Math.max(0, Math.min(100, (remaining / duration) * 100));
     $('#rush-seconds').textContent = String(seconds);
     $('#rush-timer-fill').style.width = progress + '%';
@@ -1596,6 +1804,7 @@ function renderFlightDistribution(result) {
       showAccount();
       return;
     }
+    playSound('queue');
     connectSocket({
       type: mode === 'ranked' ? 'ranked_queue' : 'quick_play',
       mode, group, nickname: nickname(), token: state.token || undefined
@@ -1697,6 +1906,28 @@ function renderFlightDistribution(result) {
   }
 
   function initEvents() {
+    document.addEventListener('pointerdown', unlockAudio, true);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') unlockAudio();
+    }, true);
+    document.addEventListener('click', event => {
+      const target = event.target && event.target.closest ? event.target : event.target && event.target.parentElement;
+      const control = target && target.closest
+        ? target.closest('button, a, summary, input[type="checkbox"], input[type="radio"], select')
+        : null;
+      if (!control || control.disabled || control.matches('[data-sound-silent], #setting-sound, #setting-sound-volume')) return;
+      if (control.matches('[data-close-modal], #daily-start, #quick-play, #ranked-play, #unlimited-skip, #daily-hint')) return;
+      if (control.matches('[data-open-practice], #account-open, #settings-open, #atlas-archive-open, #archive-open, #open-archive-from-lock, #friends-open, #admin-open')) return;
+      const sound = control.matches('.nav-item') ? 'navigation'
+        : control.matches('button[type="submit"], input[type="submit"]') ? 'submit'
+        : control.matches('input[type="checkbox"], input[type="radio"]') ? 'toggle' : 'click';
+      playSound(sound);
+    }, true);
+    document.addEventListener('pointerover', event => {
+      const target = event.target && event.target.closest ? event.target : null;
+      const control = target && target.closest ? target.closest('.nav-item, .practice-pack-card, .archive-date, .public-room-row, .planet-seat') : null;
+      if (control && !control.contains(event.relatedTarget)) playSound('hover');
+    }, true);
     $$('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
     window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
     $('#daily-start').addEventListener('click', startDaily);
@@ -1848,8 +2079,17 @@ function renderFlightDistribution(result) {
     $('#setting-sound').addEventListener('change', event => {
       state.sounds = event.target.checked;
       localStorage.setItem('humanity-sound', String(state.sounds));
-      playTone('success');
+      if (state.sounds) playSound('toggle');
     });
+    $('#setting-sound-volume').addEventListener('input', event => {
+      state.soundVolume = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+      localStorage.setItem('humanity-sound-volume', String(state.soundVolume));
+      $('#setting-sound-volume-label').textContent = state.soundVolume + '%';
+      if (state.audioMaster && state.audioContext) {
+        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 0.68, state.audioContext.currentTime, 0.04);
+      }
+    });
+    $('#sound-preview').addEventListener('click', () => playSound('preview'));
     $('#setting-motion').addEventListener('change', event => {
       state.animations = event.target.checked;
       localStorage.setItem('humanity-motion', String(state.animations));
@@ -1902,7 +2142,10 @@ function renderFlightDistribution(result) {
       if (button) loadRankings(button.dataset.period);
     });
     $$('[data-close-modal]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.closeModal)));
-    $$('dialog.modal').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
+    $('dialog.modal').forEach(dialog => {
+      dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+      dialog.addEventListener('close', () => playSound('modal-close'));
+    });
   }
   function joinRoom(code) {
     const clean = String(code || '').trim().toUpperCase();
