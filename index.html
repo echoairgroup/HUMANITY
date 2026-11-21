@@ -52,13 +52,20 @@
           <div class="atlas-space-backdrop" aria-hidden="true">
             <div class="atlas-stars atlas-stars-far"></div>
             <div class="atlas-stars atlas-stars-near"></div>
-            <div class="atlas-nebula atlas-nebula-one"></div>
-            <div class="atlas-nebula atlas-nebula-two"></div>
-            <div class="atlas-planet atlas-planet-jupiter"></div>
-            <div class="atlas-planet atlas-planet-ringed"><span class="atlas-planet-ring"></span></div>
-            <div class="atlas-planet atlas-planet-red"></div>
-            <div class="atlas-planet atlas-planet-moon"></div>
-            <div class="atlas-flight-streak"></div>
+            <div class="atlas-space-world" id="atlas-space-world">
+              <div class="atlas-nebula atlas-nebula-one"></div>
+              <div class="atlas-nebula atlas-nebula-two"></div>
+              <div class="atlas-planet atlas-planet-earth">
+                <div class="earth-globe" data-earth-globe role="img" aria-label="Earth with country outlines"></div>
+              </div>
+              <div class="atlas-planet atlas-planet-moon"></div>
+              <div class="atlas-planet atlas-planet-red"></div>
+              <div class="atlas-planet atlas-planet-jupiter"></div>
+              <div class="atlas-planet atlas-planet-ringed"><span class="atlas-planet-ring"></span></div>
+              <div class="atlas-planet atlas-planet-neptune"></div>
+              <div class="atlas-flight-streak"></div>
+            </div>
+            <div class="atlas-flight-craft"><span></span></div>
           </div>
           <section class="game-panel daily-panel" aria-labelledby="daily-panel-title">
             <div class="panel-topline atlas-panel-topline">
@@ -163,10 +170,36 @@
             <div class="daily-complete" id="daily-complete" hidden>
               <div class="complete-icon">✦</div>
               <div class="eyebrow">TODAY'S ATLAS COMPLETE</div>
-              <h2>World explored.</h2>
+              <h2>Flight complete.</h2>
               <p id="complete-summary">You made it through all seven questions.</p>
-              <div class="complete-score"><strong id="complete-score">0</strong><span>PROVISIONAL POINTS</span></div>
-              <p class="quiet-note">Final Discovery Scores are calculated when the daily edition closes at 00:00 UTC.</p>
+              <div class="complete-score"><strong id="complete-score">0</strong><span>DISCOVERY POINTS</span></div>
+              <section class="atlas-flight-summary" id="daily-flight-summary" aria-label="Global flight results">
+                <div class="atlas-flight-summary-heading">
+                  <span class="micro-label">WORLDWIDE FLIGHT REPORT</span>
+                  <strong>Where did everyone land?</strong>
+                </div>
+                <div class="atlas-flight-stats">
+                  <article>
+                    <span>AVERAGE LANDING</span>
+                    <strong id="flight-average">—</strong>
+                    <small id="flight-average-detail">Across completed flights</small>
+                  </article>
+                  <article>
+                    <span>MOST COMMON LANDING</span>
+                    <strong id="flight-mode">—</strong>
+                    <small id="flight-mode-detail">The busiest distance band</small>
+                  </article>
+                </div>
+                <div class="atlas-flight-graph-wrap">
+                  <div class="atlas-flight-graph-legend">
+                    <span><i class="legend-average"></i> Average player</span>
+                    <span><i class="legend-popular"></i> Most common landing</span>
+                  </div>
+                  <div id="flight-distribution-graph" class="atlas-flight-graph" role="img" aria-label="Distribution of completed player flight scores">Preparing the global flight report…</div>
+                </div>
+                <p class="atlas-flight-participants" id="flight-participants">Loading anonymous results from this edition…</p>
+              </section>
+              <p class="quiet-note">Final Discovery Scores are calculated when the UTC day closes. The flight report uses completed results only.</p>
               <button class="button button-outline button-wide" id="daily-share" type="button">Share your result ↗</button>
               <button class="button button-outline button-wide" id="daily-return-today" type="button" hidden>Return to today's Atlas</button>
             </div>
