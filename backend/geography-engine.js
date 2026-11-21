@@ -406,6 +406,77 @@ const Q = [
   }
 ];
 
+
+function buildPartyQuestionPool() {
+  const pool = [];
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const containsLetters = 'AEIOURSTNCLPM'.split('');
+  const add = (base, key, prompt, predicate) => {
+    const answers = base.answers.filter(entry => predicate(entry.name));
+    if (answers.length < 3) return;
+    pool.push({
+      ...base,
+      id: 'rush-' + base.id + '-' + key,
+      prompt,
+      answers,
+      source: 'HUMANITY Globe Rush curated pool'
+    });
+  };
+
+  for (const base of Q) {
+    const subject = base.prompt.replace(/^Name\\s+/i, '').replace(/\\.$/, '');
+    for (const letter of alphabet) {
+      const lower = letter.toLowerCase();
+      add(base, 'starts-' + lower,
+        'Name ' + subject + ' with a name starting with the letter ' + letter + '.',
+        name => normaliseAnswer(name).startsWith(lower));
+      add(base, 'ends-' + lower,
+        'Name ' + subject + ' with a name ending in the letter ' + letter + '.',
+        name => normaliseAnswer(name).endsWith(lower));
+    }
+    for (const letter of containsLetters) {
+      const lower = letter.toLowerCase();
+      add(base, 'contains-' + lower,
+        'Name ' + subject + ' with the letter ' + letter + ' in its name.',
+        name => normaliseAnswer(name).includes(lower));
+    }
+    for (let wordCount = 1; wordCount <= 4; wordCount += 1) {
+      add(base, 'words-' + wordCount,
+        'Name ' + subject + ' with exactly ' + wordCount + (wordCount === 1 ? ' word' : ' words') + ' in its name.',
+        name => String(name).trim().split(/\\s+/).length === wordCount);
+    }
+    for (let letterCount = 3; letterCount <= 14; letterCount += 1) {
+      add(base, 'letters-' + letterCount,
+        'Name ' + subject + ' with exactly ' + letterCount + ' letters in its name.',
+        name => normaliseAnswer(name).replace(/\\s+/g, '').length === letterCount);
+    }
+    add(base, 'one-word-name',
+      'Name ' + subject + ' with a one-word name.',
+      name => !String(name).trim().includes(' '));
+    add(base, 'two-word-name',
+      'Name ' + subject + ' with a two-word name.',
+      name => String(name).trim().split(/\\s+/).length === 2);
+    add(base, 'long-name',
+      'Name ' + subject + ' with a name made up of at least three words.',
+      name => String(name).trim().split(/\\s+/).length >= 3);
+  }
+
+  return pool;
+}
+
+const PARTY_QUESTIONS = buildPartyQuestionPool();
+if (PARTY_QUESTIONS.length < 200) {
+  throw new Error('The Globe Rush question bank must contain at least 200 unique questions.');
+}
+function listPartyQuestionBank() {
+  return PARTY_QUESTIONS.map(item => ({
+    id: item.id,
+    category: item.category,
+    prompt: item.prompt,
+    answerCount: item.answers.length
+  }));
+}
+
 const QUESTION_BY_ID = new Map(Q.map(item => [item.id, item]));
 
 function hashSeed(value) {
@@ -508,12 +579,12 @@ function getPartyQuestion(excludedIds) {
   const excluded = excludedIds instanceof Set
     ? excludedIds
     : new Set(Array.isArray(excludedIds) ? excludedIds : (excludedIds ? [excludedIds] : []));
-  let eligible = Q.filter(item => !excluded.has(item.id));
+  let eligible = PARTY_QUESTIONS.filter(item => !excluded.has(item.id));
   if (!eligible.length) {
     const lastId = Array.isArray(excludedIds)
       ? excludedIds[excludedIds.length - 1]
       : (excludedIds instanceof Set ? Array.from(excludedIds).pop() : excludedIds);
-    eligible = Q.filter(item => item.id !== lastId);
+    eligible = PARTY_QUESTIONS.filter(item => item.id !== lastId);
   }
   return eligible[crypto.randomInt(0, eligible.length)];
 }
@@ -539,5 +610,6 @@ module.exports = {
   pointsForUsage,
   getQuestion,
   getPartyQuestion,
-  listQuestionBank
+  listQuestionBank,
+  listPartyQuestionBank
 };
