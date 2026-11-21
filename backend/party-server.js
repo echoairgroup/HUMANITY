@@ -680,8 +680,19 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       room.capacity = capacity;
       room.settings = normaliseRoomSettings(message.settings);
+      const launchThreshold = Math.max(2, Number(room.targetMin || 2), Number(room.capacity || 10) - 1);
+      let autoStartScheduled = false;
+      if (room.visibility === 'private' && room.players.length >= launchThreshold) {
+        if (!room.autoStartAt) {
+          room.autoStartAt = Date.now() + 3500;
+          autoStartScheduled = true;
+        }
+      } else {
+        room.autoStartAt = null;
+      }
       broadcast(room, { type: 'room_settings_saved' });
       broadcastState(room);
+      if (autoStartScheduled) broadcast(room, { type: 'match_ready', startsInMs: 3500 });
       return;
     }
 
