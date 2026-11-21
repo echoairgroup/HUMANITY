@@ -312,6 +312,7 @@ function answerReveal(question) {
     .map(item => ({
       answer: item.name,
       level: engine.LEVEL_NAMES[item.rarity],
+      rarity: item.rarity,
       points: engine.POINTS_BY_LEVEL[item.rarity]
     }))
     .sort((a, b) => b.points - a.points || a.answer.localeCompare(b.answer));
@@ -960,6 +961,7 @@ async function handleAPI(request, response, url, party) {
           answer: item.answer,
           aliases: (question.answers.find(entry => entry.name === item.answer) || {}).aliases || [],
           level: item.level,
+          rarity: item.rarity,
           points: item.points
         }))
       }))
