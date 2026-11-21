@@ -11,6 +11,13 @@ const MAX_WRONG_ANSWERS_PER_CATEGORY = 2;
 const MAX_TURNS_PER_CATEGORY = 10;
 const STARTING_HEARTS = 2;
 const MAX_HEARTS = 3;
+const DEFAULT_ROOM_SETTINGS = Object.freeze({
+  startingLives: STARTING_HEARTS,
+  maxLives: MAX_HEARTS,
+  turnDurationSeconds: 0,
+  maxWrongAnswersPerCategory: MAX_WRONG_ANSWERS_PER_CATEGORY,
+  maxTurnsPerCategory: MAX_TURNS_PER_CATEGORY
+});
 const HEART_METER = [0, 5, 10, 35, 55, 100];
 const ROOM_IDLE_MS = 5 * 60 * 1000;
 
@@ -63,9 +70,33 @@ function rankPlayers(players) {
   });
 }
 
-function categoryRotationReason(wrongAnswers, acceptedTurns) {
-  if (Number(wrongAnswers || 0) >= 2) return 'mistakes';
-  if (Number(acceptedTurns || 0) >= 10) return 'turn_limit';
+function normaliseRoomSettings(input = {}) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const clampInteger = (value, fallback, minimum, maximum) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? Math.max(minimum, Math.min(maximum, parsed)) : fallback;
+  };
+  const startingLives = clampInteger(source.startingLives, DEFAULT_ROOM_SETTINGS.startingLives, 1, 5);
+  const requestedMaxLives = clampInteger(source.maxLives, DEFAULT_ROOM_SETTINGS.maxLives, 1, 6);
+  const turnDuration = Number(source.turnDurationSeconds);
+  const turnDurationSeconds = [0, 10, 15, 20, 25, 30].includes(turnDuration) ? turnDuration : 0;
+  const maxWrongAnswersPerCategory = clampInteger(source.maxWrongAnswersPerCategory, DEFAULT_ROOM_SETTINGS.maxWrongAnswersPerCategory, 1, 5);
+  const requestedTurns = Number(source.maxTurnsPerCategory);
+  const maxTurnsPerCategory = [5, 10, 15, 20].includes(requestedTurns)
+    ? requestedTurns : DEFAULT_ROOM_SETTINGS.maxTurnsPerCategory;
+  return {
+    startingLives,
+    maxLives: Math.max(startingLives, requestedMaxLives),
+    turnDurationSeconds,
+    maxWrongAnswersPerCategory,
+    maxTurnsPerCategory
+  };
+}
+
+function categoryRotationReason(wrongAnswers, acceptedTurns, settings = DEFAULT_ROOM_SETTINGS) {
+  const rules = normaliseRoomSettings(settings);
+  if (Number(wrongAnswers || 0) >= rules.maxWrongAnswersPerCategory) return 'mistakes';
+  if (Number(acceptedTurns || 0) >= rules.maxTurnsPerCategory) return 'turn_limit';
   return null;
 }
 
@@ -98,8 +129,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       turnNumber: room.turnNumber,
       wrongAnswersThisCategory: room.wrongAnswersThisCategory,
       turnsThisCategory: room.turnsThisCategory,
-      maxWrongAnswersPerCategory: MAX_WRONG_ANSWERS_PER_CATEGORY,
-      maxTurnsPerCategory: MAX_TURNS_PER_CATEGORY,
+      settings: { ...room.settings },
+      maxWrongAnswersPerCategory: room.settings.maxWrongAnswersPerCategory,
+      maxTurnsPerCategory: room.settings.maxTurnsPerCategory,
       timerRemainingMs: remaining,
       timerDurationMs: room.timerDurationMs,
       usedAnswers: room.usedAnswers.map(item => item.name),
@@ -149,6 +181,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       group: options.group || 'private',
       capacity: options.capacity || 10,
       targetMin: options.targetMin || 2,
+      settings: normaliseRoomSettings(options.settings),
       autoStartAt: null,
       hostId: host.id,
       phase: 'lobby',
@@ -300,7 +333,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const holder = room.players.find(player => player.id === playerId && player.alive);
     room.currentHolderId = holder ? holder.id : null;
     room.turnNumber = (room.turnNumber || 0) + 1;
-    const turnSeconds = crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1);
+    const turnSeconds = room.settings.turnDurationSeconds ||
+      crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1);
     room.timerDurationMs = turnSeconds * 1000;
     room.timerEndsAt = holder ? Date.now() + room.timerDurationMs : null;
     room.lastTimerBroadcastAt = 0;
@@ -367,7 +401,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     if (room.phase !== 'lobby' || room.players.length < 2) return false;
     room.phase = 'playing';
     room.players.forEach(player => {
-      player.hearts = STARTING_HEARTS;
+      player.hearts = room.settings.startingLives;
       player.rarityMeter = 0;
       player.score = 0;
       player.turnsTaken = 0;
@@ -510,7 +544,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         mode,
         group: 'private',
         capacity,
-        targetMin: 2
+        targetMin: 2,
+        settings: message.settings
       });
       const ownContext = sockets.get(socket) || {};
       ownContext.roomCode = room.code;
@@ -613,7 +648,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
         await queueUnknownAnswer(room.category, message.answer);
-        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory);
+        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory, room.settings);
         if (rotationReason) {
           sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
           newRound(room, player.id, rotationReason);
@@ -626,7 +661,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       if (room.usedAnswers.some(item => item.key === resolved.key)) {
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
-        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory);
+        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory, room.settings);
         if (rotationReason) {
           sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
           newRound(room, player.id, rotationReason);
@@ -643,7 +678,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       player.score += resolved.points;
       player.rarityMeter += HEART_METER[resolved.rarity] || 0;
       let gainedHeart = false;
-      if (player.rarityMeter >= 150 && player.hearts < MAX_HEARTS) {
+      if (player.rarityMeter >= 150 && player.hearts < room.settings.maxLives) {
         player.rarityMeter -= 150;
         player.hearts += 1;
         gainedHeart = true;
@@ -656,7 +691,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         points: resolved.points,
         gainedHeart
       });
-      const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory);
+      const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory, room.settings);
       if (rotationReason) {
         newRound(room, player.id, rotationReason);
         return;
@@ -685,7 +720,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       room.wrongAnswersThisCategory = 0;
       room.turnsThisCategory = 0;
       room.players.forEach(item => {
-        item.hearts = STARTING_HEARTS;
+        item.hearts = room.settings.startingLives;
         item.rarityMeter = 0;
         item.score = 0;
         item.turnsTaken = 0;
@@ -826,11 +861,28 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     await new Promise(resolve => wss.close(() => resolve()));
   }
 
+  function getLiveStats() {
+    let players = 0;
+    let activeRooms = 0;
+    for (const room of rooms.values()) {
+      if (room.phase !== 'playing') continue;
+      const connectedPlayers = room.players.filter(player =>
+        player.socket && player.socket.readyState === WebSocket.OPEN
+      ).length;
+      if (connectedPlayers > 0) {
+        players += connectedPlayers;
+        activeRooms += 1;
+      }
+    }
+    return { players, rooms: activeRooms };
+  }
+
   return {
     listRooms: openPublicRooms,
     close,
-    getActiveRooms: () => rooms.size
+    getActiveRooms: () => rooms.size,
+    getLiveStats
   };
 }
 
-module.exports = { createPartyServer, GROUPS, categoryRotationReason };
+module.exports = { createPartyServer, GROUPS, categoryRotationReason, normaliseRoomSettings, DEFAULT_ROOM_SETTINGS };
