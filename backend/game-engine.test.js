@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const engine = require('./geography-engine');
 const partyRules = require('./party-server');
+const practiceEngine = require('./practice-engine');
 
 test('daily generation creates seven questions with a geography-first mix', () => {
   const challenge = engine.generateDailyChallenge('2026-11-20');
@@ -148,4 +149,28 @@ test('private Globe Rush category rules use each room custom thresholds', () => 
   assert.equal(partyRules.categoryRotationReason(2, 14, settings), null);
   assert.equal(partyRules.categoryRotationReason(3, 14, settings), 'mistakes');
   assert.equal(partyRules.categoryRotationReason(0, 15, settings), 'turn_limit');
+});
+
+
+test('Practice Lab themed packs each contain seven distinct question topics',()=>{
+  const packs=practiceEngine.listPacks();
+  assert.ok(packs.length>=6);
+  for(const pack of packs){
+    assert.ok(pack.questionCount>=7,pack.id+' should contain at least seven topics');
+    const batch=practiceEngine.createBatch(pack.id,'practice-test-seed');
+    assert.equal(batch.length,7);
+    assert.equal(new Set(batch.map(question=>question.topicId)).size,7);
+    assert.ok(batch.every(question=>question.answers.length>=3));
+  }
+});
+test('Practice Lab batches are deterministic for a given seed',()=>{
+  const a=practiceEngine.createBatch('world-mix','same-seed');
+  const b=practiceEngine.createBatch('world-mix','same-seed');
+  assert.deepEqual(a.map(q=>q.id),b.map(q=>q.id));
+});
+test('Practice Lab answer matching accepts curated aliases',()=>{
+  const q=practiceEngine.createBatch('countries','alias-test').find(item=>item.answers.some(answer=>answer.aliases.length));
+  assert.ok(q);
+  const answer=q.answers.find(item=>item.aliases.length);
+  assert.equal(engine.matchAnswer(q,answer.aliases[0]).name,answer.name);
 });

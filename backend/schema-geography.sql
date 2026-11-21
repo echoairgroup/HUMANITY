@@ -155,6 +155,24 @@ CREATE TABLE IF NOT EXISTS humanity_friendships (
   CHECK (requester_id <> addressee_id)
 );
 
+CREATE TABLE IF NOT EXISTS humanity_practice_runs (
+  id TEXT PRIMARY KEY,
+  identity_key TEXT NOT NULL,
+  player_id TEXT REFERENCES humanity_players(id) ON DELETE SET NULL,
+  pack_id TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  current_question INTEGER NOT NULL DEFAULT 0,
+  questions_played INTEGER NOT NULL DEFAULT 0,
+  score INTEGER NOT NULL DEFAULT 0,
+  answers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','completed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS humanity_practice_runs_identity_idx ON humanity_practice_runs(identity_key,created_at DESC);
+CREATE INDEX IF NOT EXISTS humanity_practice_runs_player_idx ON humanity_practice_runs(player_id,status);
+
 CREATE TABLE IF NOT EXISTS humanity_engine_runs (
   id BIGSERIAL PRIMARY KEY,
   run_type TEXT NOT NULL,

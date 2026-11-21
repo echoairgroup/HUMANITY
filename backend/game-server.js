@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { promisify } = require('node:util');
 const { Pool } = require('pg');
 const engine = require('./geography-engine');
+const practiceEngine = require('./practice-engine');
 const { createPartyServer } = require('./party-server');
 
 const scrypt = promisify(crypto.scrypt);
@@ -329,6 +330,148 @@ function answerReveal(question) {
       points: engine.POINTS_BY_LEVEL[item.rarity]
     }))
     .sort((a, b) => b.points - a.points || a.answer.localeCompare(b.answer));
+}
+
+async function addApprovedAnswers(questions) {
+  const approved = await loadApprovedAnswers([...new Set(questions.map(item => item.id))]);
+  for (const extra of approved) {
+    const question = questions.find(item => item.id === extra.question_id);
+    if (!question) continue;
+    const key = engine.normaliseAnswer(extra.answer_text);
+    const aliases = Array.isArray(extra.aliases) ? extra.aliases : [];
+    const exists = question.answers.some(item =>
+      engine.normaliseAnswer(item.name) === key ||
+      [item.name].concat(item.aliases || []).some(alias => engine.normaliseAnswer(alias) === key)
+    );
+    if (!exists) question.answers.push({
+      name:extra.answer_text,aliases,
+      rarity:Math.max(0,Math.min(5,Number(extra.rarity)||0)),
+      source:extra.source_url||'HUMANITY approved answer'
+    });
+  }
+  return questions;
+}
+
+function publicPracticeQuestion(question,index) {
+  return {
+    id:question.id,index,category:question.category,prompt:question.prompt,
+    note:question.note,answerCount:question.answers.length,seconds:0,
+    hints:Array.isArray(question.hints)?question.hints:[]
+  };
+}
+
+async function practiceStart(request,response) {
+  const body=await readJSON(request);
+  const identity=await getIdentity(request,body);
+  if(!identity){sendError(response,400,'A guest ID or account is required.','identity_required');return;}
+  const pack=practiceEngine.getPack(body.packId);
+  if(!pack){sendError(response,400,'Choose a valid Practice Lab pack.','invalid_practice_pack');return;}
+  const questions=await addApprovedAnswers(practiceEngine.createBatch(pack.id,crypto.randomUUID()));
+  const runId=crypto.randomUUID();
+  const payload={packId:pack.id,questions,recentTopicIds:questions.map(item=>item.topicId)};
+  await pool.query(
+    'INSERT INTO humanity_practice_runs (id,identity_key,player_id,pack_id,payload) VALUES ($1,$2,$3,$4,$5::jsonb)',
+    [runId,identity.key,identity.playerId,pack.id,JSON.stringify(payload)]
+  );
+  sendJSON(response,201,{ok:true,runId,pack:{id:pack.id,title:pack.title,icon:pack.icon},
+    index:0,question:publicPracticeQuestion(questions[0],0)});
+}
+
+async function practiceGuess(request,response,skip) {
+  const body=await readJSON(request);
+  const identity=await getIdentity(request,body);
+  if(!identity){sendError(response,400,'A guest ID or account is required.','identity_required');return;}
+  const result=await pool.query(
+    'SELECT * FROM humanity_practice_runs WHERE id=$1 AND identity_key=$2 LIMIT 1',
+    [String(body.runId||''),identity.key]
+  );
+  const run=result.rows[0];
+  if(!run||run.status!=='active'){sendError(response,404,'This practice session is no longer active.','practice_unavailable');return;}
+  const played=Number(run.questions_played||0);
+  const slot=Number(run.current_question||0);
+  const question=(run.payload&&run.payload.questions||[])[slot];
+  if(!question||Number(body.index)!==played){
+    sendError(response,409,'That practice question is no longer active.','question_out_of_sync');return;
+  }
+  let match=null;
+  if(!skip){
+    match=engine.matchAnswer(question,body.answer);
+    if(!match){
+      await recordUnapproved(question,body.answer);
+      maybeVerifyWithWikidata(question,body.answer).catch(()=>{});
+      sendJSON(response,200,{ok:true,accepted:false,
+        message:'That answer is not approved yet. It has been sent for review; try another answer.'});
+      return;
+    }
+  }
+  const points=match?match.points:0;
+  const history=Array.isArray(run.answers)?run.answers:[];
+  const record={
+    question:question.prompt,category:question.category,questionId:question.id,
+    answer:match?match.name:null,accepted:Boolean(match),level:match?match.level:null,
+    rarity:match?match.rarity:null,points,skipped:Boolean(skip)
+  };
+  const nextHistory=history.concat(record).slice(-500);
+  const saved=await pool.query(
+    'UPDATE humanity_practice_runs SET current_question=current_question+1,questions_played=questions_played+1,'+
+    'score=score+$5,answers=$6::jsonb,updated_at=NOW() '+
+    'WHERE id=$1 AND identity_key=$2 AND status=$7 AND current_question=$3 AND questions_played=$4 '+
+    'RETURNING score,questions_played',
+    [run.id,identity.key,slot,played,points,JSON.stringify(nextHistory),'active']
+  );
+  if(!saved.rowCount){sendError(response,409,'That practice question was already submitted.','answer_exists');return;}
+  sendJSON(response,200,{
+    ok:true,accepted:Boolean(match),skipped:Boolean(skip),answer:match?match.name:null,
+    level:match?match.level:null,rarity:match?match.rarity:null,provisionalPoints:points,
+    sameAnswerCount:1,score:Number(saved.rows[0].score||0),
+    nextIndex:Number(saved.rows[0].questions_played||0),reveal:answerReveal(question)
+  });
+}
+
+async function practiceNext(request,response) {
+  const body=await readJSON(request);
+  const identity=await getIdentity(request,body);
+  if(!identity){sendError(response,400,'A guest ID or account is required.','identity_required');return;}
+  const result=await pool.query(
+    'SELECT * FROM humanity_practice_runs WHERE id=$1 AND identity_key=$2 LIMIT 1',
+    [String(body.runId||''),identity.key]
+  );
+  const run=result.rows[0];
+  if(!run||run.status!=='active'){sendError(response,404,'This practice session is no longer active.','practice_unavailable');return;}
+  const played=Number(run.questions_played||0);
+  if(Number(body.index)!==played){sendError(response,409,'Your practice progress is out of sync.','question_out_of_sync');return;}
+  let payload=run.payload;
+  let slot=Number(run.current_question||0);
+  if(slot>=payload.questions.length){
+    const recent=Array.isArray(payload.recentTopicIds)?payload.recentTopicIds.slice(-14):[];
+    const batch=await addApprovedAnswers(practiceEngine.createBatch(run.pack_id,crypto.randomUUID(),recent));
+    payload={...payload,questions:batch,recentTopicIds:recent.concat(batch.map(item=>item.topicId)).slice(-14)};
+    const updated=await pool.query(
+      'UPDATE humanity_practice_runs SET payload=$2::jsonb,current_question=0,updated_at=NOW() '+
+      'WHERE id=$1 AND identity_key=$3 AND status=$4 AND current_question=$5 AND questions_played=$6',
+      [run.id,JSON.stringify(payload),identity.key,'active',slot,played]
+    );
+    if(!updated.rowCount){sendError(response,409,'Your practice round has already advanced.','question_out_of_sync');return;}
+    slot=0;
+  }
+  sendJSON(response,200,{ok:true,index:played,question:publicPracticeQuestion(payload.questions[slot],played)});
+}
+
+async function practiceFinish(request,response) {
+  const body=await readJSON(request);
+  const identity=await getIdentity(request,body);
+  if(!identity){sendError(response,400,'A guest ID or account is required.','identity_required');return;}
+  const result=await pool.query(
+    'UPDATE humanity_practice_runs SET status=$3,finished_at=NOW(),updated_at=NOW() '+
+    'WHERE id=$1 AND identity_key=$2 AND status=$4 RETURNING score,questions_played,pack_id',
+    [String(body.runId||''),identity.key,'completed','active']
+  );
+  if(!result.rowCount){sendError(response,404,'This practice session has already ended or could not be found.','practice_unavailable');return;}
+  const row=result.rows[0],pack=practiceEngine.getPack(row.pack_id);
+  sendJSON(response,200,{
+    ok:true,score:Number(row.score||0),questionsPlayed:Number(row.questions_played||0),
+    pack:pack?{id:pack.id,title:pack.title}:{id:row.pack_id,title:'Practice Lab'}
+  });
 }
 
 async function updateDailyStreak(userId, date) {
@@ -961,8 +1104,20 @@ async function handleAdmin(request, response, url, user) {
     }
     if (action === 'approve') {
       await pool.query(
-        'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO UPDATE SET answer_text = EXCLUDED.answer_text, aliases = EXCLUDED.aliases, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by, approved_at = NOW()',
-        [item.question_id, item.answer_key, item.answer_text, JSON.stringify([]), item.source_url || null, user.username]
+        const rawRarity=Number(body.rarity);
+      const rarity=Number.isInteger(rawRarity)?Math.max(0,Math.min(5,rawRarity)):2;
+      const aliases=[];
+      const seenAliases=new Set([item.answer_key]);
+      for(const rawAlias of Array.isArray(body.aliases)?body.aliases:[]){
+        const alias=String(rawAlias||'').trim().slice(0,80);
+        const aliasKey=engine.normaliseAnswer(alias);
+        if(!aliasKey||aliasKey.length<2||seenAliases.has(aliasKey))continue;
+        seenAliases.add(aliasKey);aliases.push(alias);
+        if(aliases.length>=8)break;
+      }
+      await pool.query(
+        'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7) ON CONFLICT (question_id, answer_key) DO UPDATE SET answer_text = EXCLUDED.answer_text, aliases = EXCLUDED.aliases, rarity = EXCLUDED.rarity, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by, approved_at = NOW()',
+        [item.question_id,item.answer_key,item.answer_text,JSON.stringify(aliases),rarity,item.source_url||null,user.username]
       );
     }
     await pool.query(
@@ -1004,6 +1159,25 @@ async function handleAPI(request, response, url, party) {
       activeRooms: party.getActiveRooms()
     });
     return true;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/practice/packs') {
+    sendJSON(response,200,{ok:true,packs:practiceEngine.listPacks()});return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/practice/start') {
+    await practiceStart(request,response);return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/practice/answer') {
+    await practiceGuess(request,response,false);return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/practice/skip') {
+    await practiceGuess(request,response,true);return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/practice/next') {
+    await practiceNext(request,response);return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/practice/finish') {
+    await practiceFinish(request,response);return true;
   }
 
   if (request.method === 'POST' && url.pathname === '/api/auth/register') {
@@ -1238,15 +1412,37 @@ async function handleAPI(request, response, url, party) {
   if (request.method === 'GET' && url.pathname === '/api/profile/me') {
     const user = await requireUser(request, response);
     if (!user) return true;
-    const [daily, party, friends] = await Promise.all([
-      pool.query('SELECT COUNT(*)::int AS count, COALESCE(MAX(final_score),MAX(provisional_score),0)::int AS best FROM humanity_daily_runs WHERE player_id = $1 AND status = $2', [user.id, 'completed']),
-      pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id = $1', [user.id]),
-      pool.query("SELECT COUNT(*)::int AS count FROM humanity_friendships WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'", [user.id])
+    const [daily,party,friends,answerStats,partyWins,practiceGames]=await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS count, COALESCE(MAX(final_score),MAX(provisional_score),0)::int AS best FROM humanity_daily_runs WHERE player_id = $1 AND status = $2',[user.id,'completed']),
+      pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1',[user.id]),
+      pool.query("SELECT COUNT(*)::int AS count FROM humanity_friendships WHERE (requester_id=$1 OR addressee_id=$1) AND status='accepted'",[user.id]),
+      pool.query('SELECT COUNT(*) FILTER (WHERE a.provisional_points>=80)::int AS rare, COUNT(*) FILTER (WHERE a.provisional_points>=100)::int AS exceptional FROM humanity_daily_run_answers a JOIN humanity_daily_runs r ON r.id=a.run_id WHERE r.player_id=$1 AND a.is_correct=TRUE',[user.id]),
+      pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1 AND rank=1',[user.id]),
+      pool.query("SELECT COUNT(*)::int AS count FROM humanity_practice_runs WHERE player_id=$1 AND status='completed'",[user.id])
     ]);
-    sendJSON(response, 200, {
-      ok: true,
-      player: publicUser(user, await isAdmin(user)),
-      stats: { dailyGames: daily.rows[0].count, bestDailyScore: daily.rows[0].best, partyGames: party.rows[0].count, friends: friends.rows[0].count }
+    const dailyGames=Number(daily.rows[0].count||0),partyGames=Number(party.rows[0].count||0);
+    const friendCount=Number(friends.rows[0].count||0),rareAnswers=Number(answerStats.rows[0].rare||0);
+    const exceptionalAnswers=Number(answerStats.rows[0].exceptional||0);
+    const partyWinsCount=Number(partyWins.rows[0].count||0),practiceCount=Number(practiceGames.rows[0].count||0);
+    const bestStreak=Number(user.best_streak||0);
+    const achievements=[
+      {id:'first-flight',title:'First Flight',description:'Complete your first Atlas Daily.',unlocked:dailyGames>=1,progress:Math.min(dailyGames,1),target:1},
+      {id:'atlas-regular',title:'Atlas Regular',description:'Complete ten official Daily editions.',unlocked:dailyGames>=10,progress:Math.min(dailyGames,10),target:10},
+      {id:'week-in-orbit',title:'Week in Orbit',description:'Build a seven-day Atlas streak.',unlocked:bestStreak>=7,progress:Math.min(bestStreak,7),target:7},
+      {id:'rare-collector',title:'Rare Collector',description:'Find five Remarkable or Exceptional answers.',unlocked:rareAnswers>=5,progress:Math.min(rareAnswers,5),target:5},
+      {id:'exceptional-explorer',title:'Exceptional Explorer',description:'Discover a 100-point answer.',unlocked:exceptionalAnswers>=1,progress:Math.min(exceptionalAnswers,1),target:1},
+      {id:'orb-champion',title:'Orb Champion',description:'Finish first in a Globe Rush match.',unlocked:partyWinsCount>=1,progress:Math.min(partyWinsCount,1),target:1},
+      {id:'social-explorer',title:'Social Explorer',description:'Connect with another explorer.',unlocked:friendCount>=1,progress:Math.min(friendCount,1),target:1},
+      {id:'endless-voyager',title:'Endless Voyager',description:'Finish ten Practice Lab sessions.',unlocked:practiceCount>=10,progress:Math.min(practiceCount,10),target:10}
+    ];
+    sendJSON(response,200,{
+      ok:true,player:publicUser(user,await isAdmin(user)),
+      stats:{
+        dailyGames,bestDailyScore:Number(daily.rows[0].best||0),partyGames,friends:friendCount,
+        rareAnswers,exceptionalAnswers,partyWins:partyWinsCount,practiceGames:practiceCount,
+        bestStreak,currentStreak:Number(user.daily_streak||0)
+      },
+      achievements
     });
     return true;
   }
