@@ -236,31 +236,38 @@
   function updateAscentProgress(points, level) {
     const previous = state.ascentPoints;
     state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0)));
-    if (Number.isFinite(Number(points))) state.ascentPoints = Math.max(0, Math.min(700, state.ascentPoints + Number(points)));
-    const altitude = Math.round(state.ascentPoints * 10);
+    if (Number.isFinite(Number(points))) {
+      state.ascentPoints = Math.max(0, Math.min(700, state.ascentPoints + Number(points)));
+    }
     const ratio = Math.max(0, Math.min(1, state.ascentPoints / 700));
     const explorer = $('#ascent-explorer');
     const scene = $('#rarity-ascent-scene');
     const progress = $('#ascent-progress');
+    const view = $('#view-daily');
+    if (view) view.style.setProperty('--flight-progress', ratio.toFixed(4));
+    const world = $('#atlas-space-world');
+    if (world) world.style.setProperty('--flight-progress', ratio.toFixed(4));
     if (!explorer || !scene || !progress) return;
-    const levelNames = ['FAMILIAR', 'KNOWN', 'UNCOMMON', 'RARE', 'REMARKABLE', 'EXCEPTIONAL'];
     const levelDescriptions = [
-      'A familiar answer gets your climb underway.',
-      'A less obvious discovery lifts you into the lower clouds.',
-      'An uncommon answer carries you above the cloud line.',
-      'A rare discovery sends your explorer higher.',
-      'A remarkable answer reaches the upper atmosphere.',
-      'An exceptional answer takes your explorer toward orbit.'
+      'Leaving Earth behind.',
+      'Cruising past the inner planets.',
+      'Passing the giant planets.',
+      'Sailing beyond the familiar worlds.',
+      'Crossing into the outer solar system.',
+      'Heading into deep space.'
     ];
     const levelIndex = Number.isFinite(Number(level)) ? Math.max(0, Math.min(5, Math.round(Number(level)))) : 0;
+    const sector = Math.min(7, Math.floor(ratio * 7) + (ratio > 0 ? 1 : 0));
     scene.dataset.level = String(levelIndex);
     explorer.style.left = (ratio * 100).toFixed(2) + '%';
     explorer.style.bottom = '0';
     progress.style.width = (ratio * 100).toFixed(2) + '%';
     progress.style.height = '100%';
-    $('#ascent-altitude-label').textContent = number.format(altitude) + ' M';
-    $('#ascent-level-label').textContent = number.format(altitude) + ' / 7,000 M';
-    $('#ascent-description').textContent = points ? levelDescriptions[levelIndex] : 'Your explorer rises with every rare discovery.';
+    $('#ascent-altitude-label').textContent = number.format(state.ascentPoints) + ' PTS';
+    $('#ascent-level-label').textContent = sector + ' / 7 SPACE SECTORS';
+    $('#ascent-description').textContent = points
+      ? levelDescriptions[levelIndex]
+      : 'Every discovery moves your flight further from Earth.';
     if (points && state.ascentPoints > previous) {
       const flare = $('#ascent-rise-flare');
       flare.classList.remove('climbing');
@@ -481,7 +488,84 @@
     // Keep the result on screen until the player explicitly continues.
     nextButton.focus({ preventScroll: true });
   }
-  async function nextDailyQuestion() {
+function renderFlightDistribution(result) {
+    const participants = Math.max(0, Number(result.participants) || 0);
+    const average = result.averageScore == null ? null : Number(result.averageScore);
+    const mode = result.mostCommon || null;
+    $('#flight-average').textContent = average == null ? '—' : number.format(Math.round(average)) + ' PTS';
+    $('#flight-average-detail').textContent = average == null ? 'No completed flights yet' : 'Mean distance across all finishers';
+    $('#flight-mode').textContent = mode ? mode.label + ' PTS' : '—';
+    $('#flight-mode-detail').textContent = mode ? number.format(mode.count) + ' player(s) landed here' : 'No most common landing yet';
+    $('#flight-participants').textContent = participants === 0
+      ? 'No completed flights have been recorded for this edition yet.'
+      : 'Based on ' + number.format(participants) + ' completed flight' + (participants === 1 ? '' : 's') + ' · anonymous worldwide results.';
+
+    const graph = $('#flight-distribution-graph');
+    const buckets = Array.isArray(result.buckets) ? result.buckets : [];
+    if (!participants || !buckets.length) {
+      graph.textContent = 'Finish this edition to start the worldwide landing comparison.';
+      return;
+    }
+
+    const width = 620;
+    const height = 220;
+    const left = 42;
+    const right = 18;
+    const top = 22;
+    const bottom = 164;
+    const plotWidth = width - left - right;
+    const plotHeight = bottom - top;
+    const maxCount = Math.max(1, ...buckets.map(bucket => Number(bucket.count) || 0));
+    const gap = 13;
+    const barWidth = (plotWidth - gap * (buckets.length - 1)) / buckets.length;
+    const grid = [0, .5, 1].map(fraction => {
+      const y = bottom - plotHeight * fraction;
+      const value = Math.round(maxCount * fraction);
+      return '<line x1="' + left + '" y1="' + y + '" x2="' + (width - right) + '" y2="' + y + '" class="flight-chart-grid"/>' +
+        '<text x="' + (left - 10) + '" y="' + (y + 4) + '" text-anchor="end" class="flight-chart-y-label">' + value + '</text>';
+    }).join('');
+    const bars = buckets.map((bucket, index) => {
+      const count = Math.max(0, Number(bucket.count) || 0);
+      const barHeight = count / maxCount * plotHeight;
+      const x = left + index * (barWidth + gap);
+      const y = bottom - barHeight;
+      const highlighted = mode && Number(bucket.min) === Number(mode.min);
+      const label = esc(bucket.label || '');
+      return '<g class="' + (highlighted ? 'is-popular' : '') + '">' +
+        '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barWidth.toFixed(1) + '" height="' + Math.max(2, barHeight).toFixed(1) + '" rx="3" class="flight-chart-bar"/>' +
+        '<text x="' + (x + barWidth / 2).toFixed(1) + '" y="' + (bottom + 20) + '" text-anchor="middle" class="flight-chart-x-label">' + label + '</text>' +
+        (count ? '<text x="' + (x + barWidth / 2).toFixed(1) + '" y="' + Math.max(top - 3, y - 7).toFixed(1) + '" text-anchor="middle" class="flight-chart-count">' + count + '</text>' : '') +
+        '</g>';
+    }).join('');
+    const averageX = average == null ? null : left + Math.max(0, Math.min(700, average)) / 700 * plotWidth;
+    const averageLine = averageX == null ? '' :
+      '<line x1="' + averageX.toFixed(1) + '" y1="' + (top - 5) + '" x2="' + averageX.toFixed(1) + '" y2="' + bottom + '" class="flight-chart-average"/>' +
+      '<text x="' + averageX.toFixed(1) + '" y="12" text-anchor="middle" class="flight-chart-average-label">AVG</text>';
+    graph.innerHTML =
+      '<svg class="flight-distribution-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Completed flight score distribution. Average ' +
+      (average == null ? 'not available' : number.format(Math.round(average)) + ' points') + '. Most common landing ' +
+      (mode ? esc(mode.label) + ' points' : 'not available') + '.">' +
+      '<defs><linearGradient id="flightBarBlue" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#72d7e5"/><stop offset="1" stop-color="#2b6694"/></linearGradient>' +
+      '<linearGradient id="flightBarGold" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ffd18a"/><stop offset="1" stop-color="#b77743"/></linearGradient></defs>' +
+      grid + bars + averageLine +
+      '<text x="' + (width / 2) + '" y="208" text-anchor="middle" class="flight-chart-axis-title">DISCOVERY POINTS · DISTANCE FROM EARTH</text></svg>';
+  }
+
+  async function loadFlightDistribution(date) {
+    const graph = $('#flight-distribution-graph');
+    graph.textContent = 'Calculating the worldwide flight report…';
+    try {
+      const day = date || (state.daily && state.daily.date);
+      const query = day ? '?date=' + encodeURIComponent(day) : '';
+      const result = await api('/daily/flight-distribution' + query);
+      renderFlightDistribution(result);
+    } catch (error) {
+      graph.textContent = 'The worldwide flight report is temporarily unavailable.';
+      $('#flight-participants').textContent = error.message;
+    }
+  }
+
+    async function nextDailyQuestion() {
     if (!state.runId || state.pendingNextIndex === null || state.advancing) return;
     state.advancing = true;
     const index = state.pendingNextIndex;
@@ -498,6 +582,7 @@
         $('#daily-return-today').textContent = "Return to today's Atlas";
         state.runId = null;
         state.advancing = false;
+        loadFlightDistribution(state.practice.date);
         return;
       }
       state.practice.index = index;
@@ -517,6 +602,7 @@
       $('#daily-return-today').hidden = true;
       state.runId = null;
       state.advancing = false;
+      loadFlightDistribution(state.daily.date);
       await Promise.all([loadDailyMiniRanking(), loadProfile(true)]);
       return;
     }
