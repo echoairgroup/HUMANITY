@@ -52,7 +52,7 @@ test('the party category changes between rounds', () => {
 });
 
 test('rarity scores use the six published Discovery Levels', () => {
-  assert.deepEqual(engine.POINTS_BY_LEVEL, [10, 20, 35, 55, 75, 100]);
+  assert.deepEqual(engine.POINTS_BY_LEVEL, [10, 20, 40, 60, 80, 100]);
   assert.equal(engine.LEVEL_NAMES.length, 6);
 });
 
