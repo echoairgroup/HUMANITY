@@ -599,6 +599,27 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const { room, player } = membership;
     room.lastActivityAt = now;
 
+    if (message.type === 'update_room_settings') {
+      if (player.id !== room.hostId || room.visibility !== 'private' || room.mode !== 'private') {
+        sendError(socket, 'Only the host can edit settings in a private room.', 'not_room_host');
+        return;
+      }
+      if (room.phase !== 'lobby') {
+        sendError(socket, 'Room settings are locked once the game has started.', 'settings_locked');
+        return;
+      }
+      const capacity = Number(message.capacity);
+      if (!Number.isInteger(capacity) || capacity < room.players.length || capacity > 10 || capacity < 2) {
+        sendError(socket, 'Maximum players must be between the current room size and 10.', 'invalid_capacity');
+        return;
+      }
+      room.capacity = capacity;
+      room.settings = normaliseRoomSettings(message.settings);
+      broadcast(room, { type: 'room_settings_saved' });
+      broadcastState(room);
+      return;
+    }
+
     if (message.type === 'chat_message') {
       if (context.lastChatAt && now - context.lastChatAt < 750) {
         sendError(socket, 'Please wait a moment before sending another chat message.', 'chat_rate_limited');
