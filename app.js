@@ -136,7 +136,10 @@
       const el = $('#' + name);
       if (el) el.hidden = name !== id;
     });
-    if (id !== 'daily-play') clearDailySuggestion();
+    if (id !== 'daily-play') {
+      clearDailySuggestion();
+      clearDailyReaction();
+    }
   }
   function clearDailySuggestion() {
     clearTimeout(state.suggestionTimer);
@@ -273,32 +276,25 @@
     if (exit) exit.hidden = !(visible && state.practice);
   }
   function updateAscentProgress(points) {
-    if (Number.isFinite(Number(points))) {
-      state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0) + Number(points)));
-    } else {
-      state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0)));
-    }
+    const earned = points == null || !Number.isFinite(Number(points))
+      ? 0 : Math.max(0, Number(points));
+    state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0) + earned));
     const ratio = state.ascentPoints / 700;
-    // Exponential progress keeps early discoveries subtle, then accelerates
-    // the camera as Discovery Points accumulate.
-    const eased = (Math.exp(6.4 * ratio) - 1) / (Math.exp(6.4) - 1);
-    const focus = 26.5 + eased * 302;
-    const zoom = 1.16 - eased * 0.985;
-    const offset = 50 - focus * zoom;
+    // Linear distance per Discovery Point. Duration scales with distance,
+    // so every answer moves the camera at the same fast, steady speed.
+    const travelPerMove = 681.5 * earned / 700;
+    const duration = earned > 0 ? Math.max(180, Math.round(travelPerMove / 48 * 1000)) : 900;
     const view = $('#view-daily');
     const world = $('#atlas-space-world');
     [view, world].filter(Boolean).forEach(element => {
-      element.style.setProperty('--flight-progress', ratio.toFixed(4));
-      element.style.setProperty('--flight-eased', eased.toFixed(5));
-      element.style.setProperty('--flight-camera', focus.toFixed(2) + 'vw');
-      element.style.setProperty('--flight-zoom', zoom.toFixed(4));
-      element.style.setProperty('--flight-offset', offset.toFixed(2) + 'vw');
-      element.style.setProperty('--flight-stars-offset', (eased * 45).toFixed(2) + 'vw');
+      element.style.setProperty('--flight-progress', ratio.toFixed(5));
+      element.style.setProperty('--flight-distance', (681.5 * ratio).toFixed(2) + 'vw');
+      element.style.setProperty('--flight-duration', duration + 'ms');
     });
   }
   function resetAscent() {
     state.ascentPoints = 0;
-    updateAscentProgress(null, 0);
+    updateAscentProgress(0);
   }
   async function returnToToday() {
     stopDailyTimer();
@@ -488,12 +484,11 @@
       showDailyResult(false, '', '', 0, result.reveal || []);
       playTone('error');
     } catch (error) { toast(error.message); }
-    finally { $('#daily-submit').disabled = false; }
+    finally { $('#daily-submit').disabled = state.pendingNextIndex !== null; }
   }
   function showDailyResult(accepted, answer, level, points, reveal, sameAnswerCount, rarity) {
     const panel = $('#daily-answer-reaction');
     if (!panel) return;
-    clearTimeout(state.dailyAdvanceTimer);
     if ($('#daily-play').hidden) setDailySection('daily-play');
 
     if (accepted) updateAscentProgress(points);
@@ -504,20 +499,20 @@
       : 'NO POINTS THIS ORBIT';
     $('#daily-reaction-answer').textContent = accepted
       ? String(answer || '').toUpperCase() + (sameAnswerCount > 1 ? ' · ' + number.format(sameAnswerCount) + ' FOUND' : '')
-      : 'The next orbit is ready';
+      : 'Ready for the next question';
+
     panel.hidden = false;
     panel.classList.remove('visible');
     void panel.offsetWidth;
     panel.classList.add('visible');
-
     $('#daily-answer').disabled = true;
     $('#daily-submit').disabled = true;
-    state.dailyAdvanceTimer = setTimeout(() => {
-      panel.classList.remove('visible');
-      panel.hidden = true;
-      state.dailyAdvanceTimer = null;
-      nextDailyQuestion();
-    }, 5400);
+
+    const nextButton = $('#daily-next');
+    nextButton.hidden = false;
+    nextButton.disabled = false;
+    nextButton.textContent = state.pendingNextIndex >= 7 ? 'FINISH DAILY  →' : 'CONTINUE  →';
+    nextButton.focus({ preventScroll: true });
   }
 function renderFlightDistribution(result) {
     const participants = Math.max(0, Number(result.participants) || 0);
@@ -600,10 +595,13 @@ function renderFlightDistribution(result) {
     if (!state.runId || state.pendingNextIndex === null || state.advancing) return;
     state.advancing = true;
     const index = state.pendingNextIndex;
+    const button = $('#daily-next');
+    button.disabled = true;
     if (state.practice) {
       if (index >= state.practice.questions.length) {
         stopDailyTimer();
         state.practice.finished = true;
+        clearDailyReaction();
         setDailySection('daily-complete');
         $('.daily-complete .eyebrow').textContent = 'ARCHIVE HIGH RISE COMPLETE';
         $('#complete-score').textContent = number.format(state.provisionalScore);
@@ -621,10 +619,12 @@ function renderFlightDistribution(result) {
       setDailySection('daily-play');
       startDailyTimer(25);
       $('#daily-answer').focus();
+      button.disabled = false;
       state.advancing = false;
       return;
     }
     if (index >= 7) {
+      clearDailyReaction();
       setDailySection('daily-complete');
       $('.daily-complete .eyebrow').textContent = "TODAY'S ATLAS COMPLETE";
       $('.daily-complete .complete-score span').textContent = 'PROVISIONAL POINTS';
@@ -637,8 +637,6 @@ function renderFlightDistribution(result) {
       await Promise.all([loadDailyMiniRanking(), loadProfile(true)]);
       return;
     }
-    const button = $('#daily-submit');
-    button.disabled = true;
     try {
       const result = await api('/daily/next', {
         method: 'POST',
@@ -785,7 +783,12 @@ function renderFlightDistribution(result) {
       discordButton.hidden = !discord;
       buttons.hidden = !google && !discord;
       divider.hidden = !google && !discord;
-      note.hidden = google || discord;
+      const missing = [!google ? 'Google' : '', !discord ? 'Discord' : ''].filter(Boolean);
+      note.hidden = missing.length === 0;
+      note.textContent = missing.length
+        ? missing.join(' and ') + ' sign-in ' + (missing.length === 1 ? 'is' : 'are') +
+          ' not configured yet. Username/password accounts already work; first social sign-in creates a free account automatically.'
+        : '';
     } catch (_) {
       googleButton.hidden = true;
       discordButton.hidden = true;
@@ -1413,6 +1416,24 @@ function renderFlightDistribution(result) {
     } catch (error) { toast(error.message); }
   }
 
+  function cookieNoticeAcknowledged() {
+    return document.cookie.split(';').some(item => item.trim().startsWith('humanity_cookie_notice='));
+  }
+  function acknowledgeCookieNotice() {
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = 'humanity_cookie_notice=1; Max-Age=15552000; Path=/; SameSite=Lax' + secure;
+    const banner = $('#cookie-banner');
+    if (banner) banner.hidden = true;
+  }
+  function initCookieNotice() {
+    const banner = $('#cookie-banner');
+    if (banner) banner.hidden = cookieNoticeAcknowledged();
+    $('#cookie-notice-close').addEventListener('click', acknowledgeCookieNotice);
+    $('#cookie-notice-details').addEventListener('click', () => openModal('cookie-policy-modal'));
+    $('#footer-cookie-policy').addEventListener('click', () => openModal('cookie-policy-modal'));
+    $('#footer-privacy-policy').addEventListener('click', () => openModal('privacy-policy-modal'));
+  }
+
   function initEvents() {
     $$('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
     window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
@@ -1429,7 +1450,8 @@ function renderFlightDistribution(result) {
       const dailyView = $('[data-view-panel="daily"]');
       const resultPanel = $('#daily-result');
       const nextButton = $('#daily-next');
-      if (!dailyView || dailyView.hidden || !resultPanel || resultPanel.hidden ||
+      const reaction = $('#daily-answer-reaction');
+      if (!dailyView || dailyView.hidden || !reaction || reaction.hidden ||
           state.pendingNextIndex === null || event.target !== nextButton) return;
       event.preventDefault();
       nextDailyQuestion();
@@ -1611,6 +1633,7 @@ function renderFlightDistribution(result) {
     setSettings();
     if ($('#party-display-name')) $('#party-display-name').value = localStorage.getItem('humanity-display-name') || '';
     initEvents();
+    initCookieNotice();
     if ('serviceWorker' in navigator && location.protocol === 'https:') {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     }

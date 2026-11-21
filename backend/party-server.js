@@ -547,7 +547,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         mode,
         group: groupKey,
         capacity: group.max,
-        targetMin: group.min
+        targetMin: Math.max(group.min, group.max - 1)
       });
       const context = sockets.get(socket) || {};
       context.roomCode = created.code;

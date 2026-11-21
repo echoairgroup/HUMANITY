@@ -59,10 +59,17 @@
                 <div class="earth-globe" data-earth-globe role="img" aria-label="Earth with country outlines"></div>
               </div>
               <div class="atlas-planet atlas-planet-moon"></div>
+              <div class="atlas-planet atlas-planet-mercury"></div>
+              <div class="atlas-planet atlas-planet-venus"></div>
               <div class="atlas-planet atlas-planet-red"></div>
               <div class="atlas-planet atlas-planet-jupiter"></div>
               <div class="atlas-planet atlas-planet-ringed"><span class="atlas-planet-ring"></span></div>
               <div class="atlas-planet atlas-planet-neptune"></div>
+              <div class="atlas-planet atlas-planet-uranus"></div>
+              <div class="atlas-planet atlas-planet-pluto"></div>
+              <div class="atlas-planet atlas-planet-violet"></div>
+              <div class="atlas-planet atlas-planet-gold"></div>
+              <div class="atlas-asteroid-field"></div>
               <div class="atlas-flight-streak"></div>
             </div>
             <div class="atlas-flight-craft"><span></span></div>
@@ -136,6 +143,7 @@
             <div class="atlas-answer-reaction" id="daily-answer-reaction" hidden role="status" aria-live="polite" aria-atomic="true">
               <span class="atlas-reaction-icon" aria-hidden="true">✦</span>
               <div><strong id="daily-reaction-level">RARE</strong><small id="daily-reaction-points">+55 DISCOVERY POINTS</small><em id="daily-reaction-answer">CANADA</em></div>
+              <button class="atlas-continue-button" id="daily-next" type="button">CONTINUE →</button>
             </div>
 
             <div class="daily-result" id="daily-result" hidden>
@@ -150,7 +158,6 @@
                 <div class="answer-sheet-heading"><strong>Approved answers</strong><span id="answer-sheet-count">0 found</span></div>
                 <div class="answer-sheet-list" id="answer-sheet-list"></div>
               </div>
-              <button class="button button-primary button-wide" id="daily-next" type="button">Next question <span aria-hidden="true">→</span></button>
               <p class="quiet-note">Continue with the button or press Enter. The next question will not open automatically. Discovery scores are provisional until the UTC day closes.</p>
             </div>
 
@@ -513,9 +520,55 @@
     <footer class="site-footer">
       <a class="footer-brand" href="#daily">HUMANITY<span>.</span></a>
       <span>Curiosity looks good on everyone.</span>
-      <div class="footer-links"><button type="button" id="settings-open">Settings</button><button type="button" id="archive-open">World Archive</button><a href="https://www.wikidata.org/" target="_blank" rel="noreferrer">Data sources ↗</a></div>
+      <div class="footer-links"><button type="button" id="settings-open">Settings</button><button type="button" id="archive-open">World Archive</button><button type="button" id="footer-cookie-policy">Cookie policy</button><button type="button" id="footer-privacy-policy">Privacy</button><a href="https://www.wikidata.org/" target="_blank" rel="noreferrer">Data sources ↗</a></div>
     </footer>
   </div>
+
+  <aside class="cookie-banner" id="cookie-banner" hidden aria-label="Cookie notice">
+    <div class="cookie-banner-copy">
+      <span class="micro-label">A QUICK NOTE ABOUT STORAGE</span>
+      <p>HUMANITY uses one essential cookie to remember that you have seen this notice. Sign-in and game preferences are saved in your browser storage. We do not currently use advertising or analytics cookies.</p>
+    </div>
+    <div class="cookie-banner-actions">
+      <button class="button button-outline" id="cookie-notice-details" type="button">Cookie details</button>
+      <button class="button button-primary" id="cookie-notice-close" type="button">Got it</button>
+    </div>
+  </aside>
+
+  <dialog class="modal policy-modal" id="cookie-policy-modal">
+    <div class="modal-head"><div><span class="micro-label">HUMANITY · SITE STORAGE</span><h2>Cookie policy</h2></div><button class="modal-close" type="button" data-close-modal="cookie-policy-modal" aria-label="Close">×</button></div>
+    <div class="policy-content">
+      <p class="policy-updated">Last updated: 21 November 2026</p>
+      <h3>Cookies used by HUMANITY</h3>
+      <p>HUMANITY sets one first-party cookie, <code>humanity_cookie_notice</code>, after you dismiss the notice. It remembers that the notice has been seen for up to six months. It is not used to identify you for advertising or to track you across websites.</p>
+      <h3>Browser storage</h3>
+      <p>The site also uses local browser storage for essential game operation: a guest identifier, your sign-in session token, and your sound and motion preferences. These items stay in this browser until they are cleared or your session expires. They are not advertising cookies.</p>
+      <h3>Analytics and advertising</h3>
+      <p>HUMANITY does not currently install analytics, advertising, or cross-site tracking cookies. If optional tracking is added in the future, this policy and the consent controls will be updated before it is enabled.</p>
+      <h3>Third-party services</h3>
+      <p>The interactive globe library is loaded from jsDelivr. When your browser requests that library, the CDN receives normal connection information. Google or Discord only receive information when you choose one of those sign-in options.</p>
+      <p>You can clear cookies and local storage in your browser settings. Clearing the HUMANITY session token signs you out on this device.</p>
+    </div>
+  </dialog>
+
+  <dialog class="modal policy-modal" id="privacy-policy-modal">
+    <div class="modal-head"><div><span class="micro-label">HUMANITY · YOUR INFORMATION</span><h2>Privacy notice</h2></div><button class="modal-close" type="button" data-close-modal="privacy-policy-modal" aria-label="Close">×</button></div>
+    <div class="policy-content">
+      <p class="policy-updated">Last updated: 21 November 2026</p>
+      <h3>Information used to run the games</h3>
+      <p>Guest play uses a random browser identifier so the daily challenge can recognise an attempt from this device. If you create an account, HUMANITY stores your username and account details. Passwords are stored as salted password hashes, not as readable passwords.</p>
+      <p>For sign-in with Google or Discord, HUMANITY receives the account identifier and the profile information those services return, such as a verified email address and avatar where available. Your first successful social sign-in creates a HUMANITY account; a verified matching email may connect it to an existing account.</p>
+      <h3>Gameplay and community data</h3>
+      <p>HUMANITY processes daily challenge attempts and scores, rankings, experience, streaks, Globe Rush scores and ratings, friend connections, and live room activity. Live room chat is used to deliver messages to the people in that room.</p>
+      <h3>Why and where information is used</h3>
+      <p>This information is used to provide sign-in, save progress, operate multiplayer rooms, calculate rankings, prevent duplicate daily attempts, and maintain the service. The website's API and database are hosted using Render and Neon PostgreSQL.</p>
+      <h3>Sharing and tracking</h3>
+      <p>HUMANITY does not currently display advertising or use third-party analytics trackers, and it does not sell account information. Google, Discord, and the CDN described in the Cookie Policy are separate services with their own privacy terms.</p>
+      <h3>Account controls</h3>
+      <p>You can sign out from your account menu. Signing out revokes the active server session. A self-service account deletion control and a dedicated privacy contact are not yet published on this version of HUMANITY.</p>
+      <p class="policy-disclaimer">This is a plain-language product notice based on the features currently implemented. Before opening the service to the public, the site owner should add a privacy contact and have the notice reviewed for the countries where HUMANITY will be offered.</p>
+    </div>
+  </dialog>
 
   <dialog class="modal" id="account-modal">
     <div class="modal-head"><div><span class="micro-label">YOUR HUMANITY ACCOUNT</span><h2 id="account-modal-title">Welcome, explorer.</h2></div><button class="modal-close" type="button" data-close-modal="account-modal" aria-label="Close">×</button></div>
@@ -528,9 +581,9 @@
         <button class="button button-primary button-wide" id="auth-submit" type="submit">Sign in</button>
       </form>
       <div class="auth-divider" id="oauth-divider"><span>OR CONTINUE WITH</span></div>
-      <div class="oauth-buttons" id="oauth-buttons"><button class="button button-outline" id="google-signin" type="button" hidden>Google</button><button class="button button-outline" id="discord-signin" type="button" hidden>Discord</button></div>
+      <div class="oauth-buttons" id="oauth-buttons"><button class="button button-outline" id="google-signin" type="button" hidden>Continue with Google</button><button class="button button-outline" id="discord-signin" type="button" hidden>Continue with Discord</button></div>
       <p class="modal-note" id="oauth-config-note">Google and Discord sign-in are not configured yet. You can still create an account with your username and password.</p>
-      <p class="modal-note">A free account saves your progress and unlocks official rankings. Guest play is always available.</p>
+      <p class="modal-note">Your first Google or Discord sign-in creates a free HUMANITY account automatically. Guest play is always available.</p>
     </div>
     <div id="account-signed-in" hidden>
       <div class="profile-summary"><div class="profile-avatar" id="profile-avatar">H</div><div><strong id="profile-name">Explorer</strong><span id="profile-email"></span></div></div>

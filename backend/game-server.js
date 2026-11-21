@@ -21,7 +21,6 @@ const ALLOWED_ORIGINS = new Set(
 );
 const DAILY_SECONDS = 25;
 const SESSION_DAYS = 30;
-const oauthStates = new Map();
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -389,6 +388,32 @@ function sessionCookieToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
 
+function createOAuthState(provider, redirectUri) {
+  const payload = Buffer.from(JSON.stringify({
+    provider, redirectUri, issuedAt: Date.now(),
+    nonce: crypto.randomBytes(18).toString('base64url')
+  })).toString('base64url');
+  const secret = process.env.OAUTH_STATE_SECRET || DATABASE_URL;
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return payload + '.' + signature;
+}
+
+function verifyOAuthState(value, provider) {
+  const parts = String(value || '').split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  const secret = process.env.OAUTH_STATE_SECRET || DATABASE_URL;
+  const expected = crypto.createHmac('sha256', secret).update(parts[0]).digest();
+  const supplied = Buffer.from(parts[1], 'base64url');
+  if (expected.length !== supplied.length || !crypto.timingSafeEqual(expected, supplied)) return null;
+  try {
+    const state = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    const age = Date.now() - Number(state.issuedAt);
+    if (state.provider !== provider || !state.redirectUri || !state.nonce ||
+        !Number.isFinite(age) || age < 0 || age > 600000) return null;
+    return state;
+  } catch (_) { return null; }
+}
+
 async function handleRegister(request, response) {
   const body = await readJSON(request);
   const username = String(body.username || '').trim();
@@ -459,8 +484,7 @@ async function beginOAuth(provider, response) {
   }
   const redirectUri = process.env[google ? 'GOOGLE_REDIRECT_URI' : 'DISCORD_REDIRECT_URI'] ||
     PUBLIC_API_URL + '/api/auth/' + provider + '/callback';
-  const state = sessionCookieToken();
-  oauthStates.set(state, { provider, redirectUri, createdAt: Date.now() });
+  const state = createOAuthState(provider, redirectUri);
   const target = google
     ? new URL('https://accounts.google.com/o/oauth2/v2/auth')
     : new URL('https://discord.com/oauth2/authorize');
@@ -477,7 +501,8 @@ async function beginOAuth(provider, response) {
 async function upsertOAuthPlayer(provider, profile) {
   const isGoogle = provider === 'google';
   const providerId = String(isGoogle ? profile.sub : profile.id);
-  const email = String(profile.email || '').toLowerCase() || null;
+  const emailIsVerified = isGoogle ? profile.email_verified === true : profile.verified === true;
+  const email = emailIsVerified ? (String(profile.email || '').toLowerCase() || null) : null;
   const avatar = isGoogle ? (profile.picture || null) :
     (profile.avatar ? 'https://cdn.discordapp.com/avatars/' + profile.id + '/' + profile.avatar + '.png' : null);
   const providerColumn = isGoogle ? 'google_sub' : 'discord_id';
@@ -495,7 +520,7 @@ async function upsertOAuthPlayer(provider, profile) {
     return found.rows[0];
   }
 
-  const base = String(profile.name || (email ? email.split('@')[0] : provider + ' explorer'))
+  const base = String(profile.name || profile.global_name || profile.username || (email ? email.split('@')[0] : provider + ' explorer'))
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 14) || 'Explorer';
   let username = base;
@@ -515,13 +540,12 @@ async function upsertOAuthPlayer(provider, profile) {
 }
 
 async function finishOAuth(provider, request, response, url) {
-  const state = oauthStates.get(String(url.searchParams.get('state') || ''));
+  const state = verifyOAuthState(url.searchParams.get('state'), provider);
   const code = url.searchParams.get('code');
-  if (!state || state.provider !== provider || Date.now() - state.createdAt > 600000 || !code) {
+  if (!state || !code) {
     sendError(response, 400, 'The sign-in session expired. Start sign-in again.', 'invalid_oauth_state');
     return;
   }
-  oauthStates.delete(String(url.searchParams.get('state') || ''));
 
   const google = provider === 'google';
   const tokenUrl = google ? 'https://oauth2.googleapis.com/token' : 'https://discord.com/api/oauth2/token';
@@ -553,7 +577,7 @@ async function finishOAuth(provider, request, response, url) {
   const profile = await profileResponse.json();
   const player = await upsertOAuthPlayer(provider, profile);
   const token = await createSession(player.id);
-  response.writeHead(302, { Location: SITE_URL + (SITE_URL.includes('?') ? '&' : '?') + 'session=' + encodeURIComponent(token), 'Cache-Control': 'no-store' });
+  response.writeHead(302, { Location: SITE_URL + (SITE_URL.includes('?') ? '&' : '?') + 'session=' + encodeURIComponent(token), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
   response.end();
 }
 
