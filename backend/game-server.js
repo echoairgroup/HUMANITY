@@ -820,6 +820,57 @@ async function dailyLeaderboard(response, date) {
   sendJSON(response, 200, { ok: true, date: day, entries: result.rows });
 }
 
+async function dailyFlightDistribution(response, date) {
+  const day = date || utcDate();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    sendError(response, 400, 'A valid UTC edition date is required.', 'invalid_date');
+    return;
+  }
+  const result = await pool.query(
+    'SELECT COALESCE(r.final_score, r.provisional_score, 0)::int AS score ' +
+    'FROM humanity_daily_runs r ' +
+    'JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
+    'WHERE c.challenge_date = $1 AND r.status = $2',
+    [day, 'completed']
+  );
+  const scores = result.rows.map(row => Math.max(0, Math.min(700, Number(row.score) || 0)));
+  const buckets = [
+    { min: 0, max: 99, label: '0–99' },
+    { min: 100, max: 199, label: '100–199' },
+    { min: 200, max: 299, label: '200–299' },
+    { min: 300, max: 399, label: '300–399' },
+    { min: 400, max: 499, label: '400–499' },
+    { min: 500, max: 599, label: '500–599' },
+    { min: 600, max: 700, label: '600–700' }
+  ].map(bucket => ({ ...bucket, count: 0 }));
+  scores.forEach(score => {
+    const index = Math.min(buckets.length - 1, Math.floor(score / 100));
+    buckets[index].count += 1;
+  });
+  const total = scores.reduce((sum, score) => sum + score, 0);
+  const averageScore = scores.length ? Math.round((total / scores.length) * 10) / 10 : null;
+  const maximumCount = buckets.reduce((maximum, bucket) => Math.max(maximum, bucket.count), 0);
+  const tiedBuckets = buckets.filter(bucket => bucket.count === maximumCount && maximumCount > 0);
+  const mostCommon = tiedBuckets.length
+    ? tiedBuckets.sort((a, b) => {
+        const midpointA = (a.min + a.max) / 2;
+        const midpointB = (b.min + b.max) / 2;
+        return Math.abs(midpointA - (averageScore || 0)) - Math.abs(midpointB - (averageScore || 0));
+      })[0]
+    : null;
+  sendJSON(response, 200, {
+    ok: true,
+    date: day,
+    participants: scores.length,
+    averageScore,
+    mostCommon: mostCommon ? {
+      min: mostCommon.min, max: mostCommon.max, label: mostCommon.label, count: mostCommon.count
+    } : null,
+    buckets
+  });
+}
+
+
 async function adminOverview(response) {
   const [players, questions, queue, rooms] = await Promise.all([
     pool.query('SELECT COUNT(*)::int AS count FROM humanity_players'),
@@ -1053,6 +1104,10 @@ async function handleAPI(request, response, url, party) {
   }
   if (request.method === 'GET' && url.pathname === '/api/daily/leaderboard') {
     await dailyLeaderboard(response, url.searchParams.get('date'));
+    return true;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/daily/flight-distribution') {
+    await dailyFlightDistribution(response, url.searchParams.get('date'));
     return true;
   }
 
