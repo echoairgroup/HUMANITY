@@ -474,6 +474,10 @@
     }
   }
   async function openArchiveEdition(date) {
+    if (state.runId && !state.practice) {
+      toast('Finish today’s official Atlas before replaying an earlier edition.');
+      return;
+    }
     try {
       const result = await api('/daily/archive/' + encodeURIComponent(date));
       const questions = Array.isArray(result.questions) ? result.questions : [];
