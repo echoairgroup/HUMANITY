@@ -816,6 +816,19 @@ function renderFlightDistribution(result) {
     } finally { button.disabled = false; state.advancing = false; }
   }
   async function useDailyHint() {
+    if (!state.runId || !state.question || state.hintUsed) return;
+    $('#daily-hint').disabled = true;
+    try {
+      let examples;
+      if (state.unlimited || state.practice) {
+        examples = state.question.hints && state.question.hints.length
+          ? state.question.hints
+          : (state.question.answers || []).slice(0, 3).map(item => item.answer);
+      } else {
+        const result = await api('/daily/hint', { method: 'POST', body: { guestId: state.guestId, runId: state.runId } });
+        examples = result.examples || [];
+      }
+
   async function loadPracticePacks() {
     const panel=$('#practice-pack-list');
     panel.innerHTML='<p class="archive-loading">Loading themed expeditions…</p>';
@@ -832,7 +845,7 @@ function renderFlightDistribution(result) {
   }
 
   async function startUnlimited(packId) {
-    const buttons=$('[data-practice-pack]');
+    const buttons=$$('[data-practice-pack]');
     buttons.forEach(button=>button.disabled=true);
     try {
       const result=await api('/practice/start',{method:'POST',body:{guestId:state.guestId,packId}});
@@ -883,25 +896,6 @@ function renderFlightDistribution(result) {
     } catch(error){toast(error.message);}
   }
 
-
-    if (!state.runId || !state.question || state.hintUsed) return;
-    $('#daily-hint').disabled = true;
-    try {
-      let examples;
-      if (state.unlimited || state.practice) {
-        examples = state.question.hints && state.question.hints.length
-          ? state.question.hints
-          : (state.question.answers || []).slice(0, 3).map(item => item.answer);
-      } else {
-        const result = await api('/daily/hint', { method: 'POST', body: { guestId: state.guestId, runId: state.runId } });
-        examples = result.examples || [];
-      }
-      state.hintUsed = true;
-      $('#hint-counter').textContent = '0 / 1';
-      $('#hint-box').hidden = false;
-      $('#hint-box').textContent = 'Examples: ' + examples.join(' · ');
-    } catch (error) { toast(error.message); $('#daily-hint').disabled = false; }
-  }
   async function loadArchive() {
     try {
       const result = await api('/daily/archive');
@@ -1700,7 +1694,7 @@ function renderFlightDistribution(result) {
     $$('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
     window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
     $('#daily-start').addEventListener('click', startDaily);
-    $('[data-open-practice]').forEach(button=>button.addEventListener('click',()=>{
+    $$('[data-open-practice]').forEach(button=>button.addEventListener('click',()=>{
       openModal('practice-modal');loadPracticePacks();
     }));
     $('#practice-pack-list').addEventListener('click',event=>{
