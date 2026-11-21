@@ -296,7 +296,9 @@
         : Math.max(0, levelNames.indexOf(String(level || 'Known')));
       const ascentLevel = levels[levelIndex];
       $('#rarity-ascent-scene').dataset.level = String(levelIndex);
-      $('#ascent-explorer').style.setProperty('--ascent-bottom', ascentLevel.bottom + 'px');
+      const explorer = $('#ascent-explorer');
+      explorer.style.setProperty('--ascent-bottom', '10px');
+      requestAnimationFrame(() => explorer.style.setProperty('--ascent-bottom', ascentLevel.bottom + 'px'));
       $('#ascent-altitude-label').textContent = ascentLevel.altitude;
       $('#ascent-description').textContent = ascentLevel.detail;
       $('#ascent-level-label').textContent = 'DISCOVERY LEVEL ' + (levelIndex + 1) + ' / 6';
@@ -812,8 +814,8 @@
         ? Number(room.settings.turnDurationSeconds) + '-second turns'
         : 'Random 10–30 second turns';
       const missLimit = Math.max(1, Number(room.settings?.maxWrongAnswersPerCategory || 2));
-      const turnLimit = Math.max(1, Number(room.settings?.maxTurnsPerCategory || 10));
-      $('#rush-note').textContent = turnDescription + ' · ' + missLimit + ' misses or ' + turnLimit +
+      const ruleTurnLimit = Math.max(1, Number(room.settings?.maxTurnsPerCategory || 10));
+      $('#rush-note').textContent = turnDescription + ' · ' + missLimit + ' misses or ' + ruleTurnLimit +
         ' accepted turns rotate the category. ' + (room.category.note || 'Answers can only be used once per category.');
       const wrongCount = Math.max(0, Number(room.wrongAnswersThisCategory || 0));
       const turnCount = Math.max(0, Number(room.turnsThisCategory || 0));
