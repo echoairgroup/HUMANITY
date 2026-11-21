@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f6f2">
+  <meta name="theme-color" content="#071528">
   <meta name="description" content="A daily geography challenge and a live multiplayer game. Seven questions. One world.">
   <meta property="og:title" content="HUMANITY — Geography, every day">
   <meta property="og:description" content="Test what you know about our world in Atlas Daily and Globe Rush.">
@@ -48,30 +48,35 @@
 
     <main id="main-content">
       <section class="view active" id="view-daily" data-view-panel="daily">
-        <div class="page-intro daily-intro">
-          <div class="intro-copy">
-            <div class="eyebrow"><span class="eyebrow-line"></span> THE WORLD, ONE QUESTION AT A TIME</div>
-            <h1>Seven questions.<br><em>One shared world.</em></h1>
-            <p>Every day brings a new set of geography questions. Find the answer you know — then see how rare it really is.</p>
+        <div class="daily-grid atlas-space-stage">
+          <div class="atlas-space-backdrop" aria-hidden="true">
+            <div class="atlas-stars atlas-stars-far"></div>
+            <div class="atlas-stars atlas-stars-near"></div>
+            <div class="atlas-nebula atlas-nebula-one"></div>
+            <div class="atlas-nebula atlas-nebula-two"></div>
+            <div class="atlas-planet atlas-planet-jupiter"></div>
+            <div class="atlas-planet atlas-planet-ringed"><span class="atlas-planet-ring"></span></div>
+            <div class="atlas-planet atlas-planet-red"></div>
+            <div class="atlas-planet atlas-planet-moon"></div>
+            <div class="atlas-flight-streak"></div>
           </div>
-          <div class="date-stamp">
-            <span class="date-stamp-label" id="edition-label">TODAY'S EDITION</span>
-            <strong id="edition-date">Loading…</strong>
-            <span class="date-stamp-sub">Same challenge, worldwide</span>
-          </div>
-        </div>
-
-        <div class="daily-grid">
           <section class="game-panel daily-panel" aria-labelledby="daily-panel-title">
-            <div class="panel-topline">
+            <div class="panel-topline atlas-panel-topline">
               <div class="panel-kicker"><span class="tiny-globe">◎</span> ATLAS DAILY</div>
-              <div class="attempt-label" id="attempt-label">ONE OFFICIAL RUN</div>
+              <div class="atlas-topline-actions">
+                <div class="atlas-edition-stamp">
+                  <span class="date-stamp-label" id="edition-label">TODAY'S EDITION</span>
+                  <strong id="edition-date">Loading…</strong>
+                </div>
+                <div class="attempt-label" id="attempt-label">ONE OFFICIAL RUN</div>
+                <button class="atlas-archive-open" id="atlas-archive-open" type="button">WORLD ARCHIVE ↗</button>
+              </div>
             </div>
 
             <section class="daily-ascent-panel" id="daily-ascent-panel" hidden aria-label="High Rise altitude progress">
               <div class="daily-ascent-heading">
                 <div><span>ATLAS DAILY</span><strong>HIGH RISE</strong></div>
-                <div class="daily-ascent-readout"><strong id="ascent-altitude-label">0 M</strong><small>ABOVE GROUND</small></div>
+                <div class="daily-ascent-readout"><strong id="ascent-altitude-label">0 M</strong><small>FLIGHT DISTANCE</small></div>
                 <button class="daily-archive-exit" id="daily-archive-exit" type="button" hidden>EXIT ARCHIVE ×</button>
               </div>
               <div class="daily-ascent-scene" id="rarity-ascent-scene" data-level="0">
@@ -117,22 +122,26 @@
                 <div class="question-clock" id="daily-clock" aria-label="Time remaining"><span class="clock-face">25</span><small>SEC</small></div>
               </div>
 
-              <div class="question-category" id="question-category">GEOGRAPHY</div>
-              <h2 class="daily-question" id="daily-question">Name a country in Europe.</h2>
-              <p class="question-note" id="question-note">Every recognised answer counts.</p>
+              <section class="atlas-question-card" aria-labelledby="daily-question">
+                <div class="question-category" id="question-category">GEOGRAPHY</div>
+                <h2 class="daily-question" id="daily-question">Name a country in Europe.</h2>
+                <p class="question-note" id="question-note">Every recognised answer counts.</p>
+              </section>
 
-              <form class="answer-form" id="daily-answer-form">
-                <label class="visually-hidden" for="daily-answer">Your answer</label>
-                <input id="daily-answer" name="answer" type="text" maxlength="80" autocomplete="off" autocapitalize="words" placeholder="Type an answer…" required>
-                <button class="button button-primary" id="daily-submit" type="submit">Enter <span aria-hidden="true">↵</span></button>
-              </form>
-              <div class="answer-feedback" id="daily-feedback" role="status" aria-live="polite"></div>
-
-              <div class="question-tools">
-                <button class="text-button" id="daily-hint" type="button">Need a nudge? <span>One hint available</span></button>
-                <span class="hint-counter" id="hint-counter">1 / 1</span>
-              </div>
-              <div class="hint-box" id="hint-box" hidden></div>
+              <section class="atlas-answer-dock" aria-label="Answer input">
+                <form class="answer-form" id="daily-answer-form">
+                  <label class="visually-hidden" for="daily-answer">Your answer</label>
+                  <input id="daily-answer" name="answer" type="text" maxlength="80" autocomplete="off" autocapitalize="words" placeholder="TYPE YOUR ANSWER…" required>
+                  <button class="button button-primary" id="daily-submit" type="submit">SUBMIT <span aria-hidden="true">↵</span></button>
+                </form>
+                <div class="daily-suggestion" id="daily-suggestion" hidden role="status" aria-live="polite"></div>
+                <div class="answer-feedback" id="daily-feedback" role="status" aria-live="polite"></div>
+                <div class="question-tools">
+                  <button class="text-button" id="daily-hint" type="button">NEED A HINT? <span>ONE AVAILABLE</span></button>
+                  <span class="hint-counter" id="hint-counter">1 / 1</span>
+                </div>
+                <div class="hint-box" id="hint-box" hidden></div>
+              </section>
             </div>
 
             <div class="daily-result" id="daily-result" hidden>
@@ -208,7 +217,7 @@
             <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · ONE PLANET, ONE ORB</div>
             <h1>GLOBE RUSH</h1>
             <p>Travel the world one answer at a time. Pass the Atlas Orb, name a place that fits the category and keep your crew in the game.</p>
-            <div class="party-intro-stats"><span>RANDOM 10–30 SEC TURNS</span><i></i><span>2–10 EXPLORERS</span><i></i><span>LIVE ROOMS</span></div>
+            <div class="party-intro-stats"><span>RANDOM 10–30 SEC TURNS</span><i></i><span>2–10 EXPLORERS</span><i></i><span>482+ QUESTION VARIANTS</span><i></i><span>LIVE ROOMS</span></div>
           </div>
           <div class="party-preview-world" role="img" aria-label="A vivid pixel-art planet Earth surrounded by tiny islands and satellites">
             <div class="preview-starfield"></div>
