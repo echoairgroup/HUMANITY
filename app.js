@@ -13,6 +13,7 @@
     provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null, ascentPoints: 0,
+    suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
     orbOverloadTimer: null, onlineRefreshTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
     animations: localStorage.getItem('humanity-motion') !== 'false'
@@ -133,6 +134,99 @@
       const el = $('#' + name);
       if (el) el.hidden = name !== id;
     });
+    if (id !== 'daily-play') clearDailySuggestion();
+  }
+  function clearDailySuggestion() {
+    clearTimeout(state.suggestionTimer);
+    state.suggestionTimer = null;
+    state.suggestionSequence += 1;
+    state.pendingSuggestion = null;
+    const panel = $('#daily-suggestion');
+    if (panel) {
+      panel.hidden = true;
+      panel.innerHTML = '';
+    }
+  }
+  function editDistance(left, right) {
+    const a = String(left || '');
+    const b = String(right || '');
+    const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
+    for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
+    for (let i = 1; i <= a.length; i += 1) {
+      for (let j = 1; j <= b.length; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+          matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
+        }
+      }
+    }
+    return matrix[a.length][b.length];
+  }
+  function localDailySuggestion(rawAnswer) {
+    const target = norm(rawAnswer);
+    if (!target || target.length < 4) return null;
+    const answers = (state.question && state.question.answers) || [];
+    const matches = [];
+    const threshold = target.length >= 8 ? 2 : 1;
+    answers.forEach(entry => {
+      const labels = [entry.answer].concat(entry.aliases || []);
+      let best = Infinity;
+      labels.forEach(label => {
+        const candidate = norm(label);
+        if (candidate.length > target.length && candidate.startsWith(target)) best = Math.min(best, 0);
+        else best = Math.min(best, editDistance(target, candidate));
+      });
+      if (best <= threshold) matches.push({ answer: entry.answer, distance: best });
+    });
+    if (!matches.length) return null;
+    const minimum = Math.min(...matches.map(item => item.distance));
+    const winners = [...new Map(matches.filter(item => item.distance === minimum)
+      .map(item => [norm(item.answer), item])).values()];
+    return winners.length === 1 && norm(winners[0].answer) !== target ? winners[0].answer : null;
+  }
+  async function scheduleDailySuggestion() {
+    clearTimeout(state.suggestionTimer);
+    state.suggestionTimer = null;
+    const input = $('#daily-answer');
+    const panel = $('#daily-suggestion');
+    const typed = input.value.trim();
+    state.pendingSuggestion = null;
+    panel.hidden = true;
+    panel.innerHTML = '';
+    const sequence = ++state.suggestionSequence;
+    if (!state.runId || !state.question || state.pendingNextIndex !== null || typed.length < 4) return;
+    state.suggestionTimer = setTimeout(async () => {
+      let answer = null;
+      try {
+        if (state.practice) answer = localDailySuggestion(typed);
+        else {
+          const result = await api('/daily/suggest', {
+            method: 'POST',
+            body: { guestId: state.guestId, runId: state.runId, index: state.questionIndex, answer: typed }
+          });
+          answer = result.suggestion && result.suggestion.answer;
+        }
+      } catch (_) {
+        answer = null;
+      }
+      if (sequence !== state.suggestionSequence || input.value.trim() !== typed || !answer) return;
+      state.pendingSuggestion = { input: typed, answer };
+      panel.innerHTML = '<span class="suggestion-copy">DID YOU MEAN?</span><button class="suggestion-choice" type="button" data-use-daily-suggestion>' +
+        esc(answer) + '<span>PRESS ENTER TO USE</span></button>';
+      panel.hidden = false;
+    }, 260);
+  }
+  function useDailySuggestion() {
+    const suggestion = state.pendingSuggestion;
+    const input = $('#daily-answer');
+    if (!suggestion || norm(input.value) !== norm(suggestion.input)) return false;
+    input.value = suggestion.answer;
+    clearDailySuggestion();
+    $('#daily-feedback').textContent = 'Suggestion inserted. Press Enter again to submit your answer.';
+    input.focus();
+    return true;
   }
   function setAscentVisible(visible) {
     const panel = $('#daily-ascent-panel');
@@ -160,9 +254,10 @@
     ];
     const levelIndex = Number.isFinite(Number(level)) ? Math.max(0, Math.min(5, Math.round(Number(level)))) : 0;
     scene.dataset.level = String(levelIndex);
-    explorer.style.setProperty('--ascent-bottom', (14 + ratio * 110).toFixed(1) + 'px');
-    progress.style.width = '100%';
-    progress.style.height = (ratio * 100).toFixed(2) + '%';
+    explorer.style.left = (ratio * 100).toFixed(2) + '%';
+    explorer.style.bottom = '0';
+    progress.style.width = (ratio * 100).toFixed(2) + '%';
+    progress.style.height = '100%';
     $('#ascent-altitude-label').textContent = number.format(altitude) + ' M';
     $('#ascent-level-label').textContent = number.format(altitude) + ' / 7,000 M';
     $('#ascent-description').textContent = points ? levelDescriptions[levelIndex] : 'Your explorer rises with every rare discovery.';
@@ -250,6 +345,7 @@
     }
   }
   function updateQuestion(question, index) {
+    clearDailySuggestion();
     state.question = question;
     state.questionIndex = index;
     state.pendingNextIndex = null;
@@ -290,6 +386,7 @@
   async function submitDailyAnswer(event) {
     event.preventDefault();
     if (!state.runId || !state.question || state.pendingNextIndex !== null) return;
+    if (useDailySuggestion()) return;
     const input = $('#daily-answer');
     const answer = input.value.trim();
     if (!answer) return;
@@ -1157,6 +1254,11 @@
     window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
     $('#daily-start').addEventListener('click', startDaily);
     $('#daily-answer-form').addEventListener('submit', submitDailyAnswer);
+    $('#daily-answer').addEventListener('input', scheduleDailySuggestion);
+    $('#daily-suggestion').addEventListener('click', event => {
+      if (event.target.closest('[data-use-daily-suggestion]')) useDailySuggestion();
+    });
+    $('#atlas-archive-open').addEventListener('click', () => { loadArchive(); openModal('archive-modal'); });
     $('#daily-next').addEventListener('click', nextDailyQuestion);
     document.addEventListener('keydown', event => {
       if (event.key !== 'Enter' || event.repeat) return;
