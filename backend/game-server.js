@@ -161,6 +161,20 @@ function publicDailyQuestion(question, index) {
   return engine.publicQuestion(question, index);
 }
 
+function maximumDailyScore(payload) {
+  const questions = Array.isArray(payload && payload.questions) ? payload.questions : [];
+  return questions.reduce((total, question) => {
+    const bestAnswer = (Array.isArray(question.answers) ? question.answers : []).reduce((best, entry) => {
+      const rawRarity = Number(entry.rarity);
+      const rarity = Number.isFinite(rawRarity)
+        ? Math.max(0, Math.min(engine.POINTS_BY_LEVEL.length - 1, Math.floor(rawRarity)))
+        : 0;
+      return Math.max(best, engine.POINTS_BY_LEVEL[rarity] || 0);
+    }, 0);
+    return total + bestAnswer;
+  }, 0);
+}
+
 async function loadApprovedAnswers(questionIds) {
   if (!questionIds.length) return [];
   const result = await pool.query(
@@ -614,6 +628,7 @@ async function dailyStart(request, response) {
     date: utcDate(),
     index: 0,
     question: publicDailyQuestion(question, 0),
+    maxPossibleScore: maximumDailyScore(challenge.payload),
     seconds: DAILY_SECONDS
   });
 }
@@ -850,23 +865,26 @@ async function dailyFlightDistribution(response, date) {
     sendError(response, 400, 'A valid UTC edition date is required.', 'invalid_date');
     return;
   }
-  const result = await pool.query(
-    'SELECT COALESCE(r.final_score, r.provisional_score, 0)::int AS score ' +
-    'FROM humanity_daily_runs r ' +
-    'JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
-    'WHERE c.challenge_date = $1 AND r.status = $2',
-    [day, 'completed']
-  );
+  const [result, challengeResult] = await Promise.all([
+    pool.query(
+      'SELECT COALESCE(r.final_score, r.provisional_score, 0)::int AS score ' +
+      'FROM humanity_daily_runs r ' +
+      'JOIN humanity_daily_challenges c ON c.id = r.challenge_id ' +
+      'WHERE c.challenge_date = $1 AND r.status = $2',
+      [day, 'completed']
+    ),
+    pool.query('SELECT payload FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1', [day])
+  ]);
   const scores = result.rows.map(row => Math.max(0, Math.min(700, Number(row.score) || 0)));
-  const buckets = [
-    { min: 0, max: 99, label: '0–99' },
-    { min: 100, max: 199, label: '100–199' },
-    { min: 200, max: 299, label: '200–299' },
-    { min: 300, max: 399, label: '300–399' },
-    { min: 400, max: 499, label: '400–499' },
-    { min: 500, max: 599, label: '500–599' },
-    { min: 600, max: 700, label: '600–700' }
-  ].map(bucket => ({ ...bucket, count: 0 }));
+  const theoreticalMaximum = maximumDailyScore(challengeResult.rows[0] && challengeResult.rows[0].payload);
+  const observedMaximum = scores.length ? Math.max(...scores) : 0;
+  const maxScore = Math.max(1, theoreticalMaximum, observedMaximum);
+  const bucketCount = Math.max(1, Math.ceil(maxScore / 100));
+  const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const min = index * 100;
+    const max = index === bucketCount - 1 ? maxScore : min + 99;
+    return { min, max, label: min === max ? String(min) : min + '–' + max, count: 0 };
+  });
   scores.forEach(score => {
     const index = Math.min(buckets.length - 1, Math.floor(score / 100));
     buckets[index].count += 1;
@@ -887,6 +905,7 @@ async function dailyFlightDistribution(response, date) {
     date: day,
     participants: scores.length,
     averageScore,
+    maxScore,
     mostCommon: mostCommon ? {
       min: mostCommon.min, max: mostCommon.max, label: mostCommon.label, count: mostCommon.count
     } : null,

@@ -2,7 +2,7 @@
 
 const crypto = require('node:crypto');
 
-const POINTS_BY_LEVEL = [10, 20, 35, 55, 75, 100];
+const POINTS_BY_LEVEL = [10, 20, 40, 60, 80, 100];
 const LEVEL_NAMES = ['Familiar', 'Known', 'Uncommon', 'Rare', 'Remarkable', 'Exceptional'];
 
 function normaliseAnswer(value) {

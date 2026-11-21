@@ -12,7 +12,7 @@
     questionIndex: 0, question: null, pendingNextIndex: null,
     provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
-    result: null, currentRanking: 'daily', authMode: 'login', practice: null, ascentPoints: 0,
+    result: null, currentRanking: 'daily', authMode: 'login', practice: null, ascentPoints: 0, ascentMaxPoints: 700,
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
     dailyAdvanceTimer: null,
     partySuggestionTimer: null, partySuggestionSequence: 0, pendingPartySuggestion: null,
@@ -278,11 +278,12 @@
   function updateAscentProgress(points) {
     const earned = points == null || !Number.isFinite(Number(points))
       ? 0 : Math.max(0, Number(points));
-    state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0) + earned));
-    const ratio = state.ascentPoints / 700;
+    const maximum = Math.max(1, Number(state.ascentMaxPoints) || 700);
+    state.ascentPoints = Math.max(0, Math.min(maximum, Number(state.ascentPoints || 0) + earned));
+    const ratio = state.ascentPoints / maximum;
     // Linear distance per Discovery Point. Duration scales with distance,
     // so every answer moves the camera at the same fast, steady speed.
-    const travelPerMove = 681.5 * earned / 700;
+    const travelPerMove = 681.5 * earned / maximum;
     const duration = earned > 0 ? Math.max(180, Math.round(travelPerMove / 48 * 1000)) : 900;
     const view = $('#view-daily');
     const world = $('#atlas-space-world');
@@ -351,6 +352,7 @@
       state.practice = null;
       state.runId = result.runId;
       state.provisionalScore = 0;
+      state.ascentMaxPoints = Number(result.maxPossibleScore) || 700;
       resetAscent();
       setAscentVisible(true);
       $('#attempt-label').textContent = 'OFFICIAL RUN · 7 QUESTIONS';
@@ -563,7 +565,8 @@ function renderFlightDistribution(result) {
         (count ? '<text x="' + (x + barWidth / 2).toFixed(1) + '" y="' + Math.max(top - 3, y - 7).toFixed(1) + '" text-anchor="middle" class="flight-chart-count">' + count + '</text>' : '') +
         '</g>';
     }).join('');
-    const averageX = average == null ? null : left + Math.max(0, Math.min(700, average)) / 700 * plotWidth;
+    const chartMaximum = Math.max(1, Number(result.maxScore) || 700);
+    const averageX = average == null ? null : left + Math.max(0, Math.min(chartMaximum, average)) / chartMaximum * plotWidth;
     const averageLine = averageX == null ? '' :
       '<line x1="' + averageX.toFixed(1) + '" y1="' + (top - 5) + '" x2="' + averageX.toFixed(1) + '" y2="' + bottom + '" class="flight-chart-average"/>' +
       '<text x="' + averageX.toFixed(1) + '" y="12" text-anchor="middle" class="flight-chart-average-label">AVG</text>';
@@ -703,6 +706,10 @@ function renderFlightDistribution(result) {
       state.pendingNextIndex = null;
       state.advancing = false;
       state.provisionalScore = 0;
+      state.ascentMaxPoints = questions.reduce((sum, question) => {
+        const best = Math.max(0, ...(question.answers || []).map(entry => Number(entry.points) || 0));
+        return sum + best;
+      }, 0) || 700;
       resetAscent();
       setAscentVisible(true);
       $('#edition-label').textContent = 'ARCHIVE EDITION';
