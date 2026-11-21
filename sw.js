@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'humanity-universe-v11';
+const CACHE_NAME = 'humanity-universe-v12';
 const SHELL = [
   './',
   './index.html',
