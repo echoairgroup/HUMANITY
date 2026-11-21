@@ -263,6 +263,18 @@
         voice(523, 0.09, 0.11, 0.022, 'sine');
         voice(659, 0.18, 0.15, 0.018, 'sine');
         break;
+      case 'your-turn':
+        chord([523, 784, 1046], 0.07, 0.2, 0.03, 'triangle');
+        break;
+      case 'power-up':
+        chord([659, 831, 988, 1318], 0.055, 0.24, 0.03, 'sine');
+        soundNoise(context, 0.04, 0.17, 0.01, 3800);
+        break;
+      case 'eliminated':
+        soundNoise(context, 0, 0.2, 0.025, 1500);
+        voice(262, 0, 0.26, 0.038, 'triangle', 98);
+        voice(131, 0.1, 0.31, 0.028, 'sawtooth', 45);
+        break;
       case 'join': chord([392, 523, 659], 0.07, 0.2, 0.024, 'sine'); break;
       case 'orb-pass':
         soundNoise(context, 0, 0.15, 0.022, 2500);
@@ -1422,6 +1434,7 @@ function renderFlightDistribution(result) {
         clearPartySuggestion();
       }
       playSound('orb-pass');
+      if (message.gainedHeart) playSound('power-up');
     } else if (message.type === 'orb_overload') {
       const stage = $('#orb-stage');
       clearTimeout(state.orbOverloadTimer);
@@ -1436,7 +1449,7 @@ function renderFlightDistribution(result) {
       $('#rush-feedback').textContent = message.nickname + ' held the Atlas Orb when it overloaded.' +
         (message.eliminated ? ' Eliminated.' : ' One Stability Point lost.');
       $('#rush-feedback').classList.remove('success');
-      playSound('overload');
+      playSound(message.eliminated && message.nickname === nickname() ? 'eliminated' : 'overload');
     } else if (message.type === 'new_round') {
       playSound('category');
       const reason = message.reason === 'mistakes'
@@ -1671,9 +1684,12 @@ function renderFlightDistribution(result) {
       $('#rush-submit').innerHTML = holding
         ? 'PASS THE ORB <span aria-hidden="true">↗</span>'
         : 'READY FOR YOUR TURN';
-      if (holding && (!previousMe || !previousMe.isHolder) && $('#rush-answer').value.trim()) {
-        $('#rush-feedback').textContent = 'Your draft is ready — press Enter to pass the Orb.';
-        $('#rush-feedback').classList.remove('success');
+      if (holding && (!previousMe || !previousMe.isHolder)) {
+        playSound('your-turn');
+        if ($('#rush-answer').value.trim()) {
+          $('#rush-feedback').textContent = 'Your draft is ready — press Enter to pass the Orb.';
+          $('#rush-feedback').classList.remove('success');
+        }
       }
       if (me && !me.alive) {
         $('#rush-answer').placeholder = 'You are out of this round';
