@@ -100,6 +100,48 @@ function categoryRotationReason(wrongAnswers, acceptedTurns, settings = DEFAULT_
   return null;
 }
 
+function answerEditDistance(left, right) {
+  const a = String(left || '');
+  const b = String(right || '');
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = previous[0];
+    previous[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const above = previous[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      previous[j] = Math.min(previous[j] + 1, previous[j - 1] + 1, diagonal + cost);
+      diagonal = above;
+    }
+  }
+  return previous[b.length];
+}
+
+function findPartyAnswerSuggestion(category, rawAnswer, usedAnswers) {
+  const target = engine.normaliseAnswer(rawAnswer);
+  if (!category || !target || target.length < 4 || target.length > 80) return null;
+  if (engine.matchAnswer(category, rawAnswer)) return null;
+  const used = new Set((usedAnswers || []).map(item => engine.normaliseAnswer(item.name || item)));
+  const threshold = target.length >= 8 ? 2 : 1;
+  const matches = [];
+  for (const entry of category.answers || []) {
+    if (used.has(engine.normaliseAnswer(entry.name))) continue;
+    let best = Infinity;
+    for (const label of [entry.name].concat(entry.aliases || [])) {
+      const candidate = engine.normaliseAnswer(label);
+      const distance = candidate.startsWith(target) ? 0 : answerEditDistance(target, candidate);
+      best = Math.min(best, distance);
+    }
+    if (best <= threshold) matches.push({ answer: entry.name, distance: best });
+  }
+  if (!matches.length) return null;
+  const minimum = Math.min(...matches.map(item => item.distance));
+  const winners = [...new Map(matches.filter(item => item.distance === minimum)
+    .map(item => [engine.normaliseAnswer(item.answer), item])).values()];
+  return winners.length === 1 && engine.normaliseAnswer(winners[0].answer) !== target
+    ? winners[0].answer : null;
+}
+
 function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) {
   const rooms = new Map();
   const sockets = new WeakMap();
@@ -127,6 +169,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       } : null,
       currentHolderId: room.currentHolderId,
       turnNumber: room.turnNumber,
+      targetMin: room.targetMin,
+      autoStartInMs: room.autoStartAt ? Math.max(0, room.autoStartAt - Date.now()) : null,
       wrongAnswersThisCategory: room.wrongAnswersThisCategory,
       turnsThisCategory: room.turnsThisCategory,
       settings: { ...room.settings },
@@ -465,7 +509,12 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       roomCode: room.code,
       playerId: player.id
     });
+    const privateThreshold = Math.max(2, Number(room.targetMin || 2), Number(room.capacity || 10) - 1);
+    const startsAutomatically = room.visibility === 'private' && room.phase === 'lobby' &&
+      room.players.length >= privateThreshold && !room.autoStartAt;
+    if (startsAutomatically) room.autoStartAt = Date.now() + 3500;
     broadcastState(room);
+    if (startsAutomatically) broadcast(room, { type: 'match_ready', startsInMs: 3500 });
   }
 
   async function joinQueue(socket, message) {
@@ -511,6 +560,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const joinedRoom = rooms.get((sockets.get(socket) || {}).roomCode);
     if (joinedRoom && joinedRoom.players.length >= joinedRoom.targetMin && !joinedRoom.autoStartAt) {
       joinedRoom.autoStartAt = Date.now() + 4500;
+      broadcastState(joinedRoom);
       broadcast(joinedRoom, { type: 'match_ready', startsInMs: 4500 });
     }
   }
@@ -598,6 +648,21 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
     const { room, player } = membership;
     room.lastActivityAt = now;
+
+    if (message.type === 'suggest_answer') {
+      const typed = String(message.answer || '').trim().slice(0, 80);
+      const categoryId = String(message.categoryId || '').slice(0, 100);
+      if (room.phase !== 'playing' || !room.category || categoryId !== room.category.id) return;
+      const suggestion = findPartyAnswerSuggestion(room.category, typed, room.usedAnswers);
+      safeSend(socket, {
+        type: 'answer_suggestion',
+        requestId: Number(message.requestId) || 0,
+        categoryId,
+        typed,
+        suggestion
+      });
+      return;
+    }
 
     if (message.type === 'update_room_settings') {
       if (player.id !== room.hostId || room.visibility !== 'private' || room.mode !== 'private') {
@@ -706,6 +771,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       broadcast(room, {
         type: 'answer_accepted',
+        playerId: player.id,
         nickname: player.nickname,
         answer: resolved.name,
         level: resolved.level,
@@ -793,6 +859,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       return;
     }
     if (room.hostId === player.id) room.hostId = room.players[0].id;
+    if (room.visibility === 'private' && room.phase === 'lobby') {
+      const launchThreshold = Math.max(2, Number(room.targetMin || 2), Number(room.capacity || 10) - 1);
+      if (room.players.length < launchThreshold) room.autoStartAt = null;
+    }
     if (room.currentHolderId === player.id && room.phase === 'playing') {
       const next = nextAlive(room, player.id);
       startPlayerTurn(room, next ? next.id : null);
