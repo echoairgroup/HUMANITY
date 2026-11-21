@@ -152,11 +152,29 @@
       panel.innerHTML = '';
     }
   }
+  function clearFlyingRarity() {
+    const chip = $('#atlas-flying-rarity');
+    if (!chip) return;
+    chip.hidden = true;
+    chip.classList.remove('is-flying');
+  }
+  function showFlyingRarity(level, points, rarity) {
+    const chip = $('#atlas-flying-rarity');
+    if (!chip) return;
+    chip.dataset.rarity = String(Math.max(0, Math.min(5, Number(rarity) || 0)));
+    $('#atlas-flying-rarity-level').textContent = String(level || 'FAMILIAR').toUpperCase();
+    $('#atlas-flying-rarity-points').textContent = '+' + number.format(points || 0) + ' PTS';
+    chip.hidden = false;
+    chip.classList.remove('is-flying');
+    void chip.offsetWidth;
+    chip.classList.add('is-flying');
+  }
   function clearDailyReaction() {
     clearTimeout(state.dailyAdvanceTimer);
     state.dailyAdvanceTimer = null;
     const panel = $('#daily-answer-reaction');
     if (panel) { panel.hidden = true; panel.classList.remove('visible'); }
+    clearFlyingRarity();
   }
   function clearPartySuggestion() {
     clearTimeout(state.partySuggestionTimer);
@@ -493,7 +511,12 @@
     if (!panel) return;
     if ($('#daily-play').hidden) setDailySection('daily-play');
 
-    if (accepted) updateAscentProgress(points);
+    if (accepted) {
+      updateAscentProgress(points);
+      showFlyingRarity(level, points, rarity);
+    } else {
+      clearFlyingRarity();
+    }
     panel.dataset.rarity = String(Math.max(0, Math.min(5, Number(rarity) || 0)));
     $('#daily-reaction-level').textContent = accepted ? String(level || 'Known').toUpperCase() : 'TIME UP';
     $('#daily-reaction-points').textContent = accepted
@@ -1514,6 +1537,9 @@ function renderFlightDistribution(result) {
       });
     });
     $('#daily-archive-exit').addEventListener('click', returnToToday);
+    $('#atlas-flying-rarity').addEventListener('animationend', event => {
+      if (event.animationName === 'atlas-rarity-flight') clearFlyingRarity();
+    });
     $('#daily-return-today').addEventListener('click', returnToToday);
     $('#quick-play').addEventListener('click', () => queueMatch('quick', $('#quick-group').value));
     $('#ranked-play').addEventListener('click', () => queueMatch('ranked', $('#ranked-group').value));

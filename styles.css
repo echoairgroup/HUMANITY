@@ -3262,3 +3262,97 @@ body.reduce-motion #view-daily .atlas-space-world,body.reduce-motion #view-daily
 :where(button,a,input,select,textarea):focus-visible { outline:2px solid #80dce8;outline-offset:3px; }
 @media(max-width:700px) { .cookie-banner { right:10px;bottom:10px;width:calc(100vw - 20px);grid-template-columns:1fr;gap:10px;padding:12px; } .cookie-banner-actions { justify-content:flex-end; } .cookie-banner-copy p { font-size:13px; } }
 @media(prefers-reduced-motion:reduce) { #view-daily .atlas-space-world,#view-daily .atlas-stars,#view-daily .atlas-planet-earth { transition:none !important; } #view-daily .atlas-planet-earth { transform:translateY(-50%) scale(calc(1 - var(--flight-progress,0) * .82)); } }
+
+
+/* Atlas Daily — rarity tag that makes one celebratory flight after each answer */
+.atlas-flying-rarity {
+  --rarity-accent:#79d9e8;
+  position:fixed;
+  z-index:28;
+  top:0;
+  left:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:126px;
+  padding:7px 12px 7px 9px;
+  border:1px solid color-mix(in srgb,var(--rarity-accent) 66%,transparent);
+  border-left:3px solid var(--rarity-accent);
+  border-radius:4px 12px 12px 4px;
+  color:#f0f8ff;
+  background:linear-gradient(118deg,rgba(7,25,46,.97),rgba(12,39,66,.9));
+  box-shadow:0 8px 26px rgba(0,0,0,.34),0 0 20px color-mix(in srgb,var(--rarity-accent) 22%,transparent);
+  backdrop-filter:blur(10px);
+  pointer-events:none;
+  opacity:0;
+  will-change:transform,opacity;
+}
+.atlas-flying-rarity[hidden] { display:none !important; }
+.atlas-flying-rarity[data-rarity="0"] { --rarity-accent:#8fc7df; }
+.atlas-flying-rarity[data-rarity="1"] { --rarity-accent:#72d9d0; }
+.atlas-flying-rarity[data-rarity="2"] { --rarity-accent:#9cda91; }
+.atlas-flying-rarity[data-rarity="3"] { --rarity-accent:#f1c56f; }
+.atlas-flying-rarity[data-rarity="4"] { --rarity-accent:#eda1cb; }
+.atlas-flying-rarity[data-rarity="5"] { --rarity-accent:#ffe08a; }
+.atlas-flying-rarity-icon {
+  display:grid;
+  place-items:center;
+  width:23px;
+  height:23px;
+  flex:0 0 23px;
+  border:1px solid color-mix(in srgb,var(--rarity-accent) 52%,transparent);
+  border-radius:50%;
+  color:var(--rarity-accent);
+  font-size:15px;
+  text-shadow:0 0 10px var(--rarity-accent);
+}
+.atlas-flying-rarity-copy { display:flex;flex-direction:column;gap:1px; }
+.atlas-flying-rarity-copy strong {
+  color:var(--rarity-accent);
+  font:16px/1 'VT323',monospace;
+  letter-spacing:.12em;
+  white-space:nowrap;
+}
+.atlas-flying-rarity-copy small {
+  color:#d6e4f1;
+  font:12px/1 'VT323',monospace;
+  letter-spacing:.1em;
+  white-space:nowrap;
+}
+.atlas-flying-rarity.is-flying { animation:atlas-rarity-flight 6.4s cubic-bezier(.45,.04,.2,.98) both; }
+@keyframes atlas-rarity-flight {
+  0% { opacity:0;transform:translate3d(4vw,13vh,0) rotate(-9deg) scale(.72); }
+  8% { opacity:1;transform:translate3d(4vw,13vh,0) rotate(-5deg) scale(1); }
+  23% { opacity:1;transform:translate3d(49vw,17vh,0) rotate(7deg) scale(1); }
+  43% { opacity:1;transform:translate3d(51vw,62vh,0) rotate(-5deg) scale(.98); }
+  64% { opacity:1;transform:translate3d(9vw,69vh,0) rotate(8deg) scale(1.02); }
+  83% { opacity:1;transform:translate3d(29vw,37vh,0) rotate(-4deg) scale(.98); }
+  94% { opacity:1;transform:translate3d(5vw,14vh,0) rotate(2deg) scale(.96); }
+  100% { opacity:0;transform:translate3d(5vw,14vh,0) rotate(8deg) scale(.7); }
+}
+body.reduce-motion .atlas-flying-rarity.is-flying,
+@media(prefers-reduced-motion:reduce) {
+  .atlas-flying-rarity.is-flying {
+    animation:none;
+    opacity:1;
+    transform:translate3d(5vw,14vh,0);
+  }
+}
+@media(max-width:640px) {
+  .atlas-flying-rarity { min-width:112px;padding:6px 9px 6px 7px; }
+  .atlas-flying-rarity-copy strong { font-size:15px; }
+  .atlas-flying-rarity-copy small { font-size:11px; }
+  @keyframes atlas-rarity-flight {
+    0% { opacity:0;transform:translate3d(3vw,13vh,0) rotate(-9deg) scale(.72); }
+    8% { opacity:1;transform:translate3d(3vw,13vh,0) rotate(-5deg) scale(1); }
+    23% { opacity:1;transform:translate3d(39vw,18vh,0) rotate(7deg) scale(1); }
+    43% { opacity:1;transform:translate3d(42vw,61vh,0) rotate(-5deg) scale(.98); }
+    64% { opacity:1;transform:translate3d(3vw,68vh,0) rotate(8deg) scale(1.02); }
+    83% { opacity:1;transform:translate3d(26vw,37vh,0) rotate(-4deg) scale(.98); }
+    94% { opacity:1;transform:translate3d(3vw,14vh,0) rotate(2deg) scale(.96); }
+    100% { opacity:0;transform:translate3d(3vw,14vh,0) rotate(8deg) scale(.7); }
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .atlas-flying-rarity.is-flying { animation:none;opacity:1;transform:translate3d(4vw,13vh,0); }
+}
