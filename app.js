@@ -12,7 +12,7 @@
     questionIndex: 0, question: null, pendingNextIndex: null,
     provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
-    result: null, currentRanking: 'daily', authMode: 'login', practice: null,
+    result: null, currentRanking: 'daily', authMode: 'login', practice: null, ascentPoints: 0,
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
     orbOverloadTimer: null, onlineRefreshTimer: null, sounds: localStorage.getItem('humanity-sound') !== 'false',
     animations: localStorage.getItem('humanity-motion') !== 'false'
@@ -134,8 +134,69 @@
       if (el) el.hidden = name !== id;
     });
   }
+  function setAscentVisible(visible) {
+    const panel = $('#daily-ascent-panel');
+    if (panel) panel.hidden = !visible;
+    $('#daily-archive-exit').hidden = !(visible && state.practice);
+  }
+  function updateAscentProgress(points, level) {
+    const previous = state.ascentPoints;
+    state.ascentPoints = Math.max(0, Math.min(700, Number(state.ascentPoints || 0)));
+    if (Number.isFinite(Number(points))) state.ascentPoints = Math.max(0, Math.min(700, state.ascentPoints + Number(points)));
+    const altitude = Math.round(state.ascentPoints * 10);
+    const ratio = Math.max(0, Math.min(1, state.ascentPoints / 700));
+    const explorer = $('#ascent-explorer');
+    const scene = $('#rarity-ascent-scene');
+    const progress = $('#ascent-progress');
+    if (!explorer || !scene || !progress) return;
+    const levelNames = ['FAMILIAR', 'KNOWN', 'UNCOMMON', 'RARE', 'REMARKABLE', 'EXCEPTIONAL'];
+    const levelDescriptions = [
+      'A familiar answer gets your climb underway.',
+      'A less obvious discovery lifts you into the lower clouds.',
+      'An uncommon answer carries you above the cloud line.',
+      'A rare discovery sends your explorer higher.',
+      'A remarkable answer reaches the upper atmosphere.',
+      'An exceptional answer takes your explorer toward orbit.'
+    ];
+    const levelIndex = Number.isFinite(Number(level)) ? Math.max(0, Math.min(5, Math.round(Number(level)))) : 0;
+    scene.dataset.level = String(levelIndex);
+    explorer.style.setProperty('--ascent-bottom', (14 + ratio * 188).toFixed(1) + 'px');
+    progress.style.width = (ratio * 100).toFixed(2) + '%';
+    $('#ascent-altitude-label').textContent = number.format(altitude) + ' M';
+    $('#ascent-level-label').textContent = number.format(altitude) + ' / 7,000 M';
+    $('#ascent-description').textContent = points ? levelDescriptions[levelIndex] : 'Your explorer rises with every rare discovery.';
+    if (points && state.ascentPoints > previous) {
+      const flare = $('#ascent-rise-flare');
+      flare.classList.remove('climbing');
+      void flare.offsetWidth;
+      flare.classList.add('climbing');
+    }
+  }
+  function resetAscent() {
+    state.ascentPoints = 0;
+    updateAscentProgress(null, 0);
+  }
+  async function returnToToday() {
+    stopDailyTimer();
+    state.runId = null;
+    state.practice = null;
+    state.pendingNextIndex = null;
+    state.advancing = false;
+    resetAscent();
+    setAscentVisible(false);
+    $('#attempt-label').textContent = 'ONE OFFICIAL RUN';
+    $('#edition-label').textContent = "TODAY'S EDITION";
+    $('#daily-return-today').hidden = true;
+    await loadDaily();
+  }
+
   async function loadDaily() {
     try {
+      state.practice = null;
+      setAscentVisible(false);
+      $('#attempt-label').textContent = 'ONE OFFICIAL RUN';
+      $('#edition-label').textContent = "TODAY'S EDITION";
+      $('#daily-return-today').hidden = true;
       const result = await api('/daily/current');
       state.daily = result;
       $('#edition-date').textContent = fmtDate(result.date);
@@ -167,8 +228,13 @@
     button.textContent = 'Preparing today’s Atlas…';
     try {
       const result = await api('/daily/start', { method: 'POST', body: { guestId: state.guestId } });
+      state.practice = null;
       state.runId = result.runId;
       state.provisionalScore = 0;
+      resetAscent();
+      setAscentVisible(true);
+      $('#attempt-label').textContent = 'OFFICIAL RUN · 7 QUESTIONS';
+      $('#daily-return-today').hidden = true;
       updateQuestion(result.question, result.index);
       setDailySection('daily-play');
       startDailyTimer(result.seconds || 25);
@@ -275,35 +341,13 @@
     $('#result-stamp').textContent = accepted ? 'ANSWER ACCEPTED' : 'TIME IS UP';
     $('#result-title').textContent = accepted ? 'Nicely found.' : 'The next question awaits.';
     $('#result-description').textContent = accepted
-      ? '“' + answer + '” is approved. ' + number.format(sameAnswerCount || 1) + ' player(s) have named it so far.'
+      ? (state.practice
+        ? '“' + answer + '” is approved in this archived edition. This replay does not affect official rankings.'
+        : '“' + answer + '” is approved. ' + number.format(sameAnswerCount || 1) + ' player(s) have named it so far.')
       : 'No answer was locked in this round. Here are some approved answers to learn from.';
     $('#result-level').textContent = accepted ? String(level || 'Known').toUpperCase() : '—';
     $('#result-points').textContent = number.format(points || 0);
-    const ascent = $('#rarity-ascent');
-    ascent.hidden = !accepted;
-    if (accepted) {
-      const levels = [
-        { bottom: 10, altitude: 'GROUND LEVEL', detail: 'A familiar discovery starts your climb.' },
-        { bottom: 29, altitude: 'LOW CLOUDS', detail: 'A less familiar answer lifts you above the skyline.' },
-        { bottom: 48, altitude: 'CLOUD LAYER', detail: 'An uncommon discovery carries you higher.' },
-        { bottom: 67, altitude: 'HIGH ALTITUDE', detail: 'A rare answer pushes you into the upper sky.' },
-        { bottom: 86, altitude: 'STRATOSPHERE', detail: 'A remarkable answer takes you close to the edge of space.' },
-        { bottom: 105, altitude: 'EDGE OF SPACE', detail: 'Exceptional rarity sends your explorer into orbit.' }
-      ];
-      const levelNames = ['Familiar', 'Known', 'Uncommon', 'Rare', 'Remarkable', 'Exceptional'];
-      const levelIndex = Number.isFinite(Number(rarity))
-        ? Math.max(0, Math.min(5, Math.round(Number(rarity))))
-        : Math.max(0, levelNames.indexOf(String(level || 'Known')));
-      const ascentLevel = levels[levelIndex];
-      $('#rarity-ascent-scene').dataset.level = String(levelIndex);
-      const explorer = $('#ascent-explorer');
-      explorer.style.setProperty('--ascent-bottom', '10px');
-      void explorer.offsetHeight;
-      requestAnimationFrame(() => explorer.style.setProperty('--ascent-bottom', ascentLevel.bottom + 'px'));
-      $('#ascent-altitude-label').textContent = ascentLevel.altitude;
-      $('#ascent-description').textContent = ascentLevel.detail;
-      $('#ascent-level-label').textContent = 'DISCOVERY LEVEL ' + (levelIndex + 1) + ' / 6';
-    }
+    if (accepted) updateAscentProgress(points, rarity);
     $('#answer-sheet-count').textContent = reveal.length + ' approved answers';
     $('#answer-sheet-list').innerHTML = reveal.map(item =>
       '<span class="answer-chip">' + esc(item.answer) + ' <b>' + number.format(item.points || 0) + '</b></span>'
