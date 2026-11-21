@@ -2529,7 +2529,7 @@ body.globe-rush-active .daily-ascent-panel .ascent-star-three { top:9px; right:1
 
 @media(max-width:760px) {
   .daily-panel { overflow:visible; }
-  .daily-ascent-panel { position:relative; top:auto; }
+  .daily-ascent-panel { position:sticky; top:8px; }
   .daily-ascent-scene { height:150px; }
   .daily-ascent-heading > div:first-child strong { font-size:14px; }
   body.globe-rush-active .planet-private-settings-grid { grid-template-columns:1fr 1fr; }
