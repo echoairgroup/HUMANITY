@@ -627,9 +627,14 @@
 
   <dialog class="modal settings-modal" id="settings-modal">
     <div class="modal-head"><div><span class="micro-label">MAKE IT YOURS</span><h2>Settings</h2></div><button class="modal-close" type="button" data-close-modal="settings-modal" aria-label="Close">×</button></div>
-    <label class="setting-row"><span><strong>Sound effects</strong><small>Feedback sounds during the games</small></span><input type="checkbox" id="setting-sound" checked></label>
+    <label class="setting-row"><span><strong>Sound effects</strong><small>Interface, Atlas Daily and Globe Rush audio</small></span><input type="checkbox" id="setting-sound" checked></label>
+    <div class="sound-preferences">
+      <div class="sound-volume-heading"><span><strong>Sound volume</strong><small>Adjust the level of all effects</small></span><output id="setting-sound-volume-label" for="setting-sound-volume">68%</output></div>
+      <input class="sound-volume-slider" type="range" id="setting-sound-volume" min="0" max="100" step="2" value="68" aria-label="Sound effects volume">
+      <button class="sound-preview-button" id="sound-preview" type="button" data-sound-silent>PREVIEW SOUND ↗</button>
+    </div>
     <label class="setting-row"><span><strong>Animations</strong><small>Motion and game transitions</small></span><input type="checkbox" id="setting-motion" checked></label>
-    <p class="modal-note">Your preferences are saved on this device.</p>
+    <p class="modal-note">Your sound, volume and motion preferences are saved on this device.</p>
   </dialog>
 
   <dialog class="modal admin-modal" id="admin-modal">
