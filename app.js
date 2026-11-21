@@ -298,6 +298,7 @@
       $('#rarity-ascent-scene').dataset.level = String(levelIndex);
       const explorer = $('#ascent-explorer');
       explorer.style.setProperty('--ascent-bottom', '10px');
+      void explorer.offsetHeight;
       requestAnimationFrame(() => explorer.style.setProperty('--ascent-bottom', ascentLevel.bottom + 'px'));
       $('#ascent-altitude-label').textContent = ascentLevel.altitude;
       $('#ascent-description').textContent = ascentLevel.detail;
@@ -1075,6 +1076,20 @@
       if (value.length < 2 || value.length > 18) { toast('Display names must be 2–18 characters.'); return; }
       localStorage.setItem('humanity-display-name', value);
     });
+    const startingLivesControl = $('#private-starting-lives');
+    const maximumLivesControl = $('#private-max-lives');
+    if (startingLivesControl && maximumLivesControl) {
+      startingLivesControl.addEventListener('change', () => {
+        if (Number(maximumLivesControl.value) < Number(startingLivesControl.value)) {
+          maximumLivesControl.value = startingLivesControl.value;
+        }
+      });
+      maximumLivesControl.addEventListener('change', () => {
+        if (Number(maximumLivesControl.value) < Number(startingLivesControl.value)) {
+          startingLivesControl.value = maximumLivesControl.value;
+        }
+      });
+    }
     $('#quick-play').addEventListener('click', () => queueMatch('quick', $('#quick-group').value));
     $('#ranked-play').addEventListener('click', () => queueMatch('ranked', $('#ranked-group').value));
     $('#create-room-form').addEventListener('submit', event => {
