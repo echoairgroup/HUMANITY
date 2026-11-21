@@ -662,6 +662,7 @@ async function dailyGuess(request, response, skip) {
       accepted: true,
       answer: match.name,
       level: match.level,
+      rarity: match.rarity,
       provisionalPoints: match.points,
       sameAnswerCount: usage.rows[0].count,
       completed: complete,
@@ -972,6 +973,12 @@ async function handleAPI(request, response, url, party) {
   }
   if (request.method === 'GET' && url.pathname === '/api/daily/leaderboard') {
     await dailyLeaderboard(response, url.searchParams.get('date'));
+    return true;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/party/online') {
+    const stats = party.getLiveStats();
+    sendJSON(response, 200, { ok: true, players: stats.players, rooms: stats.rooms });
     return true;
   }
 
