@@ -283,6 +283,11 @@
         voice(880, 0, 0.055, 0.015, 'sine');
         voice(1175, 0.055, 0.075, 0.012, 'sine');
         break;
+      case 'leave':
+        voice(659, 0, 0.09, 0.018, 'sine');
+        voice(494, 0.075, 0.11, 0.016, 'sine');
+        voice(392, 0.15, 0.14, 0.014, 'sine');
+        break;
       case 'victory':
         chord([523, 659, 784, 1046, 1318], 0.1, 0.38, 0.034, 'sine');
         voice(1568, 0.42, 0.3, 0.025, 'sine');
@@ -672,7 +677,7 @@
         state.unlimited.questionsPlayed=Number(result.nextIndex||0);
         state.pendingNextIndex=state.unlimited.questionsPlayed;
         showDailyResult(true,result.answer,result.level,result.provisionalPoints,result.reveal||[],1,result.rarity);
-        playSound('answer');
+        playSound('answer', { rarity: result.rarity });
       } catch(error) {
         $('#daily-feedback').textContent=error.message;
       } finally { $('#daily-submit').disabled=state.pendingNextIndex!==null; }
@@ -697,7 +702,7 @@
         state.pendingNextIndex = state.questionIndex + 1;
         const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
         showDailyResult(true, entry.answer, entry.level, entry.points, reveal, 1, entry.rarity);
-        playSound('answer');
+        playSound('answer', { rarity: entry.rarity });
         return;
       }
       const result = await api('/daily/answer', {
@@ -720,7 +725,7 @@
       state.provisionalScore += Number(result.provisionalPoints || 0);
       state.pendingNextIndex = result.nextIndex;
       showDailyResult(true, result.answer, result.level, result.provisionalPoints, result.reveal || [], result.sameAnswerCount || 1, result.rarity);
-      playSound('answer');
+      playSound('answer', { rarity: result.rarity });
     } catch (error) {
       $('#daily-feedback').textContent = error.message;
       if (error.status === 409) { stopDailyTimer(); toast('This question has already been completed.'); }
@@ -1318,6 +1323,7 @@ function renderFlightDistribution(result) {
     try {
       const result = await api(register ? '/auth/register' : '/auth/login', { method: 'POST', body });
       saveSession(result.token, result.player);
+      playSound('join');
       $('#auth-form').reset();
       closeModal('account-modal');
       await loadProfile(true);
@@ -1387,6 +1393,7 @@ function renderFlightDistribution(result) {
       state.room = message;
       renderRoomState(message, previousRoom);
     } else if (message.type === 'room_settings_saved') {
+      playSound('toggle');
       $('#private-settings-feedback').textContent = 'Settings saved for this room.';
     } else if (message.type === 'timer') {
       updatePartyTimer(message.remainingMs, message.holderId, message.durationMs);
@@ -1778,6 +1785,7 @@ function renderFlightDistribution(result) {
     loadPartyMiniRanking();
   }
   function resetRoomUI() {
+    playSound('leave');
     clearGlobeRushEffects();
     clearPartySuggestion();
     state.room = null; state.roomCode = null; state.playerId = null; state.result = null;
@@ -1881,6 +1889,7 @@ function renderFlightDistribution(result) {
     if (!username) return;
     try {
       await api('/friends/request', { method: 'POST', body: { username } });
+      playSound('join');
       $('#friend-username').value = '';
       toast('Friend request sent.');
       loadFriends();
