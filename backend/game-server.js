@@ -697,6 +697,79 @@ async function dailyGuess(request, response, skip) {
   });
 }
 
+
+function suggestionEditDistance(left, right) {
+  const a = String(left || '');
+  const b = String(right || '');
+  const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+function findDailyAnswerSuggestion(question, rawAnswer) {
+  const target = engine.normaliseAnswer(rawAnswer);
+  if (!target || target.length < 4 || engine.matchAnswer(question, rawAnswer)) return null;
+  const threshold = target.length >= 8 ? 2 : 1;
+  const matches = [];
+  for (const entry of question.answers || []) {
+    const names = [entry.name].concat(entry.aliases || []);
+    let best = Infinity;
+    for (const name of names) {
+      const candidate = engine.normaliseAnswer(name);
+      if (candidate === target) return null;
+      const prefix = target.length >= 4 && candidate.length > target.length && candidate.startsWith(target);
+      const distance = prefix ? 0 : suggestionEditDistance(target, candidate);
+      best = Math.min(best, distance);
+    }
+    if (best <= threshold) matches.push({ answer: entry.name, distance: best });
+  }
+  if (!matches.length) return null;
+  const minimum = Math.min(...matches.map(item => item.distance));
+  const winners = [...new Map(
+    matches.filter(item => item.distance === minimum).map(item => [engine.normaliseAnswer(item.answer), item])
+  ).values()];
+  return winners.length === 1 ? winners[0].answer : null;
+}
+
+async function dailySuggest(request, response) {
+  const body = await readJSON(request);
+  const identity = await getIdentity(request, body);
+  if (!identity) {
+    sendError(response, 400, 'A guest ID or account is required.', 'identity_required');
+    return;
+  }
+  const run = await ownedRun(String(body.runId || ''), identity);
+  if (!run || run.status !== 'in_progress') {
+    sendError(response, 404, 'This Daily attempt is no longer active.', 'run_unavailable');
+    return;
+  }
+  const result = await pool.query(
+    'SELECT payload FROM humanity_daily_challenges WHERE id = $1 LIMIT 1',
+    [run.challenge_id]
+  );
+  const question = result.rows[0] ? runQuestion(run, result.rows[0].payload) : null;
+  if (!question || Number(body.index) !== Number(run.current_question)) {
+    sendJSON(response, 200, { ok: true, suggestion: null });
+    return;
+  }
+  const answer = findDailyAnswerSuggestion(question, body.answer);
+  sendJSON(response, 200, { ok: true, suggestion: answer ? { answer } : null });
+}
+
 async function dailyHint(request, response) {
   const body = await readJSON(request);
   const identity = await getIdentity(request, body);
@@ -928,6 +1001,11 @@ async function handleAPI(request, response, url, party) {
       question: publicDailyQuestion(question, Number(run.current_question)),
       seconds: DAILY_SECONDS
     });
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/daily/suggest') {
+    await dailySuggest(request, response);
     return true;
   }
 
