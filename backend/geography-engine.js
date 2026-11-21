@@ -618,7 +618,7 @@ function pointsForUsage(entry, answerCount, totalAnswers) {
 }
 
 function getQuestion(id) {
-  return QUESTION_BY_ID.get(id) || null;
+  return QUESTION_BY_ID.get(id) || PARTY_QUESTIONS.find(item => item.id === id) || null;
 }
 
 function getPartyQuestion(excludedIds) {
