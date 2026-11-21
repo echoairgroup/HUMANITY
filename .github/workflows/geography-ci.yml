@@ -37,6 +37,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check game-server.js
+          node --check practice-engine.js
           node --check party-server.js
           node --check geography-engine.js
           node --check game-engine.test.js

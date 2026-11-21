@@ -1104,8 +1104,7 @@ async function handleAdmin(request, response, url, user) {
       return true;
     }
     if (action === 'approve') {
-      await pool.query(
-        const rawRarity=Number(body.rarity);
+      const rawRarity=Number(body.rarity);
       const rarity=Number.isInteger(rawRarity)?Math.max(0,Math.min(5,rawRarity)):2;
       const aliases=[];
       const seenAliases=new Set([item.answer_key]);
