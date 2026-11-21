@@ -125,6 +125,16 @@
                 <div><span class="result-label">DISCOVERY LEVEL</span><strong id="result-level">RARE</strong></div>
                 <div class="result-points"><strong id="result-points">55</strong><span>PTS</span></div>
               </div>
+              <div class="rarity-ascent" id="rarity-ascent" hidden aria-live="polite">
+                <div class="rarity-ascent-scene" id="rarity-ascent-scene">
+                  <span class="ascent-star ascent-star-one">✦</span><span class="ascent-star ascent-star-two">·</span><span class="ascent-star ascent-star-three">✧</span>
+                  <span class="ascent-cloud ascent-cloud-one"></span><span class="ascent-cloud ascent-cloud-two"></span><span class="ascent-cloud ascent-cloud-three"></span>
+                  <span class="ascent-horizon"></span>
+                  <span class="ascent-explorer" id="ascent-explorer" aria-hidden="true"><span>✦</span></span>
+                  <span class="ascent-height-mark ascent-height-top">HIGHER</span><span class="ascent-height-mark ascent-height-bottom">GROUND</span>
+                </div>
+                <div class="rarity-ascent-copy"><strong id="ascent-altitude-label">LOW CLOUDS</strong><span id="ascent-description">The rarer your answer, the higher you rise.</span><small id="ascent-level-label">DISCOVERY LEVEL 1 / 6</small></div>
+              </div>
               <div class="answer-sheet">
                 <div class="answer-sheet-heading"><strong>Approved answers</strong><span id="answer-sheet-count">0 found</span></div>
                 <div class="answer-sheet-list" id="answer-sheet-list"></div>
@@ -185,6 +195,7 @@
       <section class="view" id="view-party" data-view-panel="party" hidden>
         <div class="page-intro party-intro">
           <div class="party-intro-copy">
+            <div class="party-live-count" aria-live="polite"><span class="live-dot"></span><strong id="globe-online-count">—</strong><span id="globe-online-label">PLAYERS IN LIVE GAMES</span></div>
             <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · ONE PLANET, ONE ORB</div>
             <h1>GLOBE RUSH</h1>
             <p>Travel the world one answer at a time. Pass the Atlas Orb, name a place that fits the category and keep your crew in the game.</p>
@@ -240,11 +251,24 @@
                 </article>
               </div>
               <div class="party-tools-grid">
-                <form class="room-tool" id="create-room-form">
-                  <div class="room-tool-icon">＋</div><div><strong>Host a private room</strong><p>Invite friends with a room code.</p></div>
-                  <label class="visually-hidden" for="private-capacity">Maximum players</label>
-                  <select class="select-input small-select" id="private-capacity"><option value="10">Up to 10</option><option value="8">Up to 8</option><option value="6">Up to 6</option><option value="4">Up to 4</option><option value="3">Up to 3</option><option value="2">2 players</option></select>
+                <form class="room-tool private-room-tool" id="create-room-form">
+                  <div class="room-tool-icon">＋</div><div class="private-tool-copy"><strong>Host a private room</strong><p>Invite friends with a room code.</p></div>
                   <button class="button button-outline" type="submit">Create room</button>
+                  <div class="private-tool-options">
+                    <label class="private-capacity-field" for="private-capacity"><span>MAX PLAYERS</span>
+                      <select class="select-input" id="private-capacity"><option value="10">Up to 10</option><option value="8">Up to 8</option><option value="6">Up to 6</option><option value="4">Up to 4</option><option value="3">Up to 3</option><option value="2">2 players</option></select>
+                    </label>
+                    <details class="private-settings">
+                      <summary><span>LOBBY SETTINGS</span><small>Lives, turn clock and category pace</small></summary>
+                      <div class="private-settings-grid">
+                        <label>STARTING LIVES<select class="select-input" id="private-starting-lives"><option value="1">1 life</option><option value="2" selected>2 lives</option><option value="3">3 lives</option><option value="4">4 lives</option><option value="5">5 lives</option></select></label>
+                        <label>MAXIMUM LIVES<select class="select-input" id="private-max-lives"><option value="2">2 lives</option><option value="3" selected>3 lives</option><option value="4">4 lives</option><option value="5">5 lives</option><option value="6">6 lives</option></select></label>
+                        <label>TURN CLOCK<select class="select-input" id="private-turn-duration"><option value="0" selected>Random · 10–30 sec</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="25">25 seconds</option><option value="30">30 seconds</option></select></label>
+                        <label>CATEGORY MISTAKES<select class="select-input" id="private-category-misses"><option value="1">1 mistake</option><option value="2" selected>2 mistakes</option><option value="3">3 mistakes</option><option value="4">4 mistakes</option><option value="5">5 mistakes</option></select></label>
+                        <label>CATEGORY TURN LIMIT<select class="select-input" id="private-category-turns"><option value="5">5 turns</option><option value="10" selected>10 turns</option><option value="15">15 turns</option><option value="20">20 turns</option></select></label>
+                      </div>
+                    </details>
+                  </div>
                 </form>
                 <form class="room-tool join-tool" id="join-room-form">
                   <div class="room-tool-icon">⌗</div><div><strong>Join with a code</strong><p>Enter a friend's six-character room code.</p></div>
@@ -341,8 +365,10 @@
 
                 <section class="planet-console-card planet-rules-card">
                   <div class="planet-console-heading"><span>MISSION SETTINGS</span><i>GLOBE RUSH</i></div>
-                  <div class="planet-rule-line"><span>TURN CLOCK</span><b>10–30 SEC</b></div>
-                  <div class="planet-rule-line"><span>CATEGORY CHANGE</span><b>2 MISSES / 10 TURNS</b></div>
+                  <div class="planet-rule-line"><span>STARTING LIVES</span><b id="planet-starting-lives">2 LIVES</b></div>
+                  <div class="planet-rule-line"><span>MAXIMUM LIVES</span><b id="planet-max-lives">3 LIVES</b></div>
+                  <div class="planet-rule-line"><span>TURN CLOCK</span><b id="planet-turn-clock">RANDOM 10–30 SEC</b></div>
+                  <div class="planet-rule-line"><span>CATEGORY CHANGE</span><b id="planet-category-rule">2 MISSES / 10 TURNS</b></div>
                   <div class="planet-rule-line"><span>ROOM CAPACITY</span><b id="planet-capacity">UP TO 10</b></div>
                 </section>
 
