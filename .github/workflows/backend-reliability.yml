@@ -2,7 +2,7 @@ name: HUMANITY Backend Reliability
 
 on:
   schedule:
-    - cron: '15 0,6,12,18 * * *'
+    - cron: '15 12 * * *'
   workflow_dispatch:
 
 concurrency:
