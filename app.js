@@ -1466,6 +1466,8 @@ function renderFlightDistribution(result) {
       playSound('match-ready');
       $('#room-status-note').textContent = 'Match begins automatically in a few seconds…';
       $('#room-start').hidden = true;
+    } else if (message.type === 'game_started') {
+      playSound('match-ready');
     } else if (message.type === 'room_chat') {
       if (message.nickname !== nickname()) playSound('chat');
       renderRoomChatMessage(message);
@@ -1566,6 +1568,10 @@ function renderFlightDistribution(result) {
   }
 
   function renderRoomState(room, previousRoom) {
+    if (previousRoom && Array.isArray(previousRoom.players) && Array.isArray(room.players)) {
+      if (room.players.length > previousRoom.players.length) playSound('join');
+      else if (room.players.length < previousRoom.players.length) playSound('leave');
+    }
     if (previousRoom && previousRoom.phase === 'playing' && room.phase === 'playing' &&
         previousRoom.category?.id !== room.category?.id) {
       $('#rush-answer').value = '';
