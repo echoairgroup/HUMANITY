@@ -3130,3 +3130,85 @@ body.reduce-motion #view-daily .atlas-flight-craft { transition:none !important;
 @media(prefers-reduced-motion:reduce) {
   #view-daily .atlas-space-world,#view-daily .atlas-stars { transition:none !important; }
 }
+
+
+/* Atlas Daily — exponential camera flight and compact discovery feedback */
+#view-daily .atlas-space-world {
+  width:360vw;
+  transform:translate3d(var(--flight-offset,19.26vw),0,0) scale(var(--flight-zoom,1.16));
+  transform-origin:0 50%;
+  transition:transform 5.4s cubic-bezier(.12,.82,.18,1);
+  will-change:transform;
+}
+#view-daily .atlas-space-world .atlas-stars {
+  transform:translate3d(var(--flight-stars-offset,0vw),0,0);
+  transition:transform 5.4s cubic-bezier(.12,.82,.18,1);
+}
+#view-daily .daily-play { position:relative;min-height:calc(100svh - 185px);padding-top:16px; }
+#view-daily .question-top #daily-archive-exit { flex:0 0 auto;margin-left:2px;padding:4px 8px;font-size:11px; }
+.atlas-answer-reaction {
+  position:fixed;z-index:9;top:clamp(94px,14vh,142px);right:clamp(14px,4vw,58px);
+  display:flex;align-items:center;gap:11px;min-width:190px;padding:11px 15px;
+  border:1px solid rgba(124,220,231,.5);border-radius:4px;color:#eaf8ff;
+  background:linear-gradient(145deg,rgba(8,31,59,.94),rgba(4,17,36,.9));
+  box-shadow:0 9px 26px rgba(0,0,0,.25),0 0 22px rgba(101,211,229,.12);
+  backdrop-filter:blur(12px);opacity:0;transform:translateY(-8px) scale(.97);pointer-events:none;
+}
+.atlas-answer-reaction[hidden] { display:none !important; }
+.atlas-answer-reaction.visible { animation:atlas-reaction-in .28s ease-out forwards; }
+.atlas-reaction-icon { display:grid;place-items:center;width:29px;height:29px;border:1px solid rgba(243,190,117,.55);border-radius:50%;color:#f4c47b;background:rgba(243,190,117,.11);font:20px 'VT323',monospace; }
+.atlas-answer-reaction>div { display:grid;gap:2px; }
+.atlas-answer-reaction strong { color:#a6edf0;font:17px 'VT323',monospace;letter-spacing:.12em; }
+.atlas-answer-reaction small { color:#f3c47b;font:12px 'VT323',monospace;letter-spacing:.05em; }
+.atlas-answer-reaction em { max-width:220px;overflow:hidden;color:#92acc5;font:11px 'VT323',monospace;font-style:normal;text-overflow:ellipsis;white-space:nowrap; }
+.atlas-answer-reaction[data-rarity="0"] .atlas-reaction-icon,
+.atlas-answer-reaction[data-rarity="1"] .atlas-reaction-icon { border-color:rgba(129,196,221,.45);color:#a8d9eb;background:rgba(72,145,177,.12); }
+.atlas-answer-reaction[data-rarity="4"] .atlas-reaction-icon,
+.atlas-answer-reaction[data-rarity="5"] .atlas-reaction-icon { border-color:rgba(243,190,117,.7);color:#ffd28d;background:rgba(243,190,117,.15); }
+@keyframes atlas-reaction-in { to { opacity:1;transform:translateY(0) scale(1); } }
+
+/* Globe Rush — keep a local answer draft ready while the Orb is elsewhere */
+#view-party .rush-answer-area {
+  width:min(760px,100%);max-width:760px;margin:0 auto;padding:13px 14px 10px;
+  border:1px solid rgba(103,171,204,.38);border-radius:9px;
+  background:linear-gradient(145deg,rgba(8,27,52,.93),rgba(5,17,37,.94));
+  box-shadow:0 10px 28px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.05);
+}
+#view-party .rush-answer-area .answer-form { gap:9px; }
+#view-party .rush-answer-area .answer-form input {
+  min-height:50px;border:1px solid #3d6688;border-radius:5px;color:#eef8ff;background:#07182f;
+  transition:border-color .18s,box-shadow .18s,background .18s;
+}
+#view-party .rush-answer-area .answer-form input:focus { border-color:#81dce8;outline:none;background:#0a203b;box-shadow:0 0 0 3px rgba(117,214,229,.12); }
+#view-party #rush-submit { min-width:148px; }
+#view-party #rush-submit:disabled { border-color:rgba(99,148,177,.38);color:#8caac1;background:rgba(24,48,74,.8);box-shadow:none;opacity:.82;cursor:default; }
+#view-party .rush-suggestion { display:flex;align-items:center;gap:10px;margin-top:9px;padding:8px 10px;border:1px solid rgba(111,187,207,.3);border-radius:5px;background:rgba(13,38,65,.82); }
+#view-party .rush-suggestion[hidden] { display:none !important; }
+#view-party .rush-suggestion .suggestion-copy { color:#87cbd7;font:11px 'VT323',monospace;letter-spacing:.12em; }
+#view-party .rush-suggestion .suggestion-choice { display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;padding:5px 8px;border:1px solid rgba(129,220,232,.35);border-radius:4px;color:#ecf8ff;background:rgba(25,74,101,.42);font:16px 'VT323',monospace;cursor:pointer; }
+#view-party .rush-suggestion .suggestion-choice span { color:#91b8ce;font:10px 'VT323',monospace; }
+#view-party .answer-feedback { min-height:19px;color:#a8c4d8; }
+#view-party .rush-bottom-grid>div { padding:13px 14px;border:1px solid rgba(98,145,180,.23);border-radius:7px;background:rgba(8,26,49,.45); }
+#view-party .rush-player-row { padding:7px 8px;border-bottom:1px solid rgba(112,153,182,.11);border-radius:3px; }
+#view-party .rush-player-row.current { color:#a4edf0;background:rgba(77,169,188,.09); }
+#view-party .used-answer-chip { border:1px solid rgba(107,160,187,.18);border-radius:4px;color:#a9c6d8;background:rgba(28,57,82,.66); }
+#room-start { transition:opacity .2s,transform .2s; }
+#room-start:not([hidden]):hover { transform:translateY(-2px); }
+
+@media(max-width:600px) {
+  #view-daily .daily-play { min-height:calc(100svh - 155px);padding-top:9px; }
+  #view-daily .question-top #daily-archive-exit { padding:3px 5px;font-size:9px; }
+  .atlas-answer-reaction { top:auto;right:12px;bottom:88px;min-width:165px;padding:8px 10px; }
+  .atlas-reaction-icon { width:25px;height:25px; }
+  .atlas-answer-reaction strong { font-size:15px; }
+  .atlas-answer-reaction small { font-size:10px; }
+  #view-party .rush-answer-area { padding:9px; }
+  #view-party #rush-submit { min-width:108px;padding-inline:9px;font-size:11px; }
+  #view-party .rush-suggestion { align-items:flex-start;flex-direction:column;gap:5px; }
+  #view-party .rush-suggestion .suggestion-choice { width:100%; }
+}
+body.reduce-motion #view-daily .atlas-space-world,body.reduce-motion #view-daily .atlas-stars { transition:none !important; }
+@media(prefers-reduced-motion:reduce) {
+  #view-daily .atlas-space-world,#view-daily .atlas-stars { transition:none !important; }
+  .atlas-answer-reaction.visible { animation:none;opacity:1;transform:none; }
+}
