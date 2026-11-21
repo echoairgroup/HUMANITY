@@ -407,73 +407,119 @@ const Q = [
 ];
 
 
-function buildPartyQuestionPool() {
-  const pool = [];
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const containsLetters = 'AEIOURSTNCLPM'.split('');
-  const add = (base, key, prompt, predicate) => {
-    const answers = base.answers.filter(entry => predicate(entry.name));
-    if (answers.length < 3) return;
-    pool.push({
-      ...base,
-      id: 'rush-' + base.id + '-' + key,
-      prompt,
-      answers,
-      source: 'HUMANITY Globe Rush curated pool'
-    });
+function makePartyTopic(id, category, prompt, names, sourceId) {
+  const source = sourceId ? Q.find(item => item.id === sourceId) : null;
+  const seen = new Set();
+  const answers = names.map((name, index) => {
+    const key = normaliseAnswer(name);
+    if (!key || seen.has(key)) return null;
+    seen.add(key);
+    const existing = source && source.answers.find(entry =>
+      [entry.name].concat(entry.aliases || []).some(alias => normaliseAnswer(alias) === key)
+    );
+    return existing || answer(name, [], index < 6 ? 0 : index < 12 ? 1 : index < 18 ? 2 : 3);
+  }).filter(Boolean);
+  if (answers.length < 3) return null;
+  return {
+    id, topicId: id, domain: (source && source.domain) || 'geography',
+    category, prompt, note: 'Think of a familiar example. Common answers from around the world count.',
+    source: 'HUMANITY curated Globe Rush question bank', answers
   };
+}
+const fromPartyBase = (id, category, prompt, sourceId, names) =>
+  makePartyTopic(id, category, prompt, names, sourceId);
 
-  for (const base of Q) {
-    const subject = base.prompt.replace(/^Name\\s+/i, '').replace(/\\.$/, '');
-    for (const letter of alphabet) {
-      const lower = letter.toLowerCase();
-      add(base, 'starts-' + lower,
-        'Name ' + subject + ' with a name starting with the letter ' + letter + '.',
-        name => normaliseAnswer(name).startsWith(lower));
-      add(base, 'ends-' + lower,
-        'Name ' + subject + ' with a name ending in the letter ' + letter + '.',
-        name => normaliseAnswer(name).endsWith(lower));
-    }
-    for (const letter of containsLetters) {
-      const lower = letter.toLowerCase();
-      add(base, 'contains-' + lower,
-        'Name ' + subject + ' with the letter ' + letter + ' in its name.',
-        name => normaliseAnswer(name).includes(lower));
-    }
-    for (let wordCount = 1; wordCount <= 4; wordCount += 1) {
-      add(base, 'words-' + wordCount,
-        'Name ' + subject + ' with exactly ' + wordCount + (wordCount === 1 ? ' word' : ' words') + ' in its name.',
-        name => String(name).trim().split(/\\s+/).length === wordCount);
-    }
-    for (let letterCount = 3; letterCount <= 14; letterCount += 1) {
-      add(base, 'letters-' + letterCount,
-        'Name ' + subject + ' with exactly ' + letterCount + ' letters in its name.',
-        name => normaliseAnswer(name).replace(/\\s+/g, '').length === letterCount);
-    }
-    add(base, 'one-word-name',
-      'Name ' + subject + ' with a one-word name.',
-      name => !String(name).trim().includes(' '));
-    add(base, 'two-word-name',
-      'Name ' + subject + ' with a two-word name.',
-      name => String(name).trim().split(/\\s+/).length === 2);
-    add(base, 'long-name',
-      'Name ' + subject + ' with a name made up of at least three words.',
-      name => String(name).trim().split(/\\s+/).length >= 3);
+const PARTY_EXTRA_QUESTIONS = [
+  makePartyTopic("north-america-countries","Countries in North America","Name a country in North America",["Canada","United States","Mexico","Guatemala","Belize","Honduras","El Salvador","Nicaragua","Costa Rica","Panama","Cuba","Jamaica","Haiti","Dominican Republic","The Bahamas","Barbados","Trinidad and Tobago","Grenada","Saint Lucia","Antigua and Barbuda","Dominica","Saint Kitts and Nevis","Saint Vincent and the Grenadines"]),
+  makePartyTopic("central-america-countries","Countries in Central America","Name a country in Central America",["Belize","Guatemala","Honduras","El Salvador","Nicaragua","Costa Rica","Panama"]),
+  makePartyTopic("caribbean-countries","Countries in the Caribbean","Name a country in the Caribbean",["Cuba","Jamaica","Haiti","Dominican Republic","The Bahamas","Barbados","Trinidad and Tobago","Grenada","Saint Lucia","Antigua and Barbuda","Dominica","Saint Kitts and Nevis","Saint Vincent and the Grenadines"]),
+  makePartyTopic("oceania-countries","Countries in Oceania","Name a country in Oceania",["Australia","New Zealand","Papua New Guinea","Fiji","Samoa","Tonga","Vanuatu","Solomon Islands","Kiribati","Tuvalu","Nauru","Palau","Federated States of Micronesia","Marshall Islands"]),
+  fromPartyBase("southeast-asia-countries","Countries in Southeast Asia","Name a country in Southeast Asia","asia-countries",["Indonesia","Malaysia","Singapore","Thailand","Vietnam","Philippines","Cambodia","Laos","Myanmar","Brunei","Timor-Leste"]),
+  fromPartyBase("east-asia-countries","Countries in East Asia","Name a country in East Asia","asia-countries",["China","Japan","Mongolia","North Korea","South Korea"]),
+  fromPartyBase("northern-europe-countries","Countries in Northern Europe","Name a country in Northern Europe","europe-countries",["Denmark","Sweden","Norway","Finland","Iceland","Estonia","Latvia","Lithuania","Ireland","United Kingdom"]),
+  fromPartyBase("southern-europe-countries","Countries in Southern Europe","Name a country in Southern Europe","europe-countries",["Italy","Spain","Portugal","Greece","Malta","Croatia","Slovenia","Albania","Montenegro","Serbia","Bosnia and Herzegovina","North Macedonia","Andorra","San Marino","Vatican City"]),
+  fromPartyBase("western-europe-countries","Countries in Western Europe","Name a country in Western Europe","europe-countries",["France","Germany","Belgium","Netherlands","Luxembourg","Switzerland","Austria","Liechtenstein","Monaco"]),
+  fromPartyBase("middle-east-countries","Countries in the Middle East","Name a country in the Middle East","asia-countries",["Saudi Arabia","United Arab Emirates","Qatar","Kuwait","Bahrain","Oman","Yemen","Jordan","Iraq","Iran","Israel","Lebanon","Syria","Palestine"]),
+  fromPartyBase("southern-africa-countries","Countries in Southern Africa","Name a country in Southern Africa","africa-countries",["South Africa","Namibia","Botswana","Lesotho","Eswatini","Zimbabwe","Zambia","Mozambique","Malawi","Angola"]),
+  fromPartyBase("west-africa-countries","Countries in West Africa","Name a country in West Africa","africa-countries",["Nigeria","Ghana","Senegal","Mali","Guinea","Benin","Togo","Liberia","Sierra Leone","Niger","Burkina Faso","Ivory Coast","Gambia","Mauritania","Cabo Verde","Guinea-Bissau"]),
+  fromPartyBase("east-africa-countries","Countries in East Africa","Name a country in East Africa","africa-countries",["Kenya","Tanzania","Uganda","Rwanda","Burundi","Ethiopia","Somalia","South Sudan","Sudan","Eritrea","Djibouti","Madagascar","Comoros","Mauritius","Seychelles"]),
+  fromPartyBase("european-capitals","Capital cities in Europe","Name a capital city in Europe","capital-cities",["Amsterdam","Berlin","Paris","Rome","Madrid","Lisbon","London","Vienna","Prague","Athens","Brussels","Copenhagen","Stockholm","Oslo","Helsinki","Warsaw","Budapest","Bern","Reykjavík","Kyiv"]),
+  fromPartyBase("african-capitals","Capital cities in Africa","Name a capital city in Africa","capital-cities",["Accra","Addis Ababa","Algiers","Cairo","Dakar","Kigali","Nairobi","Rabat","Tunis","Abuja","Pretoria"]),
+  fromPartyBase("asian-capitals","Capital cities in Asia","Name a capital city in Asia","capital-cities",["Tokyo","Seoul","Beijing","Bangkok","Hanoi","Jakarta","Singapore","Manila","Kuala Lumpur","New Delhi","Islamabad","Kathmandu","Abu Dhabi","Riyadh","Taipei","Tashkent"]),
+  fromPartyBase("american-capitals","Capital cities in the Americas","Name a capital city in North or South America","capital-cities",["Ottawa","Buenos Aires","Brasília","Lima","Santiago","Bogotá","Quito","Montevideo","Caracas","Havana","Mexico City"]),
+  fromPartyBase("european-major-cities","Major cities in Europe","Name a major city in Europe","major-cities",["London","Paris","Madrid","Barcelona","Berlin","Rome","Amsterdam","Vienna","Prague","Athens","Lisbon","Istanbul"]),
+  fromPartyBase("asian-major-cities","Major cities in Asia","Name a major city in Asia","major-cities",["Tokyo","Seoul","Beijing","Shanghai","Bangkok","Singapore","Jakarta","Manila","Mumbai","Delhi","Dubai","Hong Kong","Hanoi"]),
+  fromPartyBase("african-major-cities","Major cities in Africa","Name a major city in Africa","major-cities",["Cairo","Lagos","Johannesburg","Nairobi","Accra","Casablanca","Addis Ababa","Dakar","Marrakech"]),
+  fromPartyBase("american-major-cities","Major cities in North or South America","Name a major city in the Americas","major-cities",["New York City","Los Angeles","Chicago","Toronto","Vancouver","Mexico City","São Paulo","Rio de Janeiro","Buenos Aires","Lima","Santiago"]),
+  makePartyTopic("oceania-major-cities","Major cities in Oceania","Name a major city in Oceania",["Sydney","Melbourne","Brisbane","Perth","Auckland","Wellington","Adelaide"]),
+  fromPartyBase("european-rivers","Rivers in Europe","Name a major river in Europe","world-rivers",["Danube","Rhine","Volga","Thames","Seine","Loire","Po River","Dnieper"]),
+  fromPartyBase("african-rivers","Rivers in Africa","Name a major river in Africa","world-rivers",["Nile","Congo River","Niger River","Zambezi"]),
+  fromPartyBase("asian-rivers","Rivers in Asia","Name a major river in Asia","world-rivers",["Yangtze","Yellow River","Ganges","Mekong","Indus","Euphrates","Tigris","Lena","Ob River"]),
+  fromPartyBase("american-rivers","Rivers in the Americas","Name a major river in North or South America","world-rivers",["Amazon River","Mississippi","Paraná","Orinoco","Colorado River","Yukon River"]),
+  fromPartyBase("european-mountains","Mountains in Europe","Name a famous mountain in Europe","mountains",["Mont Blanc","Matterhorn","Mount Elbrus","Mount Etna","Mount Vesuvius","Mount Ararat","Eiger","Jungfrau","Ben Nevis"]),
+  fromPartyBase("african-mountains","Mountains in Africa","Name a famous mountain in Africa","mountains",["Kilimanjaro","Table Mountain","Mount Kenya","Mount Meru","Mount Toubkal"]),
+  fromPartyBase("asian-mountains","Mountains in Asia","Name a famous mountain in Asia","mountains",["Mount Everest","K2","Mount Fuji","Puncak Jaya","Mount Ararat","Mauna Kea"]),
+  fromPartyBase("american-mountains","Mountains in the Americas","Name a famous mountain in North or South America","mountains",["Denali","Aconcagua","Mount Rainier","Mount Roraima","Mount Whitney"]),
+  fromPartyBase("mediterranean-islands","Islands in the Mediterranean","Name an island in the Mediterranean Sea","islands",["Sicily","Sardinia","Corsica","Crete","Cyprus"]),
+  fromPartyBase("caribbean-islands","Islands in the Caribbean","Name an island in the Caribbean","islands",["Cuba","Hispaniola","Jamaica"]),
+  fromPartyBase("pacific-islands","Islands in the Pacific Ocean","Name an island in the Pacific Ocean","islands",["Borneo","New Guinea","Honshu","Hokkaido","Tasmania","Sakhalin","Luzon","Mindanao","Easter Island"]),
+  fromPartyBase("north-american-lakes","Lakes in North America","Name a major lake in North America","lakes",["Lake Superior","Lake Huron","Lake Michigan","Lake Ontario","Lake Erie","Lake Tahoe","Great Salt Lake","Lake Winnipeg"]),
+  fromPartyBase("european-lakes","Lakes in Europe","Name a major lake in Europe","lakes",["Lake Ladoga","Lake Onega","Lake Geneva","Lake Como"]),
+  fromPartyBase("african-lakes","Lakes in Africa","Name a major lake in Africa","lakes",["Lake Victoria","Lake Tanganyika","Lake Malawi","Lake Chad"]),
+  fromPartyBase("african-deserts","Deserts in Africa","Name a desert in Africa","deserts",["Sahara","Kalahari Desert","Namib Desert"]),
+  fromPartyBase("asian-deserts","Deserts in Asia","Name a desert in Asia","deserts",["Gobi Desert","Arabian Desert","Thar Desert","Karakum Desert","Kyzylkum Desert","Taklamakan Desert","Syrian Desert"]),
+  fromPartyBase("north-american-deserts","Deserts in North America","Name a desert in North America","deserts",["Mojave Desert","Sonoran Desert","Chihuahuan Desert"]),
+  fromPartyBase("south-american-deserts","Deserts in South America","Name a desert in South America","deserts",["Atacama Desert","Patagonian Desert"]),
+  fromPartyBase("european-seas","Seas in Europe","Name a sea in or around Europe","seas",["Mediterranean Sea","Baltic Sea","Black Sea","North Sea","Aegean Sea","Adriatic Sea","Ionian Sea"]),
+  fromPartyBase("asian-seas","Seas in Asia","Name a sea in Asia","seas",["Arabian Sea","South China Sea","Sea of Japan","Bering Sea","Red Sea","Coral Sea"]),
+  fromPartyBase("european-landmarks","Landmarks in Europe","Name a famous landmark in Europe","world-landmarks",["Eiffel Tower","Colosseum","Acropolis of Athens","Stonehenge","Sagrada Familia","Petra","Hagia Sophia"]),
+  fromPartyBase("asian-landmarks","Landmarks in Asia","Name a famous landmark in Asia","world-landmarks",["Great Wall of China","Taj Mahal","Angkor Wat","Burj Khalifa","Hagia Sophia","Petra"]),
+  fromPartyBase("american-landmarks","Landmarks in the Americas","Name a famous landmark in North or South America","world-landmarks",["Machu Picchu","Christ the Redeemer","Statue of Liberty","Mount Rushmore","Chichen Itza","Golden Gate Bridge"]),
+  makePartyTopic("african-landmarks","Landmarks in Africa","Name a famous landmark in Africa",["Pyramids of Giza","Great Sphinx of Giza","Table Mountain","Victoria Falls","Mount Kilimanjaro","Robben Island","Lalibela Rock Churches"]),
+  makePartyTopic("world-waterfalls","Famous waterfalls","Name a famous waterfall in the world",["Niagara Falls","Victoria Falls","Iguazu Falls","Angel Falls","Yosemite Falls","Gullfoss","Rhine Falls","Dettifoss","Kaieteur Falls","Plitvice Waterfalls"]),
+  makePartyTopic("famous-bridges","Famous bridges","Name a famous bridge in the world",["Golden Gate Bridge","Tower Bridge","Brooklyn Bridge","Sydney Harbour Bridge","Rialto Bridge","London Bridge","Charles Bridge","Millau Viaduct","Akashi Kaikyo Bridge"]),
+  makePartyTopic("famous-volcanoes","Famous volcanoes","Name a famous volcano in the world",["Mount Fuji","Mount Etna","Mount Vesuvius","Krakatoa","Mauna Loa","Mount St. Helens","Kilimanjaro","Eyjafjallajökull","Mount Pinatubo"]),
+  fromPartyBase("european-dishes","Dishes from Europe","Name a well-known dish from Europe","popular-dishes",["Pizza","Paella","Moussaka","Pierogi","Goulash","Fish and chips","Ratatouille","Gnocchi","Sauerbraten"]),
+  fromPartyBase("asian-dishes","Dishes from Asia","Name a well-known dish from Asia","popular-dishes",["Sushi","Ramen","Pho","Pad Thai","Biryani","Kimchi jjigae","Bibimbap","Rendang","Laksa","Curry"]),
+  fromPartyBase("african-dishes","Dishes from Africa","Name a well-known dish from Africa","popular-dishes",["Jollof rice","Couscous","Tagine","Feijoada","Curry"]),
+  fromPartyBase("american-dishes","Dishes from North or South America","Name a well-known dish from the Americas","popular-dishes",["Pizza","Ceviche","Feijoada","Arepas","Mole poblano","Gumbo","Poutine"]),
+  fromPartyBase("european-snacks","Snacks from Europe","Name a popular snack from Europe","popular-snacks",["Pretzel","Churros","Poutine","Arancini","Börek","Bruschetta","Scotch egg","Kroket"]),
+  fromPartyBase("asian-snacks","Snacks from Asia","Name a popular snack from Asia","popular-snacks",["Samosa","Spring roll","Falafel","Takoyaki","Onigiri","Pani puri","Dumplings","Kimbap","Pocky","Edamame"]),
+  makePartyTopic("oceania-capitals","Capital cities in Oceania","Name a capital city in Oceania",["Canberra","Wellington","Suva","Apia","Nukuʻalofa","Port Vila","Honiara"]),
+  fromPartyBase("oceans","Oceans","Name an ocean in the world","seas",["Pacific Ocean","Atlantic Ocean","Indian Ocean","Arctic Ocean","Southern Ocean"])
+].filter(Boolean);
+
+function buildPartyQuestionPool() {
+  const topics = Q.concat(PARTY_EXTRA_QUESTIONS);
+  const pool = [];
+  for (const topic of topics) {
+    const subject = topic.prompt.replace(/^Name\s+/i, '').replace(/\.$/, '');
+    const articleFree = subject.replace(/^(a|an|the)\s+/i, '');
+    const prompts = [
+      topic.prompt,
+      'Can you name ' + subject + '?',
+      'Tell us the name of ' + subject + '.',
+      'Which ' + articleFree + ' can you name?'
+    ];
+    prompts.forEach((prompt, index) => pool.push({
+      ...topic,
+      id: 'rush-' + topic.id + '-v' + (index + 1),
+      topicId: topic.id,
+      prompt,
+      source: 'HUMANITY curated Globe Rush question bank'
+    }));
   }
-
   return pool;
 }
 
 const PARTY_QUESTIONS = buildPartyQuestionPool();
 if (PARTY_QUESTIONS.length < 200) {
-  throw new Error('The Globe Rush question bank must contain at least 200 unique questions.');
+  throw new Error('The Globe Rush question bank must contain at least 200 accessible questions.');
 }
 function listPartyQuestionBank() {
   return PARTY_QUESTIONS.map(item => ({
-    id: item.id,
-    category: item.category,
-    prompt: item.prompt,
-    answerCount: item.answers.length
+    id: item.id, topicId: item.topicId, domain: item.domain,
+    category: item.category, prompt: item.prompt, answerCount: item.answers.length
   }));
 }
 
@@ -577,14 +623,20 @@ function getQuestion(id) {
 
 function getPartyQuestion(excludedIds) {
   const excluded = excludedIds instanceof Set
-    ? excludedIds
+    ? new Set(excludedIds)
     : new Set(Array.isArray(excludedIds) ? excludedIds : (excludedIds ? [excludedIds] : []));
-  let eligible = PARTY_QUESTIONS.filter(item => !excluded.has(item.id));
+  const excludedTopics = new Set(
+    PARTY_QUESTIONS.filter(item => excluded.has(item.id)).map(item => item.topicId)
+  );
+  let eligible = PARTY_QUESTIONS.filter(item =>
+    !excluded.has(item.id) && !excludedTopics.has(item.topicId)
+  );
   if (!eligible.length) {
     const lastId = Array.isArray(excludedIds)
       ? excludedIds[excludedIds.length - 1]
       : (excludedIds instanceof Set ? Array.from(excludedIds).pop() : excludedIds);
-    eligible = PARTY_QUESTIONS.filter(item => item.id !== lastId);
+    const lastTopic = PARTY_QUESTIONS.find(item => item.id === lastId)?.topicId;
+    eligible = PARTY_QUESTIONS.filter(item => item.topicId !== lastTopic);
   }
   return eligible[crypto.randomInt(0, eligible.length)];
 }
@@ -611,5 +663,6 @@ module.exports = {
   getQuestion,
   getPartyQuestion,
   listQuestionBank,
-  listPartyQuestionBank
+  listPartyQuestionBank,
+  partyQuestionCount: PARTY_QUESTIONS.length
 };
