@@ -1146,7 +1146,9 @@
     });
     $('#daily-hint').addEventListener('click', useDailyHint);
     $('#daily-share').addEventListener('click', async () => {
-      const text = 'I completed today’s HUMANITY Atlas Daily with ' + $('#complete-score').textContent + ' provisional Discovery Points.';
+      const edition = state.practice ? fmtDate(state.practice.date) : 'today';
+      const scoreLabel = state.practice ? 'practice Discovery Points' : 'provisional Discovery Points';
+      const text = 'I completed the HUMANITY Atlas Daily for ' + edition + ' with ' + $('#complete-score').textContent + ' ' + scoreLabel + '.';
       try {
         if (navigator.share) await navigator.share({ title: 'HUMANITY Atlas Daily', text, url: location.href });
         else { await navigator.clipboard.writeText(text); toast('Your result was copied.'); }
@@ -1171,20 +1173,36 @@
         }
       });
     }
+    $('#private-lobby-settings-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const room = state.room;
+      const host = room && room.players.some(player => player.isYou && player.isHost);
+      if (!room || room.phase !== 'lobby' || !host || room.mode !== 'private') {
+        toast('Only the host can edit settings before a private match starts.');
+        return;
+      }
+      $('#private-settings-feedback').textContent = 'Saving room settings…';
+      sendSocket({
+        type: 'update_room_settings',
+        capacity: Number($('#private-capacity').value),
+        settings: {
+          startingLives: Number($('#private-starting-lives').value),
+          maxLives: Number($('#private-max-lives').value),
+          turnDurationSeconds: Number($('#private-turn-duration').value),
+          maxWrongAnswersPerCategory: Number($('#private-category-misses').value),
+          maxTurnsPerCategory: Number($('#private-category-turns').value)
+        }
+      });
+    });
+    $('#daily-archive-exit').addEventListener('click', returnToToday);
+    $('#daily-return-today').addEventListener('click', returnToToday);
     $('#quick-play').addEventListener('click', () => queueMatch('quick', $('#quick-group').value));
     $('#ranked-play').addEventListener('click', () => queueMatch('ranked', $('#ranked-group').value));
     $('#create-room-form').addEventListener('submit', event => {
       event.preventDefault();
       connectSocket({
         type: 'create_room', visibility: 'private', mode: 'private',
-        capacity: Number($('#private-capacity').value || 10), nickname: nickname(), token: state.token || undefined,
-        settings: {
-          startingLives: Number($('#private-starting-lives').value || 2),
-          maxLives: Number($('#private-max-lives').value || 3),
-          turnDurationSeconds: Number($('#private-turn-duration').value || 0),
-          maxWrongAnswersPerCategory: Number($('#private-category-misses').value || 2),
-          maxTurnsPerCategory: Number($('#private-category-turns').value || 10)
-        }
+        capacity: 10, nickname: nickname(), token: state.token || undefined
       });
     });
     $('#join-room-form').addEventListener('submit', event => { event.preventDefault(); joinRoom($('#join-code').value); });
@@ -1198,9 +1216,6 @@
     $('#archive-modal-list').addEventListener('click', event => {
       const button = event.target.closest('[data-archive-date]');
       if (button) openArchiveEdition(button.dataset.archiveDate);
-    });
-    $('#archive-practice').addEventListener('click', event => {
-      if (event.target.closest('#practice-close')) { state.practice = null; $('#archive-practice').hidden = true; }
     });
     $('#account-open').addEventListener('click', showAccount);
     $('#ranking-account-open').addEventListener('click', showAccount);
