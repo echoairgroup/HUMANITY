@@ -160,7 +160,7 @@
     ];
     const levelIndex = Number.isFinite(Number(level)) ? Math.max(0, Math.min(5, Math.round(Number(level)))) : 0;
     scene.dataset.level = String(levelIndex);
-    explorer.style.setProperty('--ascent-bottom', (14 + ratio * 188).toFixed(1) + 'px');
+    explorer.style.setProperty('--ascent-bottom', (14 + ratio * 110).toFixed(1) + 'px');
     progress.style.width = (ratio * 100).toFixed(2) + '%';
     $('#ascent-altitude-label').textContent = number.format(altitude) + ' M';
     $('#ascent-level-label').textContent = number.format(altitude) + ' / 7,000 M';
@@ -1096,7 +1096,7 @@
       const result = await api('/party/online');
       const players = Math.max(0, Number(result.players) || 0);
       count.textContent = number.format(players);
-      label.textContent = players === 1 ? 'PLAYER IN LIVE GAMES' : 'PLAYERS IN LIVE GAMES';
+      label.textContent = players === 1 ? 'PLAYER ONLINE NOW' : 'PLAYERS ONLINE NOW';
     } catch (_) {
       count.textContent = '—';
       label.textContent = 'LIVE PLAYER COUNT';
