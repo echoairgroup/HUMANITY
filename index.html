@@ -80,24 +80,6 @@
               </div>
             </div>
 
-            <section class="daily-ascent-panel" id="daily-ascent-panel" hidden aria-label="High Rise altitude progress">
-              <div class="daily-ascent-heading">
-                <div><span>ATLAS DAILY</span><strong>HIGH RISE</strong></div>
-                <div class="daily-ascent-readout"><strong id="ascent-altitude-label">0 M</strong><small>FLIGHT DISTANCE</small></div>
-                <button class="daily-archive-exit" id="daily-archive-exit" type="button" hidden>EXIT ARCHIVE ×</button>
-              </div>
-              <div class="daily-ascent-scene" id="rarity-ascent-scene" data-level="0">
-                <span class="ascent-star ascent-star-one">✦</span><span class="ascent-star ascent-star-two">·</span><span class="ascent-star ascent-star-three">✧</span>
-                <span class="ascent-cloud ascent-cloud-one"></span><span class="ascent-cloud ascent-cloud-two"></span><span class="ascent-cloud ascent-cloud-three"></span>
-                <span class="ascent-horizon"></span>
-                <span class="ascent-height-mark ascent-height-orbit">ORBIT</span><span class="ascent-height-mark ascent-height-clouds">CLOUDS</span><span class="ascent-height-mark ascent-height-ground">GROUND</span>
-                <div class="ascent-altitude-track"><span id="ascent-progress"></span></div>
-                <span class="ascent-explorer" id="ascent-explorer" aria-hidden="true"><span>✦</span></span>
-                <span class="ascent-rise-flare" id="ascent-rise-flare" aria-hidden="true"></span>
-              </div>
-              <div class="daily-ascent-footer"><span id="ascent-description">Your explorer rises with every rare discovery.</span><strong id="ascent-level-label">0 / 7,000 M</strong></div>
-            </section>
-
             <div class="daily-idle" id="daily-idle">
               <div class="idle-orbit" aria-hidden="true">
                 <div class="idle-orbit-ring ring-a"></div>
@@ -123,6 +105,7 @@
             <div class="daily-play" id="daily-play" hidden>
               <div class="question-top">
                 <div class="question-count"><span id="question-number">01</span><span class="muted">/ 07</span></div>
+                <button class="daily-archive-exit" id="daily-archive-exit" type="button" hidden>EXIT ARCHIVE ×</button>
                 <div class="question-progress" id="question-progress" aria-label="Question progress">
                   <span class="progress-segment active"></span><span class="progress-segment"></span><span class="progress-segment"></span><span class="progress-segment"></span><span class="progress-segment"></span><span class="progress-segment"></span><span class="progress-segment"></span>
                 </div>
@@ -149,6 +132,10 @@
                 </div>
                 <div class="hint-box" id="hint-box" hidden></div>
               </section>
+            </div>
+            <div class="atlas-answer-reaction" id="daily-answer-reaction" hidden role="status" aria-live="polite" aria-atomic="true">
+              <span class="atlas-reaction-icon" aria-hidden="true">✦</span>
+              <div><strong id="daily-reaction-level">RARE</strong><small id="daily-reaction-points">+55 DISCOVERY POINTS</small><em id="daily-reaction-answer">CANADA</em></div>
             </div>
 
             <div class="daily-result" id="daily-result" hidden>
@@ -475,7 +462,8 @@
   </div>
   <div class="rush-answer-area" id="rush-answer-area">
     <div class="rush-answer-time-track" id="rush-answer-time-track" role="progressbar" aria-label="Time remaining for your answer" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span id="rush-answer-time-fill"></span></div>
-    <form id="rush-answer-form" class="answer-form"><label class="visually-hidden" for="rush-answer">Your answer</label><input id="rush-answer" maxlength="80" autocomplete="off" placeholder="Name a place on Earth…" required><button class="button button-primary" type="submit">PASS THE ORB <span aria-hidden="true">↗</span></button></form>
+    <form id="rush-answer-form" class="answer-form"><label class="visually-hidden" for="rush-answer">Your answer</label><input id="rush-answer" maxlength="80" autocomplete="off" placeholder="Prepare your next answer…" required><button class="button button-primary" id="rush-submit" type="submit" disabled>READY FOR YOUR TURN</button></form>
+    <div class="rush-suggestion" id="rush-suggestion" hidden role="status" aria-live="polite"></div>
     <div class="answer-feedback" id="rush-feedback" role="status" aria-live="polite"></div>
   </div>
   <div class="rush-bottom-grid">
