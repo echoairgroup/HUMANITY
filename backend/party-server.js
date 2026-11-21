@@ -886,7 +886,6 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     let players = 0;
     let activeRooms = 0;
     for (const room of rooms.values()) {
-      if (room.phase !== 'playing') continue;
       const connectedPlayers = room.players.filter(player =>
         player.socket && player.socket.readyState === WebSocket.OPEN
       ).length;
