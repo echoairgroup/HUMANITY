@@ -161,7 +161,8 @@
     const levelIndex = Number.isFinite(Number(level)) ? Math.max(0, Math.min(5, Math.round(Number(level)))) : 0;
     scene.dataset.level = String(levelIndex);
     explorer.style.setProperty('--ascent-bottom', (14 + ratio * 110).toFixed(1) + 'px');
-    progress.style.width = (ratio * 100).toFixed(2) + '%';
+    progress.style.width = '100%';
+    progress.style.height = (ratio * 100).toFixed(2) + '%';
     $('#ascent-altitude-label').textContent = number.format(altitude) + ' M';
     $('#ascent-level-label').textContent = number.format(altitude) + ' / 7,000 M';
     $('#ascent-description').textContent = points ? levelDescriptions[levelIndex] : 'Your explorer rises with every rare discovery.';
