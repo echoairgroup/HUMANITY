@@ -133,7 +133,7 @@ test('private Globe Rush lobby settings are clamped and keep max lives above sta
     maxTurnsPerCategory: 99
   }), {
     startingLives: 5,
-    maxLives: 5,
+    maxLives: 6,
     turnDurationSeconds: 0,
     maxWrongAnswersPerCategory: 1,
     maxTurnsPerCategory: 10
