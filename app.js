@@ -12,7 +12,8 @@
     questionIndex: 0, question: null, pendingNextIndex: null,
     provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
-    result: null, currentRanking: 'daily', authMode: 'login', practice: null, ascentPoints: 0, ascentMaxPoints: 700,
+    result: null, currentRanking: 'daily', authMode: 'login', practice: null, unlimited: null,
+    dailyHistory: [], lastPracticeLabel: '', ascentPoints: 0, ascentMaxPoints: 700,
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
     dailyAdvanceTimer: null,
     partySuggestionTimer: null, partySuggestionSequence: 0, pendingPartySuggestion: null,
@@ -139,6 +140,11 @@
     if (id !== 'daily-play') {
       clearDailySuggestion();
       clearDailyReaction();
+      const reveal = $('#daily-answer-reveal');
+      if (reveal) reveal.hidden = true;
+    } else {
+      const reveal = $('#daily-answer-reveal');
+      if (reveal) reveal.hidden = true;
     }
   }
   function clearDailySuggestion() {
@@ -319,6 +325,8 @@
     stopDailyTimer();
     state.runId = null;
     state.practice = null;
+    state.unlimited = null;
+    state.dailyHistory = [];
     state.pendingNextIndex = null;
     state.advancing = false;
     resetAscent();
@@ -332,6 +340,8 @@
   async function loadDaily() {
     try {
       state.practice = null;
+      state.unlimited = null;
+      state.dailyHistory = [];
       setAscentVisible(false);
       $('#attempt-label').textContent = 'ONE OFFICIAL RUN';
       $('#edition-label').textContent = "TODAY'S EDITION";
@@ -368,6 +378,8 @@
     try {
       const result = await api('/daily/start', { method: 'POST', body: { guestId: state.guestId } });
       state.practice = null;
+      state.unlimited = null;
+      state.dailyHistory = [];
       state.runId = result.runId;
       state.provisionalScore = 0;
       state.ascentMaxPoints = Number(result.maxPossibleScore) || 700;
@@ -395,12 +407,21 @@
     state.questionIndex = index;
     state.pendingNextIndex = null;
     $('#question-number').textContent = String(index + 1).padStart(2, '0');
+    $('.question-count .muted').textContent = state.unlimited ? ' / ∞' : ' / 07';
     $('#question-category').textContent = question.category || 'GEOGRAPHY';
+    $('#daily-archive-exit').hidden = !state.practice && !state.unlimited;
+    $('#daily-archive-exit').textContent = state.unlimited ? 'EXIT PRACTICE ×' : 'EXIT ARCHIVE ×';
+    $('#unlimited-actions').hidden = !state.unlimited;
+    $('#unlimited-skip').hidden = !state.unlimited;
+    $('#unlimited-finish').hidden = !state.unlimited;
+    $('#daily-answer-reveal').hidden = true;
+    $('#daily-flight-summary').hidden = Boolean(state.unlimited);
     $('#daily-question').textContent = question.prompt;
     $('#question-note').textContent = question.note || 'Every answer in the approved set counts.';
-    $$('.progress-segment').forEach((el, i) => {
-      el.classList.toggle('done', i < index);
-      el.classList.toggle('active', i === index);
+    const progressIndex = state.unlimited ? index % 7 : index;
+    $('.progress-segment').forEach((el, i) => {
+      el.classList.toggle('done', i < progressIndex);
+      el.classList.toggle('active', i === progressIndex);
     });
     $('#daily-answer').value = '';
     $('#daily-answer').disabled = false;
@@ -412,6 +433,15 @@
     $('#daily-hint').disabled = false;
     $('#hint-counter').textContent = '1 / 1';
     $('#daily-submit').disabled = false;
+    if (state.unlimited) {
+      stopDailyTimer();
+      $('#daily-clock .clock-face').textContent = '∞';
+      $('#daily-clock small').textContent = 'OPEN';
+      $('#daily-clock').classList.remove('urgent');
+      $('#daily-clock').setAttribute('aria-label', 'Untimed practice');
+    } else {
+      $('#daily-clock small').textContent = 'SEC';
+    }
   }
   function stopDailyTimer() { clearInterval(state.timer); state.timer = null; }
   function renderDailyClock() {
@@ -436,6 +466,28 @@
     const input = $('#daily-answer');
     const answer = input.value.trim();
     if (!answer) return;
+    if (state.unlimited) {
+      $('#daily-submit').disabled=true;
+      $('#daily-feedback').textContent='Checking the curated answer set…';
+      try {
+        const result=await api('/practice/answer',{
+          method:'POST',body:{guestId:state.guestId,runId:state.runId,index:state.unlimited.questionsPlayed,answer}
+        });
+        if(!result.accepted) {
+          $('#daily-feedback').textContent=result.message||'That answer is not approved yet. Try another.';
+          playTone('error');input.select();return;
+        }
+        stopDailyTimer();
+        state.provisionalScore+=Number(result.provisionalPoints||0);
+        state.unlimited.questionsPlayed=Number(result.nextIndex||0);
+        state.pendingNextIndex=state.unlimited.questionsPlayed;
+        showDailyResult(true,result.answer,result.level,result.provisionalPoints,result.reveal||[],1,result.rarity);
+        playTone('success');
+      } catch(error) {
+        $('#daily-feedback').textContent=error.message;
+      } finally { $('#daily-submit').disabled=state.pendingNextIndex!==null; }
+      return;
+    }
     $('#daily-submit').disabled = true;
     $('#daily-feedback').textContent = 'Checking the approved answer set…';
     $('#daily-feedback').classList.remove('success');
@@ -488,6 +540,16 @@
     if (!state.runId || !state.question || state.pendingNextIndex !== null) return;
     $('#daily-submit').disabled = true;
     try {
+      if (state.unlimited) {
+        const result=await api('/practice/skip',{
+          method:'POST',body:{guestId:state.guestId,runId:state.runId,index:state.unlimited.questionsPlayed}
+        });
+        state.unlimited.questionsPlayed=Number(result.nextIndex||0);
+        state.pendingNextIndex=state.unlimited.questionsPlayed;
+        showDailyResult(false,'','','',result.reveal||[]);
+        playTone('error');
+        return;
+      }
       if (state.practice) {
         stopDailyTimer();
         state.pendingNextIndex = state.questionIndex + 1;
@@ -510,6 +572,17 @@
     const panel = $('#daily-answer-reaction');
     if (!panel) return;
     if ($('#daily-play').hidden) setDailySection('daily-play');
+    state.dailyHistory.push({
+      question: state.question ? state.question.prompt : '',
+      category: state.question ? state.question.category : '',
+      answer: accepted ? String(answer || '') : '',
+      accepted: Boolean(accepted),
+      level: accepted ? String(level || 'Known') : '',
+      points: accepted ? Number(points || 0) : 0,
+      rarity: accepted ? Number(rarity || 0) : null,
+      reveal: (Array.isArray(reveal) ? reveal : []).slice(0,80)
+    });
+    renderDailyAnswerReveal(reveal || [], accepted, answer);
 
     if (accepted) {
       updateAscentProgress(points);
@@ -540,6 +613,52 @@
     nextButton.focus({ preventScroll: true });
   }
 function renderFlightDistribution(result) {
+  function renderDailyAnswerReveal(reveal,accepted,submittedAnswer) {
+    const panel=$('#daily-answer-reveal');
+    if(!panel)return;
+    const entries=(Array.isArray(reveal)?reveal:[]).slice()
+      .sort((a,b)=>(Number(b.points)||0)-(Number(a.points)||0)||String(a.answer).localeCompare(String(b.answer)));
+    const itemHTML=item=>{
+      const rarity=Math.max(0,Math.min(5,Number(item.rarity)||0));
+      const aliases=Array.isArray(item.aliases)?item.aliases:[];
+      return '<div class="answer-reveal-item" data-rarity="'+rarity+'">'+
+        '<span class="answer-reveal-name">'+esc(item.answer)+'</span>'+
+        '<span class="answer-reveal-tier">'+esc(item.level||'Known')+'</span>'+
+        '<strong>+'+number.format(Number(item.points)||0)+'</strong>'+
+        (aliases.length?'<small>'+aliases.slice(0,3).map(esc).join(' · ')+'</small>':'')+'</div>';
+    };
+    const top=entries.slice(0,8),rest=entries.slice(8);
+    panel.innerHTML='<div class="answer-reveal-heading"><div><span class="micro-label">VERIFIED ANSWER POOL</span>'+
+      '<strong>'+(accepted?'Your answer is in the atlas.':'Here are the accepted discoveries.')+'</strong>'+
+      '<small>'+entries.length+' accepted answer'+(entries.length===1?'':'s')+
+      (submittedAnswer?' · Submitted: '+esc(submittedAnswer):'')+'</small></div><span class="answer-reveal-count">'+
+      number.format(entries.length)+'</span></div><div class="answer-reveal-grid">'+top.map(itemHTML).join('')+'</div>'+
+      (rest.length?'<details class="answer-reveal-more"><summary>Reveal '+rest.length+' more accepted answers</summary>'+
+      '<div class="answer-reveal-grid">'+rest.map(itemHTML).join('')+'</div></details>':'');
+    panel.hidden=false;
+  }
+
+  function renderDailyRecap() {
+    const target=$('#daily-answer-recap');
+    if(!target)return;
+    const rows=state.dailyHistory||[];
+    if(!rows.length){target.innerHTML='<p class="empty-room-note">No question results to show yet.</p>';return;}
+    target.innerHTML='<div class="daily-recap-head"><span class="micro-label">YOUR EXPEDITION LOG</span><strong>'+
+      rows.length+' question'+(rows.length===1?'':'s')+' completed</strong></div><div class="daily-recap-list">'+
+      rows.map((item,index)=>{
+        const rarity=Math.max(0,Math.min(5,Number(item.rarity)||0));
+        const alternatives=(item.reveal||[]).slice(0,5).map(entry=>esc(entry.answer)).join(' · ');
+        return '<article class="daily-recap-row"><span class="daily-recap-number">'+String(index+1).padStart(2,'0')+
+          '</span><div class="daily-recap-copy"><strong>'+esc(item.category||'Question')+'</strong><small>'+esc(item.question||'')+
+          '</small><span>'+(item.accepted?'Your answer: '+esc(item.answer):'No answer submitted')+'</span>'+
+          (alternatives?'<small class="daily-recap-alternatives">Other accepted answers: '+alternatives+'</small>':'')+
+          '</div><div class="daily-recap-score" '+(item.accepted?'data-rarity="'+rarity+'"':'')+'>'+
+          (item.accepted?'<strong>+'+number.format(item.points)+'</strong><small>'+esc(item.level)+'</small>':
+            '<strong>—</strong><small>SKIPPED</small>')+'</div></article>';
+      }).join('')+'</div>';
+  }
+
+
     const participants = Math.max(0, Number(result.participants) || 0);
     const average = result.averageScore == null ? null : Number(result.averageScore);
     const mode = result.mostCommon || null;
@@ -623,12 +742,28 @@ function renderFlightDistribution(result) {
     const index = state.pendingNextIndex;
     const button = $('#daily-next');
     button.disabled = true;
+    if (state.unlimited) {
+      try {
+        const result=await api('/practice/next',{
+          method:'POST',body:{guestId:state.guestId,runId:state.runId,index:state.unlimited.questionsPlayed}
+        });
+        updateQuestion(result.question,result.index);
+        setDailySection('daily-play');
+        $('#daily-answer').focus();
+      } catch(error) {
+        toast(error.message);
+        if(error.status===404||error.status===409) await finishUnlimited();
+      } finally { button.disabled=false;state.advancing=false; }
+      return;
+    }
     if (state.practice) {
       if (index >= state.practice.questions.length) {
         stopDailyTimer();
         state.practice.finished = true;
         clearDailyReaction();
         setDailySection('daily-complete');
+        renderDailyRecap();
+        $('#daily-flight-summary').hidden=false;
         $('.daily-complete .eyebrow').textContent = 'ARCHIVE HIGH RISE COMPLETE';
         $('#complete-score').textContent = number.format(state.provisionalScore);
         $('#complete-summary').textContent = 'You replayed all seven questions from ' + fmtDate(state.practice.date) + '. This practice run does not affect official rankings.';
@@ -652,6 +787,8 @@ function renderFlightDistribution(result) {
     if (index >= 7) {
       clearDailyReaction();
       setDailySection('daily-complete');
+      renderDailyRecap();
+      $('#daily-flight-summary').hidden=false;
       $('.daily-complete .eyebrow').textContent = "TODAY'S ATLAS COMPLETE";
       $('.daily-complete .complete-score span').textContent = 'PROVISIONAL POINTS';
       $('#complete-score').textContent = number.format(state.provisionalScore);
@@ -678,11 +815,79 @@ function renderFlightDistribution(result) {
     } finally { button.disabled = false; state.advancing = false; }
   }
   async function useDailyHint() {
+  async function loadPracticePacks() {
+    const panel=$('#practice-pack-list');
+    panel.innerHTML='<p class="archive-loading">Loading themed expeditions…</p>';
+    try {
+      const result=await api('/practice/packs');
+      const packs=result.packs||[];
+      panel.innerHTML=packs.map(pack=>
+        '<article class="practice-pack-card"><span class="practice-pack-icon">'+esc(pack.icon||'◎')+'</span>'+
+        '<div class="practice-pack-copy"><span class="micro-label">'+number.format(pack.questionCount)+' QUESTION TOPICS</span>'+
+        '<strong>'+esc(pack.title)+'</strong><p>'+esc(pack.description)+'</p></div>'+
+        '<button class="button button-primary" type="button" data-practice-pack="'+esc(pack.id)+'">PLAY ↗</button></article>'
+      ).join('')||'<p class="empty-room-note">No themed packs are available yet.</p>';
+    } catch(error){panel.innerHTML='<p class="empty-room-note">'+esc(error.message)+'</p>';}
+  }
+
+  async function startUnlimited(packId) {
+    const buttons=$('[data-practice-pack]');
+    buttons.forEach(button=>button.disabled=true);
+    try {
+      const result=await api('/practice/start',{method:'POST',body:{guestId:state.guestId,packId}});
+      closeModal('practice-modal');
+      stopDailyTimer();
+      state.practice=null;
+      state.unlimited={runId:result.runId,packId:result.pack.id,title:result.pack.title,questionsPlayed:0,finished:false};
+      state.runId=result.runId;
+      state.dailyHistory=[];
+      state.provisionalScore=0;
+      state.pendingNextIndex=null;
+      state.advancing=false;
+      state.ascentMaxPoints=700;
+      resetAscent();
+      setAscentVisible(true);
+      $('#edition-label').textContent='PRACTICE LAB';
+      $('#edition-date').textContent=result.pack.title;
+      $('#attempt-label').textContent='UNLIMITED · UNRANKED';
+      $('#daily-return-today').hidden=true;
+      $('#daily-flight-summary').hidden=true;
+      updateQuestion(result.question,0);
+      setDailySection('daily-play');
+      $('#daily-answer').focus();
+      $('#daily-play').scrollIntoView({behavior:state.animations?'smooth':'auto',block:'center'});
+    } catch(error){toast(error.message);}
+    finally{buttons.forEach(button=>button.disabled=false);}
+  }
+
+  async function finishUnlimited() {
+    if(!state.unlimited||state.unlimited.finished)return;
+    stopDailyTimer();
+    try {
+      const result=await api('/practice/finish',{method:'POST',body:{guestId:state.guestId,runId:state.runId}});
+      state.unlimited.finished=true;
+      state.provisionalScore=Number(result.score||state.provisionalScore);
+      state.lastPracticeLabel=result.pack.title;
+      state.runId=null;
+      renderDailyRecap();
+      setDailySection('daily-complete');
+      $('.daily-complete .eyebrow').textContent='PRACTICE SESSION COMPLETE';
+      $('.daily-complete h2').textContent='Keep exploring.';
+      $('.daily-complete .complete-score span').textContent='PRACTICE POINTS';
+      $('#complete-score').textContent=number.format(state.provisionalScore);
+      $('#complete-summary').textContent='You explored '+number.format(result.questionsPlayed)+' questions in '+result.pack.title+'. This session does not affect official rankings.';
+      $('#daily-flight-summary').hidden=true;
+      $('#daily-return-today').hidden=false;
+      $('#daily-return-today').textContent="Return to today's Atlas";
+    } catch(error){toast(error.message);}
+  }
+
+
     if (!state.runId || !state.question || state.hintUsed) return;
     $('#daily-hint').disabled = true;
     try {
       let examples;
-      if (state.practice) {
+      if (state.unlimited || state.practice) {
         examples = state.question.hints && state.question.hints.length
           ? state.question.hints
           : (state.question.answers || []).slice(0, 3).map(item => item.answer);
@@ -725,6 +930,8 @@ function renderFlightDistribution(result) {
       closeModal('archive-modal');
       stopDailyTimer();
       state.practice = { date: result.date, questions, index: 0, finished: false };
+      state.unlimited = null;
+      state.dailyHistory = [];
       state.runId = 'archive:' + result.date;
       state.pendingNextIndex = null;
       state.advancing = false;
@@ -851,10 +1058,30 @@ function renderFlightDistribution(result) {
     $('#admin-open').hidden = !player.isAdmin;
   }
   async function loadProfile(silent) {
+  function renderProfileAchievements(achievements,stats) {
+    const target=$('#profile-achievements');
+    if(!target)return;
+    const items=Array.isArray(achievements)?achievements:[];
+    const current=Number(stats&&stats.currentStreak||0),best=Number(stats&&stats.bestStreak||0);
+    target.innerHTML='<div class="profile-achievement-heading"><span class="micro-label">EXPLORER PASSPORT</span>'+
+      '<strong>Achievements & milestones</strong></div><div class="profile-streak-strip">'+
+      '<span>STREAK NOW <b>'+number.format(current)+' days</b></span>'+
+      '<span>BEST STREAK <b>'+number.format(best)+' days</b></span></div>'+
+      '<div class="profile-achievement-grid">'+items.map(item=>{
+        const progress=Math.max(0,Math.min(100,Number(item.progress||0)/Math.max(1,Number(item.target||1))*100));
+        return '<article class="profile-achievement '+(item.unlocked?'is-unlocked':'is-locked')+'">'+
+          '<span class="achievement-mark">'+(item.unlocked?'✦':'◇')+'</span><div><strong>'+esc(item.title)+'</strong>'+
+          '<small>'+esc(item.description)+'</small><div class="achievement-progress"><i style="width:'+progress.toFixed(1)+'%"></i></div>'+
+          '<em>'+(item.unlocked?'UNLOCKED':number.format(item.progress||0)+' / '+number.format(item.target||1))+'</em></div></article>';
+      }).join('')+'</div>';
+  }
+
+
     if (!state.token) { setAccountUI(null); return null; }
     try {
       const result = await api('/profile/me');
       setAccountUI(result.player);
+      renderProfileAchievements(result.achievements||[],result.stats||{});
       return result;
     } catch (_) {
       state.token = '';
@@ -1415,7 +1642,11 @@ function renderFlightDistribution(result) {
       const entries = results[1].entries || [];
       $('#admin-queue').innerHTML = entries.length ? entries.map(item =>
         '<div class="admin-queue-item"><div><strong>' + esc(item.answer_text) + ' <span class="micro-label">×' +
-        item.occurrences + '</span></strong><small>' + esc(item.question_prompt) + '</small></div>' +
+        item.occurrences + '</span></strong><small>' + esc(item.question_prompt) + '</small>' +
+        '<div class="admin-review-controls"><label>RARITY <select data-review-rarity="' + item.id + '">' +
+        ['Familiar','Known','Uncommon','Rare','Remarkable','Exceptional'].map((name,index)=>
+          '<option value="'+index+'" '+(index===2?'selected':'')+'>'+name+' · '+[10,20,40,60,80,100][index]+' pts</option>'
+        ).join('')+'</select></label><label>ALIASES <input data-review-aliases="' + item.id + '" maxlength="240" placeholder="Alternative names, comma-separated"></label></div></div>' +
         '<div class="admin-queue-actions"><button class="approve" data-review-id="' + item.id +
         '" data-review-action="approve" type="button">Approve</button><button data-review-id="' + item.id +
         '" data-review-action="reject" type="button">Reject</button></div></div>'
@@ -1468,6 +1699,15 @@ function renderFlightDistribution(result) {
     $$('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
     window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
     $('#daily-start').addEventListener('click', startDaily);
+    $('[data-open-practice]').forEach(button=>button.addEventListener('click',()=>{
+      openModal('practice-modal');loadPracticePacks();
+    }));
+    $('#practice-pack-list').addEventListener('click',event=>{
+      const button=event.target.closest('[data-practice-pack]');
+      if(button)startUnlimited(button.dataset.practicePack);
+    });
+    $('#unlimited-skip').addEventListener('click',skipDailyQuestion);
+    $('#unlimited-finish').addEventListener('click',finishUnlimited);
     $('#daily-answer-form').addEventListener('submit', submitDailyAnswer);
     $('#daily-answer').addEventListener('input', scheduleDailySuggestion);
     $('#daily-suggestion').addEventListener('click', event => {
@@ -1488,8 +1728,8 @@ function renderFlightDistribution(result) {
     });
     $('#daily-hint').addEventListener('click', useDailyHint);
     $('#daily-share').addEventListener('click', async () => {
-      const edition = state.practice ? fmtDate(state.practice.date) : 'today';
-      const scoreLabel = state.practice ? 'practice Discovery Points' : 'provisional Discovery Points';
+      const edition = state.unlimited ? state.unlimited.title + ' Practice' : state.practice ? fmtDate(state.practice.date) : 'today';
+      const scoreLabel = state.practice || state.unlimited ? 'practice Discovery Points' : 'provisional Discovery Points';
       const text = 'I completed the HUMANITY Atlas Daily for ' + edition + ' with ' + $('#complete-score').textContent + ' ' + scoreLabel + '.';
       try {
         if (navigator.share) await navigator.share({ title: 'HUMANITY Atlas Daily', text, url: location.href });
@@ -1585,8 +1825,18 @@ function renderFlightDistribution(result) {
       const button = event.target.closest('[data-review-id]');
       if (!button) return;
       button.disabled = true;
+      const row=button.closest('.admin-queue-item');
+      const rarity=row&&row.querySelector('[data-review-rarity]');
+      const aliases=row&&row.querySelector('[data-review-aliases]');
       try {
-        await api('/admin/review/' + button.dataset.reviewId, { method: 'POST', body: { action: button.dataset.reviewAction } });
+        await api('/admin/review/' + button.dataset.reviewId, {
+          method:'POST',
+          body:{
+            action:button.dataset.reviewAction,
+            rarity:rarity?Number(rarity.value):2,
+            aliases:aliases?aliases.value.split(',').map(value=>value.trim()).filter(Boolean):[]
+          }
+        });
         loadAdmin();
       } catch (error) { toast(error.message); button.disabled = false; }
     });

@@ -327,7 +327,8 @@ function answerReveal(question) {
       answer: item.name,
       level: engine.LEVEL_NAMES[item.rarity],
       rarity: item.rarity,
-      points: engine.POINTS_BY_LEVEL[item.rarity]
+      points: engine.POINTS_BY_LEVEL[item.rarity],
+      aliases: Array.isArray(item.aliases) ? item.aliases : []
     }))
     .sort((a, b) => b.points - a.points || a.answer.localeCompare(b.answer));
 }

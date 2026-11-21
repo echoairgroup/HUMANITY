@@ -12,6 +12,7 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./upgrades.css">
   <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
   <script src="./globe.js" defer></script>
   <script src="./app.js" defer></script>
@@ -112,6 +113,7 @@
                   <span><b>1</b> official run</span>
                 </div>
                 <button class="button button-primary button-wide" id="daily-start" type="button">Start today's Atlas <span aria-hidden="true">↗</span></button>
+                <button class="button button-outline button-wide practice-open-button" type="button" data-open-practice>OPEN PRACTICE LAB ↗</button>
                 <p class="quiet-note">You can try as many answers as you like while the timer is running.</p>
               </div>
             </div>
@@ -145,6 +147,10 @@
                   <span class="hint-counter" id="hint-counter">1 / 1</span>
                 </div>
                 <div class="hint-box" id="hint-box" hidden></div>
+                <div class="unlimited-actions" id="unlimited-actions" hidden>
+                  <button class="text-button" id="unlimited-skip" type="button" hidden>SKIP QUESTION ↷</button>
+                  <button class="text-button" id="unlimited-finish" type="button" hidden>END SESSION ×</button>
+                </div>
               </section>
             </div>
             <div class="atlas-answer-reaction" id="daily-answer-reaction" hidden role="status" aria-live="polite" aria-atomic="true">
@@ -152,6 +158,7 @@
               <div><strong id="daily-reaction-level">RARE</strong><small id="daily-reaction-points">+60 DISCOVERY POINTS</small><em id="daily-reaction-answer">CANADA</em></div>
               <button class="atlas-continue-button" id="daily-next" type="button">CONTINUE →</button>
             </div>
+            <section class="answer-reveal-panel" id="daily-answer-reveal" hidden aria-label="Correct answers for this question"></section>
 
             <div class="daily-result" id="daily-result" hidden>
               <div class="result-stamp" id="result-stamp">ANSWER ACCEPTED</div>
@@ -174,6 +181,7 @@
               <h2>Flight complete.</h2>
               <p id="complete-summary">You made it through all seven questions.</p>
               <div class="complete-score"><strong id="complete-score">0</strong><span>DISCOVERY POINTS</span></div>
+              <section class="daily-answer-recap" id="daily-answer-recap" aria-label="Your answers and score breakdown"></section>
               <section class="atlas-flight-summary" id="daily-flight-summary" aria-label="Global flight results">
                 <div class="atlas-flight-summary-heading">
                   <span class="micro-label">WORLDWIDE FLIGHT REPORT</span>
@@ -236,6 +244,11 @@
               <div class="archive-list" id="archive-list"><span class="archive-loading">Loading past editions…</span></div>
             </section>
 
+            <section class="side-card practice-lab-card">
+              <div class="side-card-head"><div><span class="micro-label">PLAY BEYOND THE DAILY</span><h3>Practice Lab</h3></div><span class="archive-mark">∞</span></div>
+              <p>Choose a subject, explore fresh questions and play for as long as you like. Practice scores never affect the official rankings.</p>
+              <button class="button button-outline button-wide" type="button" data-open-practice>EXPLORE QUESTION PACKS ↗</button>
+            </section>
             <section class="side-card streak-card">
               <div class="streak-symbol">✳</div>
               <div><span class="micro-label">YOUR DAILY STREAK</span><strong id="streak-number">— days</strong><p>Complete all seven questions to keep it going.</p></div>
@@ -248,9 +261,9 @@
         <div class="page-intro party-intro">
           <div class="party-intro-copy">
             <div class="party-live-count" aria-live="polite"><span class="live-dot"></span><strong id="globe-online-count">—</strong><span id="globe-online-label">PLAYERS ONLINE NOW</span></div>
-            <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · ONE PLANET, ONE ORB</div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> HUMANITY MULTIPLAYER · ORB RELAY MODE</div>
             <h1>GLOBE RUSH</h1>
-            <p>Travel the world one answer at a time. Pass the Atlas Orb, name a place that fits the category and keep your crew in the game.</p>
+            <p>Enter Orb Relay: pass the Atlas Orb around your crew, find a fresh answer before your turn ends and keep the round alive.</p>
             <div class="party-intro-stats"><span>RANDOM 10–30 SEC TURNS</span><i></i><span>2–10 EXPLORERS</span><i></i><span>292 OPEN QUESTION VARIANTS</span><i></i><span>LIVE ROOMS</span></div>
           </div>
           <div class="party-preview-world" role="img" aria-label="A vivid pixel-art planet Earth surrounded by tiny islands and satellites">
@@ -595,6 +608,7 @@
     <div id="account-signed-in" hidden>
       <div class="profile-summary"><div class="profile-avatar" id="profile-avatar">H</div><div><strong id="profile-name">Explorer</strong><span id="profile-email"></span></div></div>
       <div class="profile-stats" id="profile-stats"><div><span>LEVEL</span><b>1</b></div><div><span>XP</span><b>0</b></div><div><span>RATING</span><b>1000</b></div></div>
+      <section class="profile-achievements" id="profile-achievements"><p class="modal-note">Your Explorer Passport will appear here.</p></section>
       <div class="profile-actions"><button class="button button-outline" id="friends-open" type="button">Friends</button><button class="button button-outline" id="admin-open" type="button" hidden>Admin</button><button class="button button-dark" id="signout" type="button">Sign out</button></div>
     </div>
     <div class="modal-feedback" id="auth-feedback" role="status"></div>
@@ -603,6 +617,12 @@
   <dialog class="modal archive-modal" id="archive-modal">
     <div class="modal-head"><div><span class="micro-label">PAST DAILY EDITIONS</span><h2>World Archive</h2></div><button class="modal-close" type="button" data-close-modal="archive-modal" aria-label="Close">×</button></div>
     <div class="archive-modal-list" id="archive-modal-list"></div>
+  </dialog>
+
+  <dialog class="modal practice-modal" id="practice-modal">
+    <div class="modal-head"><div><span class="micro-label">UNLIMITED · UNRANKED</span><h2>Practice Lab</h2></div><button class="modal-close" type="button" data-close-modal="practice-modal" aria-label="Close">×</button></div>
+    <p class="modal-note">Choose a themed expedition. Every round brings seven fresh questions; continue into another round whenever you're ready.</p>
+    <div class="practice-pack-list" id="practice-pack-list"><p class="archive-loading">Loading themed expeditions…</p></div>
   </dialog>
 
   <dialog class="modal settings-modal" id="settings-modal">
