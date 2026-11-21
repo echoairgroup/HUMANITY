@@ -296,6 +296,24 @@
     $('#daily-feedback').textContent = 'Checking the approved answer set…';
     $('#daily-feedback').classList.remove('success');
     try {
+      if (state.practice) {
+        const entry = (state.question.answers || []).find(item =>
+          [item.answer].concat(item.aliases || []).some(alias => norm(alias) === norm(answer))
+        );
+        if (!entry) {
+          $('#daily-feedback').textContent = 'That answer is not in this edition’s approved set. Try another.';
+          playTone('error');
+          input.select();
+          return;
+        }
+        stopDailyTimer();
+        state.provisionalScore += Number(entry.points || 0);
+        state.pendingNextIndex = state.questionIndex + 1;
+        const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
+        showDailyResult(true, entry.answer, entry.level, entry.points, reveal, 1, entry.rarity);
+        playTone('success');
+        return;
+      }
       const result = await api('/daily/answer', {
         method: 'POST',
         body: { guestId: state.guestId, runId: state.runId, index: state.questionIndex, answer }
@@ -326,6 +344,14 @@
     if (!state.runId || !state.question || state.pendingNextIndex !== null) return;
     $('#daily-submit').disabled = true;
     try {
+      if (state.practice) {
+        stopDailyTimer();
+        state.pendingNextIndex = state.questionIndex + 1;
+        const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
+        showDailyResult(false, '', '', 0, reveal);
+        playTone('error');
+        return;
+      }
       const result = await api('/daily/skip', {
         method: 'POST',
         body: { guestId: state.guestId, runId: state.runId, index: state.questionIndex }
@@ -361,10 +387,36 @@
     if (!state.runId || state.pendingNextIndex === null || state.advancing) return;
     state.advancing = true;
     const index = state.pendingNextIndex;
+    if (state.practice) {
+      if (index >= state.practice.questions.length) {
+        stopDailyTimer();
+        state.practice.finished = true;
+        setDailySection('daily-complete');
+        $('.daily-complete .eyebrow').textContent = 'ARCHIVE HIGH RISE COMPLETE';
+        $('#complete-score').textContent = number.format(state.provisionalScore);
+        $('#complete-summary').textContent = 'You replayed all seven questions from ' + fmtDate(state.practice.date) + '. This practice run does not affect official rankings.';
+        $('.daily-complete .complete-score span').textContent = 'PRACTICE POINTS';
+        $('#daily-return-today').hidden = false;
+        $('#daily-return-today').textContent = "Return to today's Atlas";
+        state.runId = null;
+        state.advancing = false;
+        return;
+      }
+      state.practice.index = index;
+      updateQuestion(state.practice.questions[index], index);
+      setDailySection('daily-play');
+      startDailyTimer(25);
+      $('#daily-answer').focus();
+      state.advancing = false;
+      return;
+    }
     if (index >= 7) {
       setDailySection('daily-complete');
+      $('.daily-complete .eyebrow').textContent = "TODAY'S ATLAS COMPLETE";
+      $('.daily-complete .complete-score span').textContent = 'PROVISIONAL POINTS';
       $('#complete-score').textContent = number.format(state.provisionalScore);
       $('#complete-summary').textContent = 'You completed all seven questions in ' + fmtDate(state.daily.date) + '.';
+      $('#daily-return-today').hidden = true;
       state.runId = null;
       state.advancing = false;
       await Promise.all([loadDailyMiniRanking(), loadProfile(true)]);
@@ -390,11 +442,19 @@
     if (!state.runId || !state.question || state.hintUsed) return;
     $('#daily-hint').disabled = true;
     try {
-      const result = await api('/daily/hint', { method: 'POST', body: { guestId: state.guestId, runId: state.runId } });
+      let examples;
+      if (state.practice) {
+        examples = state.question.hints && state.question.hints.length
+          ? state.question.hints
+          : (state.question.answers || []).slice(0, 3).map(item => item.answer);
+      } else {
+        const result = await api('/daily/hint', { method: 'POST', body: { guestId: state.guestId, runId: state.runId } });
+        examples = result.examples || [];
+      }
       state.hintUsed = true;
       $('#hint-counter').textContent = '0 / 1';
       $('#hint-box').hidden = false;
-      $('#hint-box').textContent = 'Examples: ' + (result.examples || []).join(' · ');
+      $('#hint-box').textContent = 'Examples: ' + examples.join(' · ');
     } catch (error) { toast(error.message); $('#daily-hint').disabled = false; }
   }
   async function loadArchive() {
@@ -415,55 +475,32 @@
   async function openArchiveEdition(date) {
     try {
       const result = await api('/daily/archive/' + encodeURIComponent(date));
-      state.practice = { date: result.date, questions: result.questions || [], index: 0, finished: false };
-      renderPractice();
-      openModal('archive-modal');
-    } catch (error) { toast(error.message); }
-  }
-  function renderPractice() {
-    const practice = state.practice;
-    const wrap = $('#archive-practice');
-    if (!practice) { wrap.hidden = true; return; }
-    wrap.hidden = false;
-    if (practice.finished) {
-      $('#practice-date').textContent = 'Practice complete · ' + fmtDate(practice.date);
-      $('#practice-questions').innerHTML = '<p class="question-note">You revisited all seven questions. Practice never affects official rankings.</p><button class="button button-outline" id="practice-close" type="button">Back to archive</button>';
-      return;
-    }
-    const question = practice.questions[practice.index];
-    $('#practice-date').textContent = fmtDate(practice.date) + ' · Question ' + (practice.index + 1) + ' of ' + practice.questions.length;
-    $('#practice-questions').innerHTML =
-      '<div class="practice-question"><span class="micro-label">' + esc(question.category) + '</span>' +
-      '<strong>' + esc(question.prompt) + '</strong><p>' + esc(question.note || '') + '</p>' +
-      '<form class="answer-form" id="practice-form"><label class="visually-hidden" for="practice-answer">Your answer</label>' +
-      '<input id="practice-answer" maxlength="80" autocomplete="off" placeholder="Try an answer…" required>' +
-      '<button class="button button-primary" type="submit">Check</button></form>' +
-      '<p id="practice-feedback" class="answer-feedback"></p><div id="practice-approved" class="answer-sheet-list"></div>' +
-      '<button class="button button-outline" id="practice-next" type="button" disabled>' +
-      (practice.index === practice.questions.length - 1 ? 'Finish practice' : 'Next question →') + '</button></div>';
-    $('#practice-form').addEventListener('submit', event => {
-      event.preventDefault();
-      const value = $('#practice-answer').value;
-      const entry = question.answers.find(item =>
-        [item.answer].concat(item.aliases || []).some(alias => norm(alias) === norm(value))
-      );
-      if (!entry) {
-        $('#practice-feedback').textContent = 'Not in the approved answers for this edition. Try another.';
-        $('#practice-feedback').classList.remove('success');
-        $('#practice-answer').select();
-        return;
+      const questions = Array.isArray(result.questions) ? result.questions : [];
+      if (questions.length !== 7 || questions.some(question => !Array.isArray(question.answers))) {
+        throw new Error('This archived edition is incomplete and cannot be replayed.');
       }
-      $('#practice-feedback').textContent = 'Correct — ' + entry.answer + ' is an approved answer.';
-      $('#practice-feedback').classList.add('success');
-      $('#practice-approved').innerHTML = '<span class="answer-chip">' + esc(entry.answer) + ' <b>' + number.format(entry.points) + ' pts</b></span>';
-      $('#practice-next').disabled = false;
-      playTone('success');
-    });
-    $('#practice-next').addEventListener('click', () => {
-      practice.index += 1;
-      if (practice.index >= practice.questions.length) practice.finished = true;
-      renderPractice();
-    });
+      closeModal('archive-modal');
+      stopDailyTimer();
+      state.practice = { date: result.date, questions, index: 0, finished: false };
+      state.runId = 'archive:' + result.date;
+      state.pendingNextIndex = null;
+      state.advancing = false;
+      state.provisionalScore = 0;
+      resetAscent();
+      setAscentVisible(true);
+      $('#edition-label').textContent = 'ARCHIVE EDITION';
+      $('#edition-date').textContent = fmtDate(result.date);
+      $('#attempt-label').textContent = 'ARCHIVE REPLAY · PRACTICE';
+      $('#daily-return-today').hidden = true;
+      $('.daily-complete .eyebrow').textContent = 'ARCHIVE HIGH RISE COMPLETE';
+      $('.daily-complete .complete-score span').textContent = 'PRACTICE POINTS';
+      updateQuestion(questions[0], 0);
+      setDailySection('daily-play');
+      startDailyTimer(25);
+      $('#daily-answer').focus();
+      $('#daily-panel-title').textContent = 'Ready to explore?';
+      $('#daily-play').scrollIntoView({ behavior: state.animations ? 'smooth' : 'auto', block: 'center' });
+    } catch (error) { toast(error.message); }
   }
 
   function renderMiniRanking(target, entries) {
