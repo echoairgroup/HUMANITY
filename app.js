@@ -609,7 +609,8 @@
     const nextButton = $('#daily-next');
     nextButton.hidden = false;
     nextButton.disabled = false;
-    nextButton.textContent = state.pendingNextIndex >= 7 ? 'FINISH DAILY  →' : 'CONTINUE  →';
+    nextButton.textContent = state.unlimited ? 'NEXT QUESTION  →' :
+      state.pendingNextIndex >= 7 ? 'FINISH DAILY  →' : 'CONTINUE  →';
     nextButton.focus({ preventScroll: true });
   }
 function renderFlightDistribution(result) {
@@ -1776,7 +1777,10 @@ function renderFlightDistribution(result) {
         }
       });
     });
-    $('#daily-archive-exit').addEventListener('click', returnToToday);
+    $('#daily-archive-exit').addEventListener('click', () => {
+      if (state.unlimited) finishUnlimited();
+      else returnToToday();
+    });
     $('#atlas-flying-rarity').addEventListener('animationend', event => {
       if (event.animationName === 'atlas-rarity-flight') clearFlyingRarity();
     });
