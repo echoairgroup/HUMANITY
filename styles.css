@@ -3330,13 +3330,10 @@ body.reduce-motion #view-daily .atlas-space-world,body.reduce-motion #view-daily
   94% { opacity:1;transform:translate3d(5vw,14vh,0) rotate(2deg) scale(.96); }
   100% { opacity:0;transform:translate3d(5vw,14vh,0) rotate(8deg) scale(.7); }
 }
-body.reduce-motion .atlas-flying-rarity.is-flying,
-@media(prefers-reduced-motion:reduce) {
-  .atlas-flying-rarity.is-flying {
-    animation:none;
-    opacity:1;
-    transform:translate3d(5vw,14vh,0);
-  }
+body.reduce-motion .atlas-flying-rarity.is-flying {
+  animation:none;
+  opacity:1;
+  transform:translate3d(5vw,14vh,0);
 }
 @media(max-width:640px) {
   .atlas-flying-rarity { min-width:112px;padding:6px 9px 6px 7px; }
