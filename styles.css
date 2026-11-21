@@ -2888,3 +2888,245 @@ body.reduce-motion #view-party .category-announcement.visible {
 @media (prefers-reduced-motion:reduce) {
   .atlas-stars,.atlas-planet,.atlas-flight-streak { animation:none !important; }
 }
+
+
+/* Atlas Daily — a continuous flight past the planets */
+#view-daily .atlas-space-backdrop {
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 15% 23%,rgba(65,92,164,.26),transparent 38%),
+    radial-gradient(ellipse at 83% 76%,rgba(31,113,145,.2),transparent 40%),
+    linear-gradient(125deg,#030918 0%,#07152c 48%,#030a19 100%);
+}
+#view-daily .atlas-stars {
+  inset:-10% auto -10% 0;
+  width:380vw;
+  height:120%;
+  background-size:250px 190px;
+  transition:transform 2.7s cubic-bezier(.18,.72,.18,1);
+}
+#view-daily .atlas-stars-far {
+  background-image:
+    radial-gradient(1px 1px at 24px 34px,rgba(230,245,255,.92) 98%,transparent),
+    radial-gradient(1px 1px at 88px 104px,rgba(163,210,255,.75) 98%,transparent),
+    radial-gradient(1px 1px at 164px 63px,rgba(255,255,255,.75) 98%,transparent),
+    radial-gradient(1px 1px at 210px 155px,rgba(255,225,194,.62) 98%,transparent);
+  animation:atlas-star-drift 90s linear infinite;
+}
+#view-daily .atlas-stars-near {
+  background-size:210px 155px;
+  animation:atlas-star-drift 42s linear infinite reverse;
+}
+#view-daily .atlas-space-world {
+  position:absolute;inset:0 auto 0 0;width:360vw;height:100%;
+  transform:translate3d(calc(var(--flight-progress,0) * -300vw),0,0);
+  transition:transform 2.8s cubic-bezier(.18,.72,.18,1);
+  will-change:transform;
+}
+#view-daily .atlas-space-world .atlas-stars { transform:translate3d(calc(var(--flight-progress,0) * 200vw),0,0); }
+#view-daily .atlas-space-world .atlas-nebula {
+  width:44vw;height:38vw;opacity:.28;filter:blur(54px);
+  transition:transform 2.8s cubic-bezier(.18,.72,.18,1);
+}
+#view-daily .atlas-nebula-one { left:22vw;top:10%;background:radial-gradient(ellipse,rgba(96,89,190,.48),rgba(52,101,157,.12) 55%,transparent 72%); }
+#view-daily .atlas-nebula-two { left:205vw;right:auto;top:50%;bottom:auto;background:radial-gradient(ellipse,rgba(37,143,167,.36),rgba(48,80,140,.1) 55%,transparent 72%); }
+#view-daily .atlas-planet { right:auto;bottom:auto;top:50%;left:0;transform:translateY(-50%); }
+#view-daily .atlas-planet-earth {
+  left:4vw;width:45vw;aspect-ratio:1;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 30% 25%,#c7f5ff,#2d83b7 37%,#0b355e 72%);
+  box-shadow:inset -42px -28px 70px rgba(0,0,0,.72),inset 13px 8px 30px rgba(255,255,255,.24),0 0 95px rgba(66,167,220,.3);
+  animation:atlas-earth-float 17s ease-in-out infinite;
+}
+#view-daily .atlas-planet-earth .earth-globe {
+  position:absolute;inset:0;width:100%;height:100%;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 34% 29%,#77c7d6,#286d90 58%,#09233f);
+}
+#view-daily .atlas-planet-earth .earth-globe svg { display:block;width:100%;height:100%; }
+#view-daily .atlas-planet-moon {
+  left:58vw;top:22%;width:5vw;min-width:36px;max-width:70px;aspect-ratio:1;
+  background:radial-gradient(circle at 32% 28%,#f3f4ec,#8d9aab 60%,#35435c);
+  box-shadow:inset -12px -7px 16px rgba(0,0,0,.65),0 0 25px rgba(212,231,255,.18);
+  animation:atlas-moon-drift 19s ease-in-out infinite reverse;
+}
+#view-daily .atlas-planet-red {
+  left:82vw;top:40%;width:12vw;min-width:88px;aspect-ratio:1;
+  background:radial-gradient(circle at 32% 26%,rgba(255,231,202,.75),transparent 5%),
+    repeating-linear-gradient(22deg,#b66a4c 0 12%,#7e443c 13% 18%,#cf8760 19% 25%,#7d4c45 26% 32%);
+  box-shadow:inset -18px -10px 27px rgba(0,0,0,.72),0 0 32px rgba(200,110,79,.2);
+  animation:atlas-planet-float 28s ease-in-out infinite;
+}
+#view-daily .atlas-planet-jupiter {
+  left:142vw;top:36%;width:52vw;min-width:360px;aspect-ratio:1;
+  background:radial-gradient(ellipse at 31% 26%,rgba(255,255,255,.74),transparent 5%),
+    radial-gradient(ellipse at 72% 65%,rgba(63,38,32,.45),transparent 18%),
+    repeating-linear-gradient(174deg,#c7b8a2 0 7%,#876d61 7.5% 11%,#e0cba9 11.5% 19%,#a67f6b 19.5% 24%,#e6d6bd 25% 32%,#9d7c6b 33% 39%);
+  box-shadow:inset -48px -22px 78px rgba(0,0,0,.72),inset 18px 7px 35px rgba(255,245,220,.27),0 0 95px rgba(194,161,132,.12);
+  filter:saturate(.75);animation:atlas-planet-float 34s ease-in-out infinite;
+}
+#view-daily .atlas-planet-jupiter::after {
+  content:"";position:absolute;right:18%;top:48%;width:19%;height:8%;border-radius:50%;
+  background:radial-gradient(ellipse,#995f4c,#b78065 60%,transparent 75%);filter:blur(1px);transform:rotate(-8deg);
+}
+#view-daily .atlas-planet-ringed {
+  left:226vw;top:52%;width:33vw;min-width:245px;aspect-ratio:1;
+  background:repeating-linear-gradient(160deg,#c8c1a7 0 11%,#8e9a9e 12% 18%,#e0d2b2 19% 25%,#7f8d99 26% 32%,#c5bfa9 33% 42%);
+  box-shadow:inset -35px -18px 55px rgba(0,0,0,.76),inset 12px 7px 22px rgba(255,255,255,.22),0 0 70px rgba(120,183,214,.16);
+  animation:atlas-planet-float 42s ease-in-out infinite reverse;
+}
+#view-daily .atlas-planet-ring { left:-34%;top:37%;width:168%;height:36%;border-width:10px; }
+#view-daily .atlas-planet-neptune {
+  left:317vw;top:48%;width:23vw;min-width:180px;aspect-ratio:1;
+  background:radial-gradient(circle at 30% 25%,#a9dbed,#27649d 55%,#061d4b);
+  box-shadow:inset -28px -18px 45px rgba(0,0,0,.76),inset 9px 6px 18px rgba(255,255,255,.18),0 0 70px rgba(73,133,223,.22);
+}
+#view-daily .atlas-flight-streak {
+  left:0;right:auto;width:360vw;opacity:.22;
+  background:repeating-linear-gradient(90deg,transparent 0 13%,rgba(133,206,231,.13) 13.05%,transparent 13.12% 23%);
+}
+@keyframes atlas-earth-float { 0%,100%{margin-top:0} 50%{margin-top:-10px} }
+#view-daily .atlas-flight-craft {
+  position:absolute;z-index:1;left:50%;bottom:9%;width:36px;height:18px;transform:translateX(-50%);
+  opacity:.52;filter:drop-shadow(0 0 12px rgba(119,214,240,.55));pointer-events:none;
+}
+#view-daily .atlas-flight-craft::before {
+  content:"";position:absolute;left:11px;top:1px;width:15px;height:15px;
+  border:1px solid rgba(202,243,255,.86);background:linear-gradient(145deg,#91d8e9,#244b78);
+  clip-path:polygon(50% 0,100% 100%,50% 76%,0 100%);
+}
+#view-daily .atlas-flight-craft::after {
+  content:"";position:absolute;left:16px;top:12px;width:5px;height:18px;
+  background:linear-gradient(180deg,rgba(115,221,241,.9),transparent);
+}
+#view-daily .atlas-flight-craft span {
+  position:absolute;left:50%;top:13px;width:24px;height:5px;transform:translateX(-50%);
+  background:linear-gradient(90deg,transparent,#6aa9d2,transparent);opacity:.6;
+}
+#view-daily .atlas-ascent-scene { transition:opacity .2s ease; }
+#view-daily .ascent-rise-flare.climbing { animation:flight-tick .8s ease both; }
+@keyframes flight-tick { 0%{opacity:0} 30%{opacity:.9} 100%{opacity:0} }
+
+#view-daily .daily-ascent-panel {
+  width:min(780px,100%);margin:11px auto 0;padding:7px 12px 6px;grid-template-columns:1fr;gap:5px;
+  background:rgba(5,17,36,.68);border-color:rgba(110,178,212,.22);
+}
+#view-daily .daily-ascent-heading { gap:10px; }
+#view-daily .daily-ascent-heading>div:first-child strong { font-size:11px; }
+#view-daily .daily-ascent-readout strong { font-size:16px; }
+#view-daily .daily-ascent-scene { height:7px;min-height:7px; }
+#view-daily .ascent-altitude-track { height:3px; }
+#view-daily .ascent-explorer { width:8px;height:8px;font-size:0;box-shadow:0 0 8px rgba(126,224,236,.75); }
+#view-daily .daily-ascent-footer { font-size:10px; }
+#view-daily .daily-ascent-footer strong { font-size:10px; }
+
+#view-daily .daily-play {
+  width:min(760px,100%);min-height:calc(100svh - 275px);margin:11px auto 0;padding:0 0 20px;
+  display:flex;flex-direction:column;justify-content:flex-start;gap:10px;
+}
+#view-daily .question-top { padding:0 2px 2px;gap:11px; }
+#view-daily .atlas-question-card {
+  min-height:122px;padding:16px 26px 17px;border-radius:3px;
+  background:linear-gradient(145deg,rgba(8,25,49,.72),rgba(7,19,40,.54));
+  box-shadow:0 10px 34px rgba(0,0,0,.13),inset 0 1px rgba(255,255,255,.05);
+  backdrop-filter:blur(8px);
+}
+#view-daily .question-category { margin:0 0 8px;padding:4px 10px;font-size:11px; }
+#view-daily .daily-question { font-size:clamp(23px,3vw,34px);margin-bottom:4px; }
+#view-daily .question-note { font-size:13px; }
+#view-daily .atlas-answer-dock {
+  width:min(630px,100%);margin:auto auto 0;padding:10px 12px 8px;
+  background:rgba(5,18,36,.66);box-shadow:0 9px 28px rgba(0,0,0,.16);
+  backdrop-filter:blur(8px);
+}
+#view-daily .answer-form input { min-height:48px;font-size:17px; }
+#view-daily .answer-form .button-primary { min-height:48px;min-width:120px;font-size:14px; }
+#view-daily .answer-feedback { min-height:17px;padding-top:5px; }
+#view-daily .question-tools { margin-top:0; }
+#view-daily .daily-complete {
+  width:min(940px,100%);max-height:calc(100svh - 155px);overflow:auto;
+  padding:22px clamp(14px,3vw,30px);margin:auto;
+  scrollbar-color:#426c8b #0a1e39;
+}
+#view-daily .daily-complete h2 { margin:4px 0 5px;font-size:29px; }
+#view-daily .daily-complete>.complete-score { margin:9px auto; }
+#view-daily .atlas-flight-summary {
+  margin:15px 0 12px;padding:14px;border:1px solid rgba(109,177,213,.34);border-radius:3px;
+  background:linear-gradient(145deg,rgba(8,28,54,.88),rgba(8,19,39,.9));text-align:left;
+}
+#view-daily .atlas-flight-summary-heading { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+#view-daily .atlas-flight-summary-heading .micro-label { color:#85dce8;font:11px 'VT323',monospace;letter-spacing:.13em; }
+#view-daily .atlas-flight-summary-heading>strong { color:#f0c47b;font:14px 'VT323',monospace; }
+#view-daily .atlas-flight-stats { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0; }
+#view-daily .atlas-flight-stats article {
+  min-width:0;padding:9px 11px;border:1px solid rgba(94,144,180,.26);background:rgba(17,42,69,.48);
+}
+#view-daily .atlas-flight-stats article>span { display:block;color:#88aeca;font:10px 'VT323',monospace;letter-spacing:.09em; }
+#view-daily .atlas-flight-stats article>strong { display:block;margin:3px 0;color:#c3f2f1;font:24px 'VT323',monospace; }
+#view-daily .atlas-flight-stats article>small { color:#8daac3;font:11px 'VT323',monospace; }
+#view-daily .atlas-flight-graph-wrap { padding:8px 8px 1px;border:1px solid rgba(80,132,168,.2);background:rgba(4,15,32,.4); }
+#view-daily .atlas-flight-graph-legend { display:flex;flex-wrap:wrap;gap:13px;color:#91afc8;font:11px 'VT323',monospace; }
+#view-daily .atlas-flight-graph-legend span { display:flex;align-items:center;gap:6px; }
+#view-daily .atlas-flight-graph-legend i { display:inline-block;width:12px;height:3px;background:#8bdfe9; }
+#view-daily .atlas-flight-graph-legend .legend-popular { background:#f4c27b; }
+#view-daily .atlas-flight-graph { min-height:190px;color:#9ab5ce;font:13px 'VT323',monospace;text-align:center; }
+#view-daily .flight-distribution-svg { display:block;width:100%;height:auto;overflow:visible; }
+#view-daily .flight-chart-grid { stroke:rgba(126,169,201,.15);stroke-width:1;stroke-dasharray:3 5; }
+#view-daily .flight-chart-y-label { fill:#6f91ad;font:11px 'VT323',monospace; }
+#view-daily .flight-chart-x-label { fill:#96b5ce;font:11px 'VT323',monospace; }
+#view-daily .flight-chart-count { fill:#d8eff9;font:12px 'VT323',monospace; }
+#view-daily .flight-chart-axis-title { fill:#87a8c2;font:11px 'VT323',monospace;letter-spacing:.08em; }
+#view-daily .flight-chart-bar { fill:url(#flightBarBlue);opacity:.82; }
+#view-daily .flight-chart-bar:hover { opacity:1; }
+#view-daily .flight-chart-average { stroke:#8be5eb;stroke-width:2;stroke-dasharray:4 4; }
+#view-daily .flight-chart-average-label { fill:#9cf0ee;font:12px 'VT323',monospace; }
+#view-daily .flight-chart-count { paint-order:stroke;stroke:#081a31;stroke-width:3px;stroke-linejoin:round; }
+#view-daily .flight-distribution-svg .is-popular .flight-chart-bar { fill:url(#flightBarGold);opacity:1; }
+#view-daily .flight-distribution-svg .is-popular .flight-chart-x-label { fill:#f7cd8c; }
+#view-daily .atlas-flight-participants { margin:8px 0 0;color:#88a5c0;font:11px 'VT323',monospace;text-align:center; }
+#view-daily .daily-complete>.quiet-note { margin:6px 0 10px!important; }
+#view-daily .daily-complete>.button { max-width:520px;min-height:38px;margin:4px auto; }
+#view-daily .daily-complete .complete-score strong { font-size:34px; }
+
+@media(max-width:820px) {
+  #view-daily .daily-play { min-height:calc(100svh - 310px); }
+  #view-daily .atlas-planet-earth { left:-4vw;width:58vw; }
+  #view-daily .atlas-planet-jupiter { left:145vw;width:58vw; }
+  #view-daily .daily-complete { max-height:calc(100svh - 175px); }
+}
+@media(max-width:600px) {
+  #view-daily .daily-ascent-panel { margin-top:7px;padding:6px 8px; }
+  #view-daily .daily-ascent-heading>div:first-child span { font-size:9px; }
+  #view-daily .daily-ascent-heading>div:first-child strong { font-size:9px; }
+  #view-daily .daily-ascent-readout strong { font-size:14px; }
+  #view-daily .daily-ascent-readout small { font-size:8px; }
+  #view-daily .daily-ascent-footer { font-size:9px; }
+  #view-daily .daily-play { min-height:calc(100svh - 285px);padding-bottom:12px;gap:8px; }
+  #view-daily .atlas-question-card { min-height:110px;padding:12px 12px 13px; }
+  #view-daily .daily-question { font-size:clamp(22px,6.5vw,29px); }
+  #view-daily .question-note { font-size:11px; }
+  #view-daily .atlas-answer-dock { padding:8px; }
+  #view-daily .answer-form { grid-template-columns:minmax(0,1fr) auto; }
+  #view-daily .answer-form input { min-height:44px;padding:0 10px;font-size:15px; }
+  #view-daily .answer-form .button-primary { min-height:44px;min-width:92px;padding:0 8px;font-size:12px; }
+  #view-daily .daily-complete { max-height:calc(100svh - 135px);padding:16px 10px; }
+  #view-daily .atlas-flight-summary { padding:9px; }
+  #view-daily .atlas-flight-summary-heading { align-items:flex-start;flex-direction:column;gap:3px; }
+  #view-daily .atlas-flight-stats { gap:6px; }
+  #view-daily .atlas-flight-stats article { padding:7px; }
+  #view-daily .atlas-flight-stats article>span { font-size:8px; }
+  #view-daily .atlas-flight-stats article>strong { font-size:18px; }
+  #view-daily .atlas-flight-stats article>small { font-size:9px; }
+  #view-daily .atlas-flight-graph-legend { gap:8px;font-size:9px; }
+  #view-daily .atlas-flight-graph { min-height:130px; }
+  #view-daily .atlas-planet-earth { left:-20vw;width:78vw; }
+  #view-daily .atlas-planet-red { left:82vw;width:17vw; }
+  #view-daily .atlas-planet-jupiter { left:142vw;width:65vw; }
+  #view-daily .atlas-planet-ringed { left:230vw;width:48vw; }
+  #view-daily .atlas-planet-neptune { left:317vw;width:34vw; }
+  #view-daily .atlas-flight-craft { bottom:16%;transform:translateX(-50%) scale(.75); }
+}
+body.reduce-motion #view-daily .atlas-space-world,
+body.reduce-motion #view-daily .atlas-stars,
+body.reduce-motion #view-daily .atlas-flight-craft { transition:none !important;animation:none !important; }
+@media(prefers-reduced-motion:reduce) {
+  #view-daily .atlas-space-world,#view-daily .atlas-stars { transition:none !important; }
+}
