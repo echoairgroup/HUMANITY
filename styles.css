@@ -1861,6 +1861,7 @@ body.globe-rush-active .nav-active-indicator {
 body.globe-rush-active .nav-active-indicator.ready { opacity:1; }
 body.globe-rush-active .main-nav .nav-item { position:relative;z-index:1;background:transparent;transition:color .2s ease; }
 body.globe-rush-active .main-nav .nav-item.active { color:#07162d;background:transparent !important;box-shadow:none !important; }
+body.globe-rush-active .main-nav .nav-item:not(.active):hover { color:#fff;background:rgba(95,153,205,.13); }
 
 /* Player markers and the three light bubbles make the current Orb holder visible around Earth. */
 body.globe-rush-active .orb-player-field,
