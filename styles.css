@@ -2214,3 +2214,337 @@ body.globe-rush-active .orb-player-field.is-crowded .orb-player-copy small { dis
   .ascent-explorer { transition-duration:.01ms; }
   .ascent-cloud,.ascent-star { animation:none !important; }
 }
+
+
+/* HUMANITY arcade finish: live lobby count, editable room settings and Atlas High Rise. */
+body.globe-rush-active .party-live-count {
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  width:max-content;
+  max-width:100%;
+  margin:0 0 12px;
+  padding:7px 11px;
+  border:1px solid #3b6389;
+  border-radius:3px;
+  color:#9bb8d2;
+  background:linear-gradient(180deg,#18365f,#0b1d39);
+  box-shadow:0 3px 0 #040d1d, inset 0 1px 0 rgba(183,226,255,.1);
+  font:14px 'VT323',monospace;
+  letter-spacing:.12em;
+}
+body.globe-rush-active .party-live-count strong {
+  color:#8ce5ed;
+  font:26px/1 'VT323',monospace;
+  text-shadow:0 0 13px rgba(118,220,235,.38);
+  font-variant-numeric:tabular-nums;
+}
+body.globe-rush-active .party-live-count > span:last-child {
+  color:#b1c8df;
+  font:13px 'VT323',monospace;
+  letter-spacing:.09em;
+}
+body.globe-rush-active .party-live-count .live-dot {
+  flex:0 0 7px;
+  background:#75e0be;
+  box-shadow:0 0 0 3px rgba(117,224,190,.13),0 0 12px rgba(117,224,190,.28);
+}
+body.globe-rush-active .private-room-tool {
+  grid-template-columns:34px minmax(0,1fr) auto;
+  align-items:center;
+}
+body.globe-rush-active .private-room-tool .private-tool-copy strong { color:#e9f5ff; }
+body.globe-rush-active .private-room-tool .private-tool-copy p { color:#9cb5ce; }
+.planet-private-settings[hidden] { display:none !important; }
+body.globe-rush-active .planet-private-settings {
+  margin-top:12px;
+  border:1px solid #35597e;
+  border-radius:2px;
+  background:linear-gradient(180deg,#102748,#0a1b36);
+  box-shadow:inset 0 1px 0 rgba(185,225,251,.06);
+}
+body.globe-rush-active .planet-private-settings > summary {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:10px 11px;
+  color:#83dce8;
+  cursor:pointer;
+  list-style:none;
+  font:16px 'VT323',monospace;
+  letter-spacing:.1em;
+}
+body.globe-rush-active .planet-private-settings > summary::-webkit-details-marker { display:none; }
+body.globe-rush-active .planet-private-settings > summary::after { content:"＋"; color:#f2bf73; font:19px 'VT323',monospace; }
+body.globe-rush-active .planet-private-settings[open] > summary::after { content:"－"; }
+body.globe-rush-active .planet-private-settings > summary small {
+  margin-left:auto;
+  color:#829db8;
+  font:11px 'VT323',monospace;
+}
+body.globe-rush-active .planet-private-settings-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+  padding:10px;
+  border-top:1px solid #2a4b6d;
+}
+body.globe-rush-active .planet-private-settings-grid label {
+  display:grid;
+  gap:4px;
+  min-width:0;
+  color:#8fb0ca;
+  font:12px 'VT323',monospace;
+  letter-spacing:.09em;
+}
+body.globe-rush-active .planet-private-settings-grid .select-input {
+  width:100%;
+  min-height:33px;
+  margin:0;
+  padding:0 7px;
+  color:#e5f3ff;
+  border:1px solid #3c6388;
+  border-radius:2px;
+  background:#081a35;
+  font:13px 'VT323',monospace;
+}
+body.globe-rush-active .planet-private-settings-grid .select-input option { color:#e5f3ff; background:#081a35; }
+body.globe-rush-active .planet-private-settings-grid .select-input option:disabled { color:#59728b; }
+body.globe-rush-active .planet-private-settings-actions {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:0 10px 10px;
+}
+body.globe-rush-active #private-settings-feedback {
+  min-width:0;
+  color:#93adc5;
+  font:12px 'VT323',monospace;
+}
+body.globe-rush-active .planet-private-settings-actions .planet-copy-button {
+  min-height:32px;
+  padding:5px 9px;
+  color:#071a33;
+  border:1px solid #b5edf0;
+  border-radius:2px;
+  background:#83dce7;
+  font:14px 'VT323',monospace;
+  cursor:pointer;
+}
+
+/* High Rise stays in the Atlas panel for the entire seven-question run. */
+.daily-panel { overflow:visible; }
+.daily-ascent-panel[hidden] { display:none !important; }
+.daily-ascent-panel {
+  position:sticky;
+  top:12px;
+  z-index:8;
+  display:grid;
+  gap:0;
+  margin:12px 0 19px;
+  overflow:hidden;
+  border:2px solid #355f86;
+  border-radius:3px;
+  color:#eaf5ff;
+  background:linear-gradient(160deg,#142e54,#091a35 75%);
+  box-shadow:0 5px 0 #040d1d,0 14px 25px rgba(0,0,0,.23),inset 0 1px 0 rgba(200,238,255,.1);
+}
+.daily-ascent-heading {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 11px;
+  border-bottom:1px solid #315579;
+  background:linear-gradient(90deg,rgba(33,65,103,.92),rgba(12,31,57,.96));
+}
+.daily-ascent-heading > div:first-child { display:grid; gap:1px; }
+.daily-ascent-heading > div:first-child span {
+  color:#83dce7;
+  font:11px 'VT323',monospace;
+  letter-spacing:.17em;
+}
+.daily-ascent-heading > div:first-child strong {
+  color:#f3f8ff;
+  font:18px 'Press Start 2P',monospace;
+  letter-spacing:-.07em;
+  text-shadow:2px 2px 0 #315987;
+}
+.daily-ascent-readout {
+  display:grid;
+  justify-items:end;
+  gap:0;
+  margin-left:auto;
+}
+.daily-ascent-readout strong {
+  color:#f5c77d;
+  font:25px/1 'VT323',monospace;
+  text-shadow:0 0 12px rgba(245,199,125,.28);
+}
+.daily-ascent-readout small {
+  color:#91aec9;
+  font:10px 'VT323',monospace;
+  letter-spacing:.1em;
+}
+.daily-archive-exit {
+  padding:5px 7px;
+  border:1px solid #456a8d;
+  border-radius:2px;
+  color:#c5dced;
+  background:#0b1e39;
+  cursor:pointer;
+  font:12px 'VT323',monospace;
+}
+.daily-ascent-scene {
+  position:relative;
+  height:174px;
+  overflow:hidden;
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse at 50% 100%,rgba(246,193,113,.3),transparent 42%),
+    linear-gradient(180deg,#101e42 0%,#234b76 35%,#4d8caa 62%,#aac7c8 85%,#e4d5ad 100%);
+}
+.daily-ascent-scene::before {
+  content:"";
+  position:absolute;
+  z-index:1;
+  right:-10%;
+  bottom:-28px;
+  left:-10%;
+  height:69px;
+  border-radius:50% 50% 0 0;
+  background:linear-gradient(180deg,rgba(237,224,186,.28),rgba(94,137,150,.28));
+  box-shadow:0 -8px 22px rgba(235,242,225,.1);
+}
+.daily-ascent-scene::after {
+  content:"";
+  position:absolute;
+  z-index:1;
+  right:8%;
+  bottom:18px;
+  width:118px;
+  height:38px;
+  border-radius:50%;
+  background:rgba(241,246,236,.24);
+  filter:blur(10px);
+}
+.daily-ascent-scene .ascent-cloud { opacity:.6; }
+.daily-ascent-scene .ascent-cloud-one { left:12%; bottom:24px; }
+.daily-ascent-scene .ascent-cloud-two { right:17%; bottom:74px; }
+.daily-ascent-scene .ascent-cloud-three { left:37%; bottom:122px; }
+.daily-ascent-scene .ascent-star { color:#fff0b8; text-shadow:0 0 11px rgba(255,237,174,.7); }
+.daily-ascent-scene .ascent-height-mark {
+  right:30px;
+  color:rgba(233,246,255,.6);
+  font:10px 'VT323',monospace;
+  letter-spacing:.16em;
+}
+.ascent-height-orbit { top:8px; }
+.ascent-height-clouds { top:76px; }
+.ascent-height-ground { bottom:8px; }
+.ascent-altitude-track {
+  position:absolute;
+  z-index:4;
+  top:11px;
+  right:14px;
+  bottom:11px;
+  width:5px;
+  overflow:hidden;
+  border:1px solid rgba(196,236,246,.35);
+  background:rgba(5,19,41,.5);
+  box-shadow:0 0 10px rgba(107,212,234,.11);
+}
+.ascent-altitude-track span {
+  position:absolute;
+  bottom:0;
+  left:0;
+  display:block;
+  width:100%;
+  height:0;
+  background:linear-gradient(180deg,#f4c77d,#81dce7);
+  box-shadow:0 0 12px rgba(127,222,234,.65);
+  transition:height .9s cubic-bezier(.2,.75,.18,1);
+}
+.daily-ascent-scene .ascent-explorer {
+  left:50%;
+  bottom:var(--ascent-bottom,14px);
+  width:28px;
+  height:37px;
+  border:1px solid #ffe2a3;
+  border-radius:7px 7px 4px 4px;
+  color:#fff1c9;
+  background:linear-gradient(155deg,#f5d38d,#af774f 75%);
+  box-shadow:0 0 0 4px rgba(255,221,163,.12),0 0 19px rgba(255,211,139,.48),0 4px 8px rgba(7,24,46,.38);
+  transform:translateX(-50%);
+  transition:bottom 1.1s cubic-bezier(.2,.8,.18,1),filter .3s ease,box-shadow .35s ease;
+}
+.daily-ascent-scene .ascent-explorer::before {
+  top:-8px;
+  width:14px;
+  height:14px;
+  border-color:#ffe7b1;
+  background:radial-gradient(circle at 35% 30%,#fff5d8,#c58b65 78%);
+}
+.daily-ascent-scene .ascent-explorer span { margin-top:12px; color:#fff4c9; font-size:14px; }
+.daily-ascent-scene[data-level="4"] .ascent-explorer,
+.daily-ascent-scene[data-level="5"] .ascent-explorer {
+  filter:brightness(1.18);
+  box-shadow:0 0 0 5px rgba(255,226,167,.18),0 0 25px rgba(255,228,168,.72),0 4px 8px rgba(10,29,49,.32);
+}
+.ascent-rise-flare {
+  position:absolute;
+  z-index:4;
+  left:50%;
+  bottom:var(--ascent-bottom,14px);
+  width:54px;
+  height:44px;
+  border-radius:50%;
+  opacity:0;
+  pointer-events:none;
+  background:radial-gradient(ellipse,rgba(255,225,158,.4),transparent 70%);
+  transform:translate(-50%,50%);
+}
+.ascent-rise-flare.climbing { animation:ascent-rise-flash .8s ease-out both; }
+@keyframes ascent-rise-flash {
+  0% { opacity:0; scale:.45; }
+  28% { opacity:1; scale:1.3; }
+  100% { opacity:0; scale:1.7; }
+}
+.daily-ascent-footer {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:6px 10px;
+  border-top:1px solid #2c5276;
+  color:#a1bad2;
+  background:#0b1d39;
+  font:13px 'VT323',monospace;
+}
+.daily-ascent-footer strong { color:#8de1e9; font:14px 'VT323',monospace; letter-spacing:.08em; }
+body.globe-rush-active .daily-ascent-panel .ascent-star-one { top:13px; left:18%; }
+body.globe-rush-active .daily-ascent-panel .ascent-star-two { top:31px; right:24%; }
+body.globe-rush-active .daily-ascent-panel .ascent-star-three { top:9px; right:12%; }
+
+@media(max-width:760px) {
+  .daily-panel { overflow:visible; }
+  .daily-ascent-panel { position:relative; top:auto; }
+  .daily-ascent-scene { height:150px; }
+  .daily-ascent-heading > div:first-child strong { font-size:14px; }
+  body.globe-rush-active .planet-private-settings-grid { grid-template-columns:1fr 1fr; }
+}
+@media(max-width:420px) {
+  .daily-ascent-heading { gap:7px; padding:7px; }
+  .daily-ascent-heading > div:first-child strong { font-size:12px; }
+  .daily-ascent-readout strong { font-size:20px; }
+  .daily-ascent-readout small { font-size:8px; }
+  .daily-archive-exit { font-size:10px; }
+  .daily-ascent-footer { font-size:11px; }
+  .daily-ascent-footer strong { font-size:11px; }
+  body.globe-rush-active .planet-private-settings-actions { align-items:stretch; flex-direction:column; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .daily-ascent-scene .ascent-explorer,.ascent-altitude-track span { transition-duration:.01ms; }
+  .ascent-rise-flare.climbing { animation-duration:.01ms; }
+}
