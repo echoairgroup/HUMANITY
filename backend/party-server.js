@@ -7,6 +7,7 @@ const engine = require('./geography-engine');
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const PLAYER_TURN_MIN_SECONDS = 10;
 const PLAYER_TURN_MAX_SECONDS = 30;
+const MIN_INHERITED_FUSE_SECONDS = 8;
 const MAX_WRONG_ANSWERS_PER_CATEGORY = 2;
 const MAX_TURNS_PER_CATEGORY = 10;
 const STARTING_HEARTS = 2;
@@ -71,6 +72,13 @@ function nextAlive(room, afterId) {
     if (candidate && candidate.alive) return candidate;
   }
   return living[0];
+}
+
+function inheritedFuseDurationMs(remainingMs) {
+  const remaining = Math.max(0, Number(remainingMs) || 0);
+  return remaining < MIN_INHERITED_FUSE_SECONDS * 1000
+    ? MIN_INHERITED_FUSE_SECONDS * 1000
+    : remaining;
 }
 
 function rankPlayers(players) {
@@ -416,14 +424,28 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     broadcastState(room);
   }
 
-  function startPlayerTurn(room, playerId) {
+  function startPlayerTurn(room, playerId, options = {}) {
     const holder = room.players.find(player => player.id === playerId && player.alive);
     room.currentHolderId = holder ? holder.id : null;
     room.turnNumber = (room.turnNumber || 0) + 1;
-    const turnSeconds = room.settings.turnDurationSeconds ||
-      crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1);
-    room.timerDurationMs = turnSeconds * 1000;
-    room.timerEndsAt = holder ? Date.now() + room.timerDurationMs : null;
+
+    if (!holder) {
+      room.timerEndsAt = null;
+      room.timerDurationMs = null;
+    } else if (options.startNewFuse || !room.timerEndsAt) {
+      const fuseSeconds = room.settings.turnDurationSeconds ||
+        crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1);
+      room.timerDurationMs = fuseSeconds * 1000;
+      room.timerEndsAt = Date.now() + room.timerDurationMs;
+    } else if (options.afterPass) {
+      const remainingMs = Math.max(0, room.timerEndsAt - Date.now());
+      const inheritedMs = inheritedFuseDurationMs(remainingMs);
+      if (inheritedMs !== remainingMs) {
+        room.timerDurationMs = inheritedMs;
+        room.timerEndsAt = Date.now() + inheritedMs;
+      }
+    }
+
     room.lastTimerBroadcastAt = 0;
     if (holder) holder.turnsTaken += 1;
   }
@@ -439,7 +461,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     room.wrongAnswersThisCategory = 0;
     room.turnsThisCategory = 0;
     const next = nextAlive(room, afterPlayerId);
-    startPlayerTurn(room, next ? next.id : null);
+    startPlayerTurn(room, next ? next.id : null, { startNewFuse: true });
     broadcast(room, {
       type: 'new_round',
       round: room.round,
@@ -811,26 +833,14 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
         await queueUnknownAnswer(room.category, message.answer);
-        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory, room.settings);
-        if (rotationReason) {
-          sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
-          newRound(room, player.id, rotationReason);
-          return;
-        }
-        sendError(socket, 'That answer is not approved. One more incorrect answer changes the category.', 'answer_not_approved');
+        sendError(socket, 'That answer is not in the approved answer set. Try another valid answer before the shared fuse runs out.', 'answer_not_approved');
         broadcastState(room);
         return;
       }
       if (room.usedAnswers.some(item => item.key === resolved.key)) {
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
-        const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory, room.settings);
-        if (rotationReason) {
-          sendError(socket, 'Two incorrect answers have been made. A new category is coming up.', 'category_changed');
-          newRound(room, player.id, rotationReason);
-          return;
-        }
-        sendError(socket, 'That answer was already used. One more incorrect answer changes the category.', 'answer_used');
+        sendError(socket, 'That answer has already been used for this category. Try a different answer before the shared fuse runs out.', 'answer_used');
         broadcastState(room);
         return;
       }
@@ -855,15 +865,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         points: resolved.points,
         gainedHeart
       });
-      const rotationReason = categoryRotationReason(room.wrongAnswersThisCategory, room.turnsThisCategory, room.settings);
-      if (rotationReason) {
-        newRound(room, player.id, rotationReason);
-        return;
-      }
       const next = nextAlive(room, player.id);
-      // Every player gets a fresh personal turn clock when the Orb reaches them.
-      // Invalid or duplicate answers do not reset the current holder's clock.
-      startPlayerTurn(room, next ? next.id : player.id);
+      // The fuse is shared by the whole room. A pass carries the remaining time;
+      // only a fuse below eight seconds is lifted back to the eight-second floor.
+      startPlayerTurn(room, next ? next.id : player.id, { afterPass: true });
       broadcastState(room);
       return;
     }
@@ -1055,4 +1060,4 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   };
 }
 
-module.exports = { createPartyServer, GROUPS, categoryRotationReason, normaliseRoomSettings, DEFAULT_ROOM_SETTINGS };
+module.exports = { createPartyServer, GROUPS, categoryRotationReason, normaliseRoomSettings, DEFAULT_ROOM_SETTINGS, inheritedFuseDurationMs };
