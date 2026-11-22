@@ -273,17 +273,21 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   async function loadApprovedPartyAnswers(question) {
     const questionId = partyQuestionKey(question);
     if (!questionId) return question;
-    const result = await pool.query(
-      'SELECT answer_text, aliases, rarity, source_url FROM humanity_approved_answers WHERE question_id = $1',
-      [questionId]
-    );
-    for (const row of result.rows) {
-      mergePartyAnswer(question, {
-        name: row.answer_text,
-        aliases: Array.isArray(row.aliases) ? row.aliases : [],
-        rarity: row.rarity,
-        source: row.source_url || 'HUMANITY approved answer'
-      });
+    try {
+      const result = await pool.query(
+        'SELECT answer_text, aliases, rarity, source_url FROM humanity_approved_answers WHERE question_id = $1',
+        [questionId]
+      );
+      for (const row of result.rows) {
+        mergePartyAnswer(question, {
+          name: row.answer_text,
+          aliases: Array.isArray(row.aliases) ? row.aliases : [],
+          rarity: row.rarity,
+          source: row.source_url || 'HUMANITY approved answer'
+        });
+      }
+    } catch (error) {
+      console.warn('Could not load approved Globe Rush aliases:', error.message);
     }
     return question;
   }
