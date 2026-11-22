@@ -1717,8 +1717,7 @@
         '<div class="category-cycle-stat rarity-meter-stat"><span>YOUR NEXT BONUS HEART</span><b>' +
         rarityPoints + ' / 150</b><i><span style="width:' + rarityProgress + '%"></span></i></div>' +
         '<div class="category-cycle-stat used-meter-stat"><span>ANSWERS ALREADY USED</span><b>' +
-        usedCount + '</b><i><span style="width:' + Math.min(100, usedCount / 14 * 100) +
-        '%"></span></i></div>';
+        usedCount + '</b><i aria-hidden="true"></i></div>';
       $('#used-answer-list').innerHTML = room.usedAnswers.length
         ? room.usedAnswers.map(answer => '<span class="used-answer-chip">' + esc(answer) + '</span>').join('')
         : '<span class="empty-used">No answers yet.</span>';
