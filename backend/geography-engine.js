@@ -670,6 +670,7 @@ function seededShuffle(items, seed) {
 
 function classifyDailyQuestion(item) {
   if (item.type === 'flags') return 'flags';
+  if (item.type === 'currency') return 'currency';
   if (item.type === 'culture' || item.domain === 'culture') return 'culture';
   if (item.type === 'cities' || /capital|cities/i.test(item.category)) return 'cities';
   if (item.type === 'nature' || /river|mountain|island|lake|sea|ocean|desert|park/i.test(item.category)) return 'nature';
@@ -683,7 +684,10 @@ function generateDailyChallenge(date, excludedQuestionIds = []) {
   const selected = [];
   const pools = ['flags', 'countries', 'cities', 'nature', 'landmarks', 'geography', 'culture'];
   for (const poolName of pools) {
-    let pool = Q.filter(item => classifyDailyQuestion(item) === poolName);
+    let pool = Q.filter(item => {
+      const type = classifyDailyQuestion(item);
+      return (type === 'currency' ? 'countries' : type) === poolName;
+    });
     let fresh = pool.filter(item => !excluded.has(item.id) && !selected.some(chosen => chosen.id === item.id));
     if (!fresh.length) fresh = pool.filter(item => !selected.some(chosen => chosen.id === item.id));
     if (!fresh.length && poolName !== 'culture') {
