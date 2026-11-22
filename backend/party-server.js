@@ -349,6 +349,28 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         const position = index + 1;
         let ratingAfter = player.rating;
         let ratingBefore = player.rating;
+        if (player.playerId) {
+          const activity = await pool.query(
+            'SELECT party_streak_days, party_streak_date FROM humanity_players WHERE id = $1 FOR UPDATE',
+            [player.playerId]
+          );
+          if (activity.rows[0]) {
+            const today = now.toISOString().slice(0, 10);
+            const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1))
+              .toISOString().slice(0, 10);
+            const storedDate = activity.rows[0].party_streak_date
+              ? new Date(activity.rows[0].party_streak_date).toISOString().slice(0, 10) : '';
+            let streakDays = Number(activity.rows[0].party_streak_days || 0);
+            if (storedDate !== today) {
+              streakDays = storedDate === yesterday ? streakDays + 1 : 1;
+              await pool.query(
+                'UPDATE humanity_players SET party_streak_days = $2, party_streak_date = $3, updated_at = NOW() WHERE id = $1',
+                [player.playerId, streakDays, today]
+              );
+            }
+            player.partyStreakDays = streakDays;
+          }
+        }
         if (room.mode === 'ranked' && player.playerId) {
           const expected = 1 / (1 + Math.pow(10, (averageRating - player.rating) / 400));
           const actual = position === 1 ? 1 : position === 2 ? 0.5 : 0;
@@ -507,7 +529,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       sendError(socket, 'Choose a display name between 2 and 18 characters.', 'invalid_name');
       return null;
     }
-    const streakDays = account ? Math.max(0, Number(account.daily_streak || 0)) : 0;
+    const streakDays = account ? Math.max(0, Number(account.party_streak_days || 0)) : 0;
     const requestedAvatar = String(message.avatarKey || 'mercury');
     const unlockedAvatar = PLANET_AVATARS.filter(item => item.streak <= streakDays).some(item => item.key === requestedAvatar)
       ? requestedAvatar : 'mercury';
