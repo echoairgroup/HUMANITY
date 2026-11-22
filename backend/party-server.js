@@ -350,26 +350,17 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         let ratingAfter = player.rating;
         let ratingBefore = player.rating;
         if (player.playerId) {
+          const today = now.toISOString().slice(0, 10);
+          const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1))
+            .toISOString().slice(0, 10);
           const activity = await pool.query(
-            'SELECT party_streak_days, party_streak_date FROM humanity_players WHERE id = $1 FOR UPDATE',
-            [player.playerId]
+            'UPDATE humanity_players SET party_streak_days = CASE ' +
+            'WHEN party_streak_date = $2::date THEN party_streak_days ' +
+            'WHEN party_streak_date = $3::date THEN party_streak_days + 1 ELSE 1 END, ' +
+            'party_streak_date = $2::date, updated_at = NOW() WHERE id = $1 RETURNING party_streak_days',
+            [player.playerId, today, yesterday]
           );
-          if (activity.rows[0]) {
-            const today = now.toISOString().slice(0, 10);
-            const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1))
-              .toISOString().slice(0, 10);
-            const storedDate = activity.rows[0].party_streak_date
-              ? new Date(activity.rows[0].party_streak_date).toISOString().slice(0, 10) : '';
-            let streakDays = Number(activity.rows[0].party_streak_days || 0);
-            if (storedDate !== today) {
-              streakDays = storedDate === yesterday ? streakDays + 1 : 1;
-              await pool.query(
-                'UPDATE humanity_players SET party_streak_days = $2, party_streak_date = $3, updated_at = NOW() WHERE id = $1',
-                [player.playerId, streakDays, today]
-              );
-            }
-            player.partyStreakDays = streakDays;
-          }
+          if (activity.rows[0]) player.partyStreakDays = Number(activity.rows[0].party_streak_days || 0);
         }
         if (room.mode === 'ranked' && player.playerId) {
           const expected = 1 / (1 + Math.pow(10, (averageRating - player.rating) / 400));
