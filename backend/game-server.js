@@ -1422,7 +1422,7 @@ async function handleAPI(request, response, url, party) {
   if (request.method === 'GET' && url.pathname === '/api/profile/me') {
     const user = await requireUser(request, response);
     if (!user) return true;
-    const [daily,party,friends,answerStats,partyWins,practiceGames,playtime,teamRushWins,survivalGames]=await Promise.all([
+    const [daily,party,friends,answerStats,partyWins,practiceGames,playtime,teamRushWins,survivalGames,recentActivity]=await Promise.all([
       pool.query('SELECT COUNT(*)::int AS count, COALESCE(MAX(final_score),MAX(provisional_score),0)::int AS best FROM humanity_daily_runs WHERE player_id = $1 AND status = $2',[user.id,'completed']),
       pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1',[user.id]),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_friendships WHERE (requester_id=$1 OR addressee_id=$1) AND status='accepted'",[user.id]),
@@ -1437,7 +1437,22 @@ async function handleAPI(request, response, url, party) {
         ') sessions',[user.id]
       ),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND p.won=TRUE AND m.variant='team-rush'",[user.id]),
-      pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND m.variant='survival'",[user.id])
+      pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND m.variant='survival'",[user.id]),
+      pool.query(
+        "SELECT kind, occurred_at, score, variant, game_mode, result, player_rank FROM ("+
+        "SELECT 'atlas-daily'::text AS kind, c.challenge_date::timestamp AT TIME ZONE 'UTC' AS occurred_at, "+
+        "COALESCE(r.final_score,r.provisional_score,0)::int AS score, NULL::text AS variant, NULL::text AS game_mode, "+
+        "'COMPLETED'::text AS result, NULL::int AS player_rank "+
+        "FROM humanity_daily_runs r JOIN humanity_daily_challenges c ON c.id=r.challenge_id "+
+        "WHERE r.player_id=$1 AND r.status='completed' "+
+        "UNION ALL "+
+        "SELECT 'globe-rush'::text AS kind, m.finished_at AS occurred_at, p.score::int AS score, "+
+        "m.variant, m.mode AS game_mode, CASE WHEN p.won THEN 'WON' ELSE 'PLAYED' END AS result, p.rank AS player_rank "+
+        "FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id "+
+        "WHERE p.player_id=$1"+
+        ") activity ORDER BY occurred_at DESC LIMIT 12",
+        [user.id]
+      )
     ]);
     const dailyGames=Number(daily.rows[0].count||0),partyGames=Number(party.rows[0].count||0);
     const friendCount=Number(friends.rows[0].count||0),rareAnswers=Number(answerStats.rows[0].rare||0);
@@ -1469,6 +1484,15 @@ async function handleAPI(request, response, url, party) {
         teamRushWins:teamWins,survivalGames:survivalMatches,totalPlaySeconds,
         bestStreak,currentStreak:Number(user.daily_streak||0)
       },
+      recentActivity:recentActivity.rows.map(row=>({
+        kind:row.kind,
+        date:isoDate(row.occurred_at),
+        score:Number(row.score||0),
+        variant:row.variant||null,
+        gameMode:row.game_mode||null,
+        result:row.result,
+        rank:row.player_rank==null?null:Number(row.player_rank)
+      })),
       achievements
     });
     return true;
