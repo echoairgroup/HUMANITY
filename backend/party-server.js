@@ -200,6 +200,31 @@ function findPartyAnswerSuggestion(category, rawAnswer, usedAnswers) {
     ? winners[0].answer : null;
 }
 
+const PARTY_WIKIDATA_TYPES = {
+  'europe-countries': ['country in europe', 'european country'],
+  'africa-countries': ['country in africa', 'african country'],
+  'asia-countries': ['country in asia', 'asian country'],
+  'south-america-countries': ['country in south america', 'south american country'],
+  'north-america-countries': ['country in north america', 'north american country'],
+  'oceania-countries': ['country in oceania', 'oceanian country'],
+  'world-rivers': ['river'],
+  mountains: ['mountain', 'mountain range', 'volcano', 'peak'],
+  islands: ['island'],
+  lakes: ['lake'],
+  seas: ['sea', 'ocean'],
+  deserts: ['desert'],
+  'capital-cities': ['capital'],
+  'major-cities': ['city', 'town'],
+  'world-landmarks': ['landmark', 'monument', 'bridge', 'tower', 'statue', 'heritage site'],
+  'world-heritage-sites': ['world heritage site', 'unesco world heritage site'],
+  'national-parks': ['national park'],
+  languages: ['language'],
+  'popular-dishes': ['dish', 'cuisine', 'traditional food'],
+  'popular-snacks': ['snack', 'food'],
+  'olympic-sports': ['sport']
+};
+const PARTY_WIKIDATA_CACHE = new Map();
+
 function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) {
   const rooms = new Map();
   const sockets = new WeakMap();
@@ -208,6 +233,160 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     maxPayload: 8192,
     perMessageDeflate: false
   });
+
+  function partyQuestionKey(question) {
+    return String(question && (question.topicId || question.id) || '')
+      .replace(/^rush-/, '').replace(/-v\d+$/, '');
+  }
+
+  function mergePartyAnswer(question, incoming) {
+    if (!question || !Array.isArray(question.answers) || !incoming || !incoming.name) return;
+    const incomingNames = [incoming.name].concat(Array.isArray(incoming.aliases) ? incoming.aliases : []);
+    const incomingKeys = new Set(incomingNames.map(engine.normaliseAnswer).filter(Boolean));
+    const matches = question.answers.filter(entry =>
+      [entry.name].concat(Array.isArray(entry.aliases) ? entry.aliases : [])
+        .some(alias => incomingKeys.has(engine.normaliseAnswer(alias)))
+    );
+
+    if (matches.length === 1) {
+      const existing = matches[0];
+      const aliases = new Map((existing.aliases || []).map(alias => [engine.normaliseAnswer(alias), alias]));
+      for (const value of incomingNames) {
+        const alias = String(value || '').trim().slice(0, 80);
+        const key = engine.normaliseAnswer(alias);
+        if (key && key !== engine.normaliseAnswer(existing.name)) aliases.set(key, alias);
+      }
+      existing.aliases = [...aliases.values()].slice(0, 100);
+      if (incoming.source) existing.source = incoming.source;
+      return;
+    }
+
+    if (matches.length > 1) return;
+    question.answers.push({
+      name: String(incoming.name).trim().slice(0, 80),
+      aliases: [...new Set(incomingNames.slice(1).map(value => String(value).trim().slice(0, 80)).filter(Boolean))].slice(0, 100),
+      rarity: Math.max(0, Math.min(5, Number(incoming.rarity) || 0)),
+      source: incoming.source || 'HUMANITY verified answer'
+    });
+  }
+
+  async function loadApprovedPartyAnswers(question) {
+    const questionId = partyQuestionKey(question);
+    if (!questionId) return question;
+    const result = await pool.query(
+      'SELECT answer_text, aliases, rarity, source_url FROM humanity_approved_answers WHERE question_id = $1',
+      [questionId]
+    );
+    for (const row of result.rows) {
+      mergePartyAnswer(question, {
+        name: row.answer_text,
+        aliases: Array.isArray(row.aliases) ? row.aliases : [],
+        rarity: row.rarity,
+        source: row.source_url || 'HUMANITY approved answer'
+      });
+    }
+    return question;
+  }
+
+  async function verifyPartyAnswer(question, rawAnswer) {
+    const questionId = partyQuestionKey(question);
+    const expected = PARTY_WIKIDATA_TYPES[questionId];
+    const answerText = String(rawAnswer || '').trim().slice(0, 80);
+    const answerKey = engine.normaliseAnswer(answerText);
+    if (!expected || answerKey.length < 2 || answerKey.length > 80) return null;
+
+    const cacheKey = questionId + ':' + answerKey;
+    if (PARTY_WIKIDATA_CACHE.has(cacheKey)) return PARTY_WIKIDATA_CACHE.get(cacheKey);
+
+    const verification = (async () => {
+      try {
+        const searchParams = new URLSearchParams({
+          action: 'wbsearchentities',
+          search: answerText,
+          language: 'en',
+          format: 'json',
+          limit: '8'
+        });
+        const response = await fetch('https://www.wikidata.org/w/api.php?' + searchParams.toString(), {
+          headers: { Accept: 'application/json', 'User-Agent': 'HUMANITY-Geography-Engine/1.0' },
+          signal: AbortSignal.timeout(3000)
+        });
+        if (!response.ok) return null;
+        const payload = await response.json();
+        const candidate = (payload.search || []).find(item => {
+          const matchedText = item.match && item.match.text ? item.match.text : '';
+          const exactAlias = engine.normaliseAnswer(item.label) === answerKey ||
+            engine.normaliseAnswer(matchedText) === answerKey;
+          const description = String(item.description || '').toLowerCase();
+          return exactAlias && expected.some(term => description.includes(term));
+        });
+        if (!candidate) return null;
+
+        const aliases = new Map();
+        const addAlias = value => {
+          const alias = String(value || '').trim().slice(0, 80);
+          const key = engine.normaliseAnswer(alias);
+          if (key && key !== engine.normaliseAnswer(candidate.label)) aliases.set(key, alias);
+        };
+        addAlias(answerText);
+        addAlias(candidate.match && candidate.match.text);
+
+        try {
+          const aliasParams = new URLSearchParams({
+            action: 'wbgetentities',
+            ids: candidate.id,
+            props: 'labels|aliases',
+            languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi',
+            format: 'json'
+          });
+          const aliasResponse = await fetch('https://www.wikidata.org/w/api.php?' + aliasParams.toString(), {
+            headers: { Accept: 'application/json', 'User-Agent': 'HUMANITY-Geography-Engine/1.0' },
+            signal: AbortSignal.timeout(3000)
+          });
+          if (aliasResponse.ok) {
+            const aliasPayload = await aliasResponse.json();
+            const entity = aliasPayload.entities && aliasPayload.entities[candidate.id];
+            for (const label of Object.values(entity && entity.labels || {})) addAlias(label && label.value);
+            for (const languageAliases of Object.values(entity && entity.aliases || {})) {
+              for (const alias of Array.isArray(languageAliases) ? languageAliases : []) addAlias(alias && alias.value);
+            }
+          }
+        } catch (_) {
+          // The exact type-checked name remains valid when alias expansion times out.
+        }
+
+        const entry = {
+          name: candidate.label,
+          aliases: [...aliases.values()].slice(0, 100),
+          rarity: 2,
+          source: candidate.concepturi || 'Wikidata type-checked answer'
+        };
+        await pool.query(
+          'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) ' +
+          'VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO UPDATE SET ' +
+          'aliases = EXCLUDED.aliases, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by',
+          [questionId, engine.normaliseAnswer(entry.name), entry.name, JSON.stringify(entry.aliases), candidate.concepturi || null, 'Wikidata verified entity type']
+        );
+        await pool.query(
+          'UPDATE humanity_answer_review_queue SET status=$2, confidence=$3, source_url=$4, reviewer_note=$5, updated_at=NOW() ' +
+          'WHERE question_id=$1 AND answer_key=$6 AND status=$7',
+          [questionId, 'auto_approved', 0.96, candidate.concepturi || null,
+            'Exact Wikidata name/alias and expected entity type verified. Available in future Globe Rush rounds.',
+            answerKey, 'pending']
+        );
+        return entry;
+      } catch (error) {
+        console.warn('Globe Rush Wikidata verification skipped:', error.message);
+        return null;
+      }
+    })();
+
+    PARTY_WIKIDATA_CACHE.set(cacheKey, verification);
+    const result = await verification;
+    if (!result) PARTY_WIKIDATA_CACHE.delete(cacheKey);
+    return result;
+  }
+
 
   function roomState(room, viewerId) {
     const remaining = room.timerEndsAt ? Math.max(0, room.timerEndsAt - Date.now()) : null;
@@ -509,13 +688,14 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     if (holder) holder.turnsTaken += 1;
   }
 
-  function newRound(room, afterPlayerId, reason) {
+  async function newRound(room, afterPlayerId, reason) {
     room.round += 1;
     const roundSettings = room.variant === 'survival'
       ? { ...room.settings, difficulty: survivalDifficulty(room.round) }
       : room.settings;
     room.currentDifficulty = roundSettings.difficulty || room.settings.difficulty || 'normal';
     const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId, roundSettings);
+    await loadApprovedPartyAnswers(category);
     room.category = category;
     room.lastCategoryId = category.id;
     room.categoryHistory = [...(room.categoryHistory || []), category.id];
@@ -547,7 +727,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     try {
       const holder = room.players.find(player => player.id === room.currentHolderId);
       if (!holder) {
-        newRound(room, room.currentHolderId);
+        await newRound(room, room.currentHolderId);
         return;
       }
       holder.hearts = Math.max(0, holder.hearts - 1);
@@ -567,13 +747,13 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         await finishGame(room);
         return;
       }
-      newRound(room, holder.id, 'overload');
+      await newRound(room, holder.id, 'overload');
     } finally {
       room.fuseBusy = false;
     }
   }
 
-  function startGame(room) {
+  async function startGame(room) {
     if (room.phase !== 'lobby' || room.players.length < 2) return false;
     room.phase = 'playing';
     room.startedAt = Date.now();
@@ -597,7 +777,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     room.round = 0;
     room.lastCategoryId = null;
     room.categoryHistory = [];
-    newRound(room, room.players[crypto.randomInt(0, room.players.length)].id);
+    await newRound(room, room.players[crypto.randomInt(0, room.players.length)].id);
     broadcast(room, { type: 'game_started' });
     return true;
   }
@@ -928,7 +1108,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         return;
       }
       room.autoStartAt = null;
-      startGame(room);
+      await startGame(room);
       return;
     }
 
@@ -941,12 +1121,19 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         await popOrb(room);
         return;
       }
-      const resolved = engine.matchAnswer(room.category, message.answer);
+      let resolved = engine.matchAnswer(room.category, message.answer);
+      if (!resolved) {
+        const verified = await verifyPartyAnswer(room.category, message.answer);
+        if (verified) {
+          mergePartyAnswer(room.category, verified);
+          resolved = engine.matchAnswer(room.category, message.answer);
+        }
+      }
       if (!resolved) {
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
         await queueUnknownAnswer(room.category, message.answer);
-        sendError(socket, 'That answer is not in the approved answer set. Try another valid answer before the shared fuse runs out.', 'answer_not_approved');
+        sendError(socket, 'That answer is not in the verified answer set yet. Try another answer or leave it for Admin review.', 'answer_not_approved');
         broadcastState(room);
         return;
       }
@@ -1036,7 +1223,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     try {
       await pool.query(
         'INSERT INTO humanity_answer_review_queue (question_id, question_prompt, answer_text, answer_key) VALUES ($1,$2,$3,$4) ON CONFLICT (question_id, answer_key) DO UPDATE SET occurrences = humanity_answer_review_queue.occurrences + 1, updated_at = NOW()',
-        [category.id, category.prompt, answerText, answerKey]
+        [partyQuestionKey(category), category.prompt, answerText, answerKey]
       );
     } catch (error) {
       console.warn('Could not queue unapproved answer:', error.message);
@@ -1182,7 +1369,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       if (room.phase === 'lobby' && room.autoStartAt && room.autoStartAt <= now) {
         room.autoStartAt = null;
-        if (room.players.length >= room.targetMin) startGame(room);
+        if (room.players.length >= room.targetMin) {
+          startGame(room).catch(error => console.error('Globe Rush auto-start failed:', error.message));
+        }
       }
       if (room.phase === 'playing' && room.timerEndsAt && room.timerEndsAt <= now) {
         popOrb(room).catch(error => console.error('Atlas Orb overload failed:', error.message));
