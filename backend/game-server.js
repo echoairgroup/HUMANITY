@@ -405,11 +405,9 @@ async function practiceGuess(request,response,skip) {
   }
   let match=null;
   if(!skip){
-    await addApprovedAnswers([question]);
-    match=engine.matchAnswer(question,body.answer);
+    match=await resolveApprovedMatch(question,body.answer);
     if(!match){
       await recordUnapproved(question,body.answer);
-      maybeVerifyWithWikidata(question,body.answer).catch(()=>{});
       sendJSON(response,200,{ok:true,accepted:false,
         message:'That answer is not approved yet. It has been sent for review; try another answer.'});
       return;
@@ -510,6 +508,8 @@ async function updateDailyStreak(userId, date) {
   );
 }
 
+const WIKIDATA_VERIFICATION_CACHE = new Map();
+
 async function maybeVerifyWithWikidata(question, answerText) {
   const expected = {
     'world-rivers': ['river'],
@@ -522,44 +522,86 @@ async function maybeVerifyWithWikidata(question, answerText) {
     'major-cities': ['city'],
     'world-landmarks': ['landmark', 'monument', 'tower', 'bridge', 'heritage']
   }[question.id];
-  if (!expected) return;
+  if (!expected) return null;
 
-  try {
-    const params = new URLSearchParams({
-      action: 'wbsearchentities',
-      search: String(answerText).slice(0, 80),
-      language: 'en',
-      format: 'json',
-      limit: '5'
-    });
-    const response = await fetch('https://www.wikidata.org/w/api.php?' + params.toString(), {
-      headers: { Accept: 'application/json', 'User-Agent': 'HUMANITY-Geography-Engine/1.0 (contact: support@humanity.example)' },
-      signal: AbortSignal.timeout(7000)
-    });
-    if (!response.ok) return;
-    const payload = await response.json();
-    const normalAnswer = engine.normaliseAnswer(answerText);
-    const candidate = (payload.search || []).find(item =>
-      engine.normaliseAnswer(item.label) === normalAnswer &&
-      expected.some(term => String(item.description || '').toLowerCase().includes(term))
-    );
-    if (!candidate) return;
+  const cleanAnswer = String(answerText || '').trim().slice(0, 80);
+  const answerKey = engine.normaliseAnswer(cleanAnswer);
+  if (!answerKey || answerKey.length < 2) return null;
 
-    const key = engine.normaliseAnswer(candidate.label);
-    await pool.query(
-      'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) ' +
-      'VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO NOTHING',
-      [question.id, key, candidate.label, JSON.stringify([]), candidate.concepturi || null, 'automatic Wikidata type match']
-    );
-    await pool.query(
-      'UPDATE humanity_answer_review_queue SET status = $2, confidence = $3, source_url = $4, reviewer_note = $5, updated_at = NOW() WHERE question_id = $1 AND answer_key = $6 AND status = $7',
-      [question.id, 'auto_approved', 0.96, candidate.concepturi || null, 'Exact label match and expected entity type found in Wikidata. This answer is available in future challenges.', key, 'pending']
-    );
-  } catch (error) {
-    console.warn('Wikidata verification skipped:', error.message);
+  const cacheKey = question.id + ':' + answerKey;
+  if (WIKIDATA_VERIFICATION_CACHE.has(cacheKey)) {
+    return WIKIDATA_VERIFICATION_CACHE.get(cacheKey);
   }
+
+  const verification = (async () => {
+    try {
+      const params = new URLSearchParams({
+        action: 'wbsearchentities',
+        search: cleanAnswer,
+        language: 'en',
+        format: 'json',
+        limit: '5'
+      });
+      const response = await fetch('https://www.wikidata.org/w/api.php?' + params.toString(), {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'HUMANITY-Geography-Engine/1.0 (contact: support@humanity.example)'
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (!response.ok) return null;
+
+      const payload = await response.json();
+      const candidate = (payload.search || []).find(item =>
+        engine.normaliseAnswer(item.label) === answerKey &&
+        expected.some(term => String(item.description || '').toLowerCase().includes(term))
+      );
+      if (!candidate) return null;
+
+      const key = engine.normaliseAnswer(candidate.label);
+      await pool.query(
+        'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) ' +
+        'VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO UPDATE SET ' +
+        'answer_text = EXCLUDED.answer_text, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by',
+        [question.id, key, candidate.label, JSON.stringify([]), candidate.concepturi || null, 'automatic Wikidata type match']
+      );
+      await pool.query(
+        'UPDATE humanity_answer_review_queue SET status = $2, confidence = $3, source_url = $4, reviewer_note = $5, updated_at = NOW() ' +
+        'WHERE question_id = $1 AND answer_key = $6 AND status = $7',
+        [
+          question.id, 'auto_approved', 0.96, candidate.concepturi || null,
+          'Exact entity label and expected geography type verified in Wikidata.',
+          key, 'pending'
+        ]
+      );
+      return {
+        name: candidate.label,
+        source: candidate.concepturi || 'Wikidata exact-label and geography-type verification'
+      };
+    } catch (error) {
+      console.warn('Wikidata verification skipped:', error.message);
+      return null;
+    }
+  })();
+
+  WIKIDATA_VERIFICATION_CACHE.set(cacheKey, verification);
+  const result = await verification;
+  if (!result) WIKIDATA_VERIFICATION_CACHE.delete(cacheKey);
+  return result;
 }
 
+async function resolveApprovedMatch(question, answerText) {
+  await addApprovedAnswers([question]);
+  let match = engine.matchAnswer(question, answerText);
+  if (match) return match;
+
+  const verified = await maybeVerifyWithWikidata(question, answerText);
+  if (verified) {
+    await addApprovedAnswers([question]);
+    match = engine.matchAnswer(question, answerText);
+  }
+  return match;
+}
 function sessionCookieToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
@@ -828,11 +870,9 @@ async function dailyGuess(request, response, skip) {
     skip = true;
   }
   if (!skip) {
-    await addApprovedAnswers([question]);
-    const match = engine.matchAnswer(question, body.answer);
+    const match = await resolveApprovedMatch(question, body.answer);
     if (!match) {
       await recordUnapproved(question, body.answer);
-      maybeVerifyWithWikidata(question, body.answer).catch(() => {});
       sendJSON(response, 200, {
         ok: true,
         accepted: false,
