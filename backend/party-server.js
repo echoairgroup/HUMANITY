@@ -576,7 +576,11 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     room.phase = 'playing';
     room.startedAt = Date.now();
     room.winningTeam = null;
-    const shuffledPlayers = [...room.players].sort(() => crypto.randomInt(0, 2) ? 1 : -1);
+    const shuffledPlayers = [...room.players];
+    for (let index = shuffledPlayers.length - 1; index > 0; index -= 1) {
+      const swapIndex = crypto.randomInt(0, index + 1);
+      [shuffledPlayers[index], shuffledPlayers[swapIndex]] = [shuffledPlayers[swapIndex], shuffledPlayers[index]];
+    }
     shuffledPlayers.forEach((player, index) => { player.team = room.variant === 'team-rush' ? (index % 2 === 0 ? 'nova' : 'terra') : null; });
     room.players.forEach(player => {
       player.hearts = room.settings.gameMode === 'sudden-death' ? 1 : room.settings.startingLives;
@@ -754,7 +758,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         targetMin: 2,
         settings: initialSettings,
         isHostedRoom: true,
-        variant: normaliseVariant(message.variant || message.settings?.variant)
+        variant: mode === 'ranked' ? 'classic' : normaliseVariant(message.variant || message.settings?.variant)
       });
       const ownContext = sockets.get(socket) || {};
       ownContext.roomCode = room.code;
@@ -859,7 +863,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       room.capacity = capacity;
       room.visibility = message.visibility === 'public' ? 'public' : 'private';
       room.settings = nextSettings;
-      room.variant = normaliseVariant(message.variant || room.variant);
+      room.variant = nextSettings.ratingEnabled ? 'classic' : normaliseVariant(message.variant || room.variant);
       room.mode = nextSettings.ratingEnabled ? 'ranked' : 'private';
       const autoStartScheduled = nextSettings.autoStartWhenFull && room.players.length >= room.capacity && !room.autoStartAt;
       if (autoStartScheduled) room.autoStartAt = Date.now() + nextSettings.countdownSeconds * 1000;
