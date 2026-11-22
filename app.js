@@ -141,7 +141,7 @@
       if (!state.audioContext) {
         const context = new AudioClass();
         const master = context.createGain();
-        master.gain.value = (state.soundVolume / 100) * 1.2;
+        master.gain.value = (state.soundVolume / 100) * 1.8;
         master.connect(context.destination);
         state.audioContext = context;
         state.audioMaster = master;
@@ -164,7 +164,7 @@
     oscillator.frequency.setValueAtTime(Math.max(30, frequency), at);
     if (glideTo) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, glideTo), at + duration * 0.82);
     envelope.gain.setValueAtTime(0.0001, at);
-    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0002, amplitude || 0.025), at + Math.min(0.016, duration * 0.2));
+    envelope.gain.exponentialRampToValueAtTime(Math.min(0.08, Math.max(0.0002, amplitude || 0.025) * 1.35), at + Math.min(0.016, duration * 0.2));
     envelope.gain.exponentialRampToValueAtTime(0.0001, at + duration);
     oscillator.connect(envelope);
     envelope.connect(state.audioMaster);
@@ -188,7 +188,7 @@
     filter.frequency.setValueAtTime(Math.max(180, cutoff || 2200), at);
     filter.Q.value = 0.65;
     envelope.gain.setValueAtTime(0.0001, at);
-    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0002, amplitude || 0.018), at + Math.min(0.025, duration * 0.25));
+    envelope.gain.exponentialRampToValueAtTime(Math.min(0.08, Math.max(0.0002, amplitude || 0.018) * 1.35), at + Math.min(0.025, duration * 0.25));
     envelope.gain.exponentialRampToValueAtTime(0.0001, at + duration);
     source.connect(filter);
     filter.connect(envelope);
@@ -2211,7 +2211,7 @@
       localStorage.setItem('humanity-sound-volume', String(state.soundVolume));
       $('#setting-sound-volume-label').textContent = state.soundVolume + '%';
       if (state.audioMaster && state.audioContext) {
-        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 1.2, state.audioContext.currentTime, 0.04);
+        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 1.8, state.audioContext.currentTime, 0.04);
       }
     });
     $('#sound-preview').addEventListener('click', () => playSound('preview'));
