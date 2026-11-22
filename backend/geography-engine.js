@@ -403,6 +403,138 @@ const Q = [
       answer('Sagrada Familia', ['Basílica de la Sagrada Família'], 0),
       answer('Moai', ['Easter Island statues'], 3), answer('Golden Gate Bridge', [], 0)
     ]
+  },
+  {
+    id: 'flag-colours-blue-white-red', domain: 'geography', type: 'flags', category: 'Flags · Blue, white & red',
+    prompt: 'Name a country whose national flag contains blue, white and red.',
+    note: 'All three colours must appear somewhere in the national flag.',
+    source: 'National flag reference set',
+    visual: { kind: 'flag-colours', colors: ['#e84a5b', '#f7f8fb', '#3977c9'] },
+    answers: [
+      answer('Netherlands', ['The Netherlands', 'Nederland'], 0), answer('France', [], 0),
+      answer('United States', ['USA', 'United States of America'], 0), answer('United Kingdom', ['UK', 'Britain'], 0),
+      answer('Russia', [], 0), answer('Norway', [], 1), answer('Iceland', [], 1),
+      answer('Czechia', ['Czech Republic'], 1), answer('Slovakia', [], 1), answer('Slovenia', [], 1),
+      answer('Croatia', [], 1), answer('Serbia', [], 1), answer('Australia', [], 0),
+      answer('New Zealand', [], 1), answer('Chile', [], 1), answer('Paraguay', [], 2),
+      answer('Panama', [], 2), answer('Costa Rica', [], 2)
+    ]
+  },
+  {
+    id: 'flag-colours-red-white-green', domain: 'geography', type: 'flags', category: 'Flags · Red, white & green',
+    prompt: 'Name a country whose national flag contains red, white and green.',
+    note: 'Look for these three colours in any arrangement.',
+    source: 'National flag reference set',
+    visual: { kind: 'flag-colours', colors: ['#e84a5b', '#f7f8fb', '#3c9b68'] },
+    answers: [
+      answer('Italy', ['Italia'], 0), answer('Mexico', ['México'], 0),
+      answer('Hungary', [], 0), answer('Bulgaria', [], 1), answer('Iran', [], 1),
+      answer('Madagascar', [], 1), answer('Belarus', [], 1), answer('Oman', [], 1),
+      answer('Lebanon', [], 1), answer('Algeria', [], 1), answer('Azerbaijan', [], 1),
+      answer('Tajikistan', [], 2), answer('Turkmenistan', [], 2), answer('Uzbekistan', [], 2),
+      answer('Maldives', [], 2), answer('Suriname', [], 2)
+    ]
+  },
+  {
+    id: 'flag-colours-stars', domain: 'geography', type: 'flags', category: 'Flags · Stars',
+    prompt: 'Name a country whose national flag features at least one star.',
+    note: 'A star can be large, small or part of a group of stars.',
+    source: 'National flag reference set',
+    visual: { kind: 'symbol', text: '✦', label: 'STAR ON A FLAG' },
+    answers: [
+      answer('United States', ['USA', 'United States of America'], 0), answer('China', [], 0),
+      answer('Brazil', ['Brasil'], 0), answer('Australia', [], 0), answer('New Zealand', [], 0),
+      answer('Vietnam', ['Viet Nam'], 0), answer('Turkey', ['Türkiye'], 0), answer('Somalia', [], 1),
+      answer('Ghana', [], 1), answer('Morocco', [], 1), answer('Chile', [], 1),
+      answer('Israel', [], 1), answer('Pakistan', [], 1), answer('Singapore', [], 1),
+      answer('Cuba', [], 1), answer('Myanmar', ['Burma'], 2)
+    ]
+  },
+  {
+    id: 'euro-countries', domain: 'geography', type: 'currency', category: 'Currencies · Euro',
+    prompt: 'Name a country that uses the euro as its official currency.',
+    note: 'Think of countries in the euro area, including smaller European states.',
+    source: 'European Central Bank euro area reference',
+    visual: { kind: 'symbol', text: '€', label: 'EURO' },
+    answers: [
+      answer('Netherlands', ['The Netherlands', 'Nederland'], 0), answer('Germany', ['Deutschland'], 0),
+      answer('France', [], 0), answer('Spain', ['España'], 0), answer('Italy', ['Italia'], 0),
+      answer('Belgium', [], 0), answer('Austria', [], 0), answer('Portugal', [], 0),
+      answer('Ireland', [], 0), answer('Finland', [], 0), answer('Greece', ['Hellas'], 0),
+      answer('Croatia', [], 1), answer('Slovenia', [], 1), answer('Slovakia', [], 1),
+      answer('Estonia', [], 1), answer('Latvia', [], 1), answer('Lithuania', [], 1),
+      answer('Luxembourg', [], 1), answer('Malta', [], 1), answer('Cyprus', [], 1)
+    ]
+  },
+  {
+    id: 'landlocked-capitals', domain: 'geography', type: 'cities', category: 'Capital cities · Landlocked countries',
+    prompt: 'Name the capital city of a landlocked country.',
+    note: 'The country has no coastline, and the answer must be its national capital.',
+    source: 'National capital and country reference set',
+    visual: { kind: 'symbol', text: '⌖', label: 'CAPITAL CITY' },
+    answers: [
+      answer('Vienna', ['Wien'], 0), answer('Bern', [], 0), answer('Prague', ['Praha'], 0),
+      answer('Budapest', [], 0), answer('Bratislava', [], 1), answer('Ljubljana', [], 1),
+      answer('Luxembourg City', ['Luxembourg'], 1), answer('Andorra la Vella', [], 2),
+      answer('Vaduz', [], 2), answer('Skopje', [], 1), answer('Belgrade', [], 0),
+      answer('Sarajevo', [], 1), answer('Zagreb', [], 0), answer('Minsk', [], 1),
+      answer('Chisinau', ['Chișinău'], 2), answer('Kigali', [], 1),
+      answer('Kampala', [], 1), answer('Kigali', [], 1), answer('Addis Ababa', [], 1),
+      answer('Ulaanbaatar', [], 2), answer('Kathmandu', [], 1), answer('Thimphu', [], 2),
+      answer('Vientiane', [], 2), answer('N'Djamena', ['Ndjamena'], 3),
+      answer('Niamey', [], 2), answer('Ouagadougou', [], 2), answer('Bamako', [], 1),
+      answer('Lusaka', [], 1), answer('Harare', [], 1), answer('Asuncion', ['Asunción'], 1)
+    ]
+  },
+  {
+    id: 'world-heritage-sites', domain: 'geography', type: 'landmarks', category: 'World heritage sites',
+    prompt: 'Name a UNESCO World Heritage Site.',
+    note: 'Historic cities, buildings and natural sites can all count.',
+    source: 'UNESCO World Heritage reference list',
+    visual: { kind: 'symbol', text: '✦', label: 'WORLD HERITAGE' },
+    answers: [
+      answer('Taj Mahal', [], 0), answer('Machu Picchu', [], 0), answer('Petra', [], 0),
+      answer('Angkor Wat', [], 0), answer('Acropolis of Athens', ['Acropolis'], 0),
+      answer('Historic Centre of Rome', ['Rome Historic Centre'], 1), answer('Great Wall of China', ['Great Wall'], 0),
+      answer('Galapagos Islands', ['Galápagos Islands'], 1), answer('Serengeti National Park', [], 1),
+      answer('Yellowstone National Park', [], 1), answer('Stonehenge', [], 0),
+      answer('Pyramids of Giza', ['Giza Pyramids'], 0), answer('Kyoto Historic Monuments', ['Historic Monuments of Ancient Kyoto'], 2),
+      answer('Old City of Jerusalem', ['Jerusalem Old City'], 1), answer('Mont-Saint-Michel', [], 1),
+      answer('Historic Sanctuary of Cartagena', ['Cartagena de Indias'], 2)
+    ]
+  },
+  {
+    id: 'national-parks', domain: 'geography', type: 'nature', category: 'National parks',
+    prompt: 'Name a national park anywhere in the world.',
+    note: 'Parks on land and at sea both count.',
+    source: 'National park authority reference lists',
+    visual: { kind: 'symbol', text: '♧', label: 'NATIONAL PARK' },
+    answers: [
+      answer('Yellowstone National Park', ['Yellowstone'], 0), answer('Serengeti National Park', ['Serengeti'], 0),
+      answer('Kruger National Park', ['Kruger'], 0), answer('Banff National Park', ['Banff'], 0),
+      answer('Yosemite National Park', ['Yosemite'], 0), answer('Plitvice Lakes National Park', ['Plitvice Lakes'], 1),
+      answer('Fiordland National Park', ['Fiordland'], 1), answer('Torres del Paine National Park', ['Torres del Paine'], 1),
+      answer('Komodo National Park', ['Komodo'], 1), answer('Iguazu National Park', ['Iguazú'], 1),
+      answer('Grand Canyon National Park', ['Grand Canyon'], 0), answer('Everglades National Park', ['Everglades'], 1),
+      answer('Galapagos National Park', ['Galápagos National Park'], 1), answer('Kakadu National Park', ['Kakadu'], 1),
+      answer('Arenal Volcano National Park', ['Arenal Volcano'], 2), answer('Chitwan National Park', ['Chitwan'], 2)
+    ]
+  },
+  {
+    id: 'olympic-sports', domain: 'culture', type: 'culture', category: 'Sports around the world',
+    prompt: 'Name a sport that has featured in the Olympic Games.',
+    note: 'Summer and Winter Olympic sports both count.',
+    source: 'International Olympic Committee sports programme',
+    visual: { kind: 'symbol', text: '◎', label: 'OLYMPIC SPORTS' },
+    answers: [
+      answer('Athletics', ['Track and field'], 0), answer('Swimming', [], 0), answer('Gymnastics', [], 0),
+      answer('Cycling', [], 0), answer('Fencing', [], 1), answer('Judo', [], 1),
+      answer('Basketball', [], 0), answer('Football', ['Soccer'], 0), answer('Tennis', [], 0),
+      answer('Archery', [], 1), answer('Rowing', [], 1), answer('Sailing', [], 1),
+      answer('Skiing', [], 0), answer('Figure skating', [], 1), answer('Ice hockey', [], 0),
+      answer('Snowboarding', [], 1), answer('Curling', [], 1), answer('Wrestling', [], 0),
+      answer('Boxing', [], 0), answer('Taekwondo', [], 1)
+    ]
   }
 ];
 
@@ -536,18 +668,35 @@ function seededShuffle(items, seed) {
   })).sort((a, b) => a.key - b.key).map(entry => entry.item);
 }
 
+function classifyDailyQuestion(item) {
+  if (item.type === 'flags') return 'flags';
+  if (item.type === 'culture' || item.domain === 'culture') return 'culture';
+  if (item.type === 'cities' || /capital|cities/i.test(item.category)) return 'cities';
+  if (item.type === 'nature' || /river|mountain|island|lake|sea|ocean|desert|park/i.test(item.category)) return 'nature';
+  if (item.type === 'landmarks' || /landmark|heritage/i.test(item.category)) return 'landmarks';
+  if (/countries|country/i.test(item.category)) return 'countries';
+  return item.domain === 'geography' ? 'geography' : 'culture';
+}
+
 function generateDailyChallenge(date, excludedQuestionIds = []) {
-  const geo = Q.filter(item => item.domain === 'geography');
-  const culture = Q.filter(item => item.domain === 'culture');
   const excluded = new Set(Array.isArray(excludedQuestionIds) ? excludedQuestionIds : []);
-  const selectFresh = (items, count, seed) => {
-    const fresh = items.filter(item => !excluded.has(item.id));
-    const source = fresh.length >= count ? fresh : items;
-    return seededShuffle(source, seed).slice(0, count);
-  };
-  const selectedGeo = selectFresh(geo, 6, 'HUMANITY-GEO-' + date);
-  const selectedCulture = selectFresh(culture, 1, 'HUMANITY-CULTURE-' + date);
-  const ordered = seededShuffle(selectedGeo.concat(selectedCulture), 'HUMANITY-ORDER-' + date);
+  const selected = [];
+  const pools = ['flags', 'countries', 'cities', 'nature', 'landmarks', 'geography', 'culture'];
+  for (const poolName of pools) {
+    let pool = Q.filter(item => classifyDailyQuestion(item) === poolName);
+    let fresh = pool.filter(item => !excluded.has(item.id) && !selected.some(chosen => chosen.id === item.id));
+    if (!fresh.length) fresh = pool.filter(item => !selected.some(chosen => chosen.id === item.id));
+    if (!fresh.length && poolName !== 'culture') {
+      pool = Q.filter(item => item.domain === 'geography');
+      fresh = pool.filter(item => !excluded.has(item.id) && !selected.some(chosen => chosen.id === item.id));
+    }
+    if (!fresh.length) {
+      pool = Q.filter(item => !selected.some(chosen => chosen.id === item.id));
+      fresh = pool;
+    }
+    if (fresh.length) selected.push(seededShuffle(fresh, 'HUMANITY-' + poolName.toUpperCase() + '-' + date)[0]);
+  }
+  const ordered = seededShuffle(selected, 'HUMANITY-ORDER-' + date);
 
   return {
     date,
@@ -556,6 +705,8 @@ function generateDailyChallenge(date, excludedQuestionIds = []) {
       id: item.id,
       slot: index,
       domain: item.domain,
+      type: classifyDailyQuestion(item),
+      visual: item.visual || null,
       category: item.category,
       prompt: item.prompt,
       note: item.note,
@@ -574,6 +725,8 @@ function publicQuestion(question, index) {
   return {
     id: question.id,
     index,
+    type: question.type || classifyDailyQuestion(question),
+    visual: question.visual || null,
     category: question.category,
     prompt: question.prompt,
     note: question.note,
@@ -670,6 +823,8 @@ function listQuestionBank() {
     id: item.id,
     domain: item.domain,
     category: item.category,
+    type: item.type || classifyDailyQuestion(item),
+    visual: item.visual || null,
     prompt: item.prompt,
     answerCount: item.answers.length,
     source: item.source
