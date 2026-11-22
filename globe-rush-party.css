@@ -860,17 +860,17 @@
   #party-room .planet-room-live-pill { margin-left: auto; }
   #party-room .planet-arena { height: 190px; min-height: 190px; }
   #party-room .planet-console {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
-      "code"
-      "roster"
-      "rules"
-      "chat"
-      "start";
+      "code roster"
+      "rules chat"
+      "start start";
   }
-  #party-room .planet-player-roster { max-height: 75px; }
-  #party-room .planet-chat-log { max-height: 58px; }
+  #party-room .planet-console-card { padding: 5px; }
+  #party-room .planet-player-roster { max-height: 72px; }
+  #party-room .planet-chat-log { max-height: 54px; }
   #party-room .planet-rules-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #party-room .planet-room-code-card .planet-copy-button { font-size: 8px; }
 }
 
 /* The pre-game Globe Rush menu has a shorter header and uses the available height. */
