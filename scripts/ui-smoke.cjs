@@ -137,6 +137,137 @@ async function checkLayout(page, view, width) {
     metrics.documentWidth + 'px, footer top ' + Math.round(metrics.footer.top) + 'px.');
 }
 
+async function checkPrivateRoomLayout(page, width, live) {
+  await page.setViewportSize({ width, height: 950 });
+  await sleep(120);
+  const metrics = await page.evaluate(isLive => {
+    const rect = element => {
+      if (!element || !element.getClientRects().length) return null;
+      const box = element.getBoundingClientRect();
+      return {
+        top: box.top + window.scrollY,
+        bottom: box.bottom + window.scrollY,
+        left: box.left,
+        right: box.right,
+        width: box.width,
+        height: box.height
+      };
+    };
+    const selectors = isLive
+      ? [
+          ['game header', '#room-game-state .rush-game-header'],
+          ['category cycle', '#room-game-state .category-cycle'],
+          ['orb stage', '#room-game-state .orb-stage'],
+          ['answer area', '#room-game-state .rush-answer-area'],
+          ['used answers and player list', '#room-game-state .rush-bottom-grid']
+        ]
+      : [
+          ['world arena', '#room-lobby-state .planet-arena'],
+          ['room console', '#room-lobby-state .planet-console'],
+          ['room code card', '#room-lobby-state .planet-room-code-card'],
+          ['crew card', '#room-lobby-state .planet-console > .planet-console-card:nth-child(2)'],
+          ['mission settings', '#room-lobby-state .planet-rules-card'],
+          ['start button', '#room-lobby-state .planet-start-button'],
+          ['crew chat', '#room-lobby-state .planet-chat-card']
+        ];
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      room: rect(document.querySelector('#party-room')),
+      layout: rect(document.querySelector(isLive ? '#room-game-state' : '#room-lobby-state')),
+      panels: selectors.map(([name, selector]) => ({
+        name,
+        box: rect(document.querySelector(selector))
+      })).filter(item => item.box)
+    };
+  }, live);
+
+  assert.ok(metrics.room && metrics.layout, 'Globe Rush room state should be visible at ' + width + 'px.');
+  assert.ok(metrics.documentWidth <= width + 1,
+    'Globe Rush room must not create horizontal overflow at ' + width + 'px.');
+  assert.ok(metrics.panels.length >= (live ? 4 : 4),
+    'Globe Rush room should display its key panels at ' + width + 'px.');
+  for (let i = 0; i < metrics.panels.length; i += 1) {
+    for (let j = i + 1; j < metrics.panels.length; j += 1) {
+      const a = metrics.panels[i];
+      const b = metrics.panels[j];
+      const horizontal = Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left);
+      const vertical = Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top);
+      assert.ok(!(horizontal > 1 && vertical > 1),
+        a.name + ' overlaps ' + b.name + ' at ' + width + 'px.');
+    }
+  }
+  for (const item of metrics.panels) {
+    assert.ok(item.box.left >= -1 && item.box.right <= width + 1,
+      item.name + ' must stay inside the viewport at ' + width + 'px.');
+  }
+  console.log('PASS: Globe Rush ' + (live ? 'live match' : 'room lobby') +
+    ' has no panel overlap at ' + width + 'px.');
+}
+
+async function checkTwoPlayerRoomAndLiveGame(browser, hostPage, pageErrors) {
+  let guestContext = null;
+  let guestPage = null;
+  try {
+    await hostPage.setViewportSize({ width: 1440, height: 950 });
+    await hostPage.locator('#party-display-name').fill('LayoutHost');
+    await hostPage.locator('#host-visibility').selectOption('private');
+    await hostPage.locator('#create-room-form button[type="submit"]').click();
+    await hostPage.locator('#party-room:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+    await hostPage.waitForFunction(() => {
+      const code = document.querySelector('#room-code-display');
+      return code && /^[A-Z2-9]{6}$/.test(code.textContent.trim());
+    }, null, { timeout: 15000 });
+    const code = await hostPage.locator('#room-code-display').textContent();
+
+    guestContext = await browser.newContext({
+      viewport: { width: 375, height: 900 },
+      serviceWorkers: 'block'
+    });
+    guestPage = await guestContext.newPage();
+    guestPage.on('pageerror', error => pageErrors.push('guest: ' + error.message));
+    const response = await guestPage.goto(SITE_URL, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
+    });
+    assert.ok(response && response.ok(), 'The second browser should load HUMANITY.');
+    await guestPage.locator('[data-view="party"]').first().click();
+    await guestPage.locator('#view-party:not([hidden])').waitFor({ state: 'visible', timeout: 10000 });
+    await guestPage.locator('#party-display-name').fill('LayoutGuest');
+    await guestPage.locator('#join-code').fill(String(code).trim());
+    await guestPage.locator('#join-room-form button[type="submit"]').click();
+    await guestPage.locator('#party-room:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+
+    await hostPage.waitForFunction(() => {
+      const button = document.querySelector('#room-start');
+      return button && !button.disabled && !button.hidden;
+    }, null, { timeout: 20000 });
+
+    // Check the actual private-room console before starting the match.
+    for (const width of [320, 375, 430, 768, 1024, 1440]) {
+      await checkPrivateRoomLayout(hostPage, width, false);
+    }
+
+    await hostPage.setViewportSize({ width: 1440, height: 950 });
+    await hostPage.locator('#room-start').click();
+    await hostPage.locator('#room-game-state:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+    await guestPage.locator('#room-game-state:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+
+    // Check the real two-player game view too, not just the lobby/footer.
+    for (const width of [320, 375, 430, 768, 1024, 1440]) {
+      await checkPrivateRoomLayout(hostPage, width, true);
+    }
+    await guestPage.setViewportSize({ width: 375, height: 900 });
+    await checkPrivateRoomLayout(guestPage, 375, true);
+    console.log('PASS: A private two-player room can be created, joined and started.');
+  } finally {
+    if (guestPage) {
+      try { await guestPage.locator('#leave-room').click({ timeout: 2500 }); } catch (_) {}
+    }
+    try { await hostPage.locator('#leave-room').click({ timeout: 2500 }); } catch (_) {}
+    if (guestContext) await guestContext.close();
+  }
+}
+
 async function main() {
   await waitForStableApi();
 
@@ -190,6 +321,9 @@ async function main() {
       await sleep(100);
       await checkLayout(page, '#view-party', width);
     }
+
+    // Create a private room with a second browser and inspect both room and live-game layouts.
+    await checkTwoPlayerRoomAndLiveGame(browser, page, pageErrors);
 
     // Check the Daily page and its footer separately at the same responsive widths.
     await page.locator('[data-view="daily"]').first().click();
