@@ -346,17 +346,30 @@ async function addApprovedAnswers(questions) {
   for (const extra of approved) {
     const question = questions.find(item => item.id === extra.question_id);
     if (!question) continue;
-    const key = engine.normaliseAnswer(extra.answer_text);
-    const aliases = Array.isArray(extra.aliases) ? extra.aliases : [];
-    const exists = question.answers.some(item =>
-      engine.normaliseAnswer(item.name) === key ||
-      [item.name].concat(item.aliases || []).some(alias => engine.normaliseAnswer(alias) === key)
+    const canonicalKey = engine.normaliseAnswer(extra.answer_text);
+    const incomingAliases = Array.isArray(extra.aliases) ? extra.aliases : [];
+    const incomingNames = [extra.answer_text].concat(incomingAliases);
+    const incomingKeys = new Set(incomingNames.map(engine.normaliseAnswer).filter(Boolean));
+    const matches = question.answers.filter(item =>
+      [item.name].concat(item.aliases || []).some(name => incomingKeys.has(engine.normaliseAnswer(name)))
     );
-    if (!exists) question.answers.push({
-      name:extra.answer_text,aliases,
-      rarity:Math.max(0,Math.min(5,Number(extra.rarity)||0)),
-      source:extra.source_url||'HUMANITY approved answer'
-    });
+    if (matches.length === 1) {
+      const existing = matches[0];
+      const merged = new Map((existing.aliases || []).map(alias => [engine.normaliseAnswer(alias), alias]));
+      for (const name of incomingNames) {
+        const key = engine.normaliseAnswer(name);
+        if (key && key !== engine.normaliseAnswer(existing.name)) merged.set(key, String(name).slice(0, 80));
+      }
+      existing.aliases = [...merged.values()].slice(0, 100);
+      if (extra.source_url) existing.source = extra.source_url;
+    } else if (matches.length === 0 && canonicalKey) {
+      question.answers.push({
+        name: extra.answer_text,
+        aliases: incomingAliases,
+        rarity: Math.max(0, Math.min(5, Number(extra.rarity) || 0)),
+        source: extra.source_url || 'HUMANITY approved answer'
+      });
+    }
   }
   return questions;
 }
@@ -512,15 +525,28 @@ const WIKIDATA_VERIFICATION_CACHE = new Map();
 
 async function maybeVerifyWithWikidata(question, answerText) {
   const expected = {
+    'europe-countries': ['country in europe', 'european country'],
+    'africa-countries': ['country in africa', 'african country'],
+    'asia-countries': ['country in asia', 'asian country'],
+    'south-america-countries': ['country in south america', 'south american country'],
+    'north-america-countries': ['country in north america', 'north american country'],
+    'oceania-countries': ['country in oceania', 'oceanian country'],
     'world-rivers': ['river'],
-    mountains: ['mountain', 'volcano', 'peak'],
+    mountains: ['mountain', 'volcano', 'peak', 'mountain range'],
     islands: ['island'],
     lakes: ['lake'],
     seas: ['sea', 'ocean'],
     deserts: ['desert'],
     'capital-cities': ['capital'],
-    'major-cities': ['city'],
-    'world-landmarks': ['landmark', 'monument', 'tower', 'bridge', 'heritage']
+    'major-cities': ['city', 'town'],
+    'landlocked-capitals': ['capital'],
+    'world-landmarks': ['landmark', 'monument', 'tower', 'bridge', 'heritage site', 'statue'],
+    'world-heritage-sites': ['world heritage site', 'unesco world heritage site'],
+    'national-parks': ['national park'],
+    languages: ['language'],
+    'popular-dishes': ['dish', 'cuisine', 'traditional food'],
+    'popular-snacks': ['snack', 'food'],
+    'olympic-sports': ['sport']
   }[question.id];
   if (!expected) return null;
 
@@ -552,18 +578,57 @@ async function maybeVerifyWithWikidata(question, answerText) {
       if (!response.ok) return null;
 
       const payload = await response.json();
-      const candidate = (payload.search || []).find(item =>
-        engine.normaliseAnswer(item.label) === answerKey &&
-        expected.some(term => String(item.description || '').toLowerCase().includes(term))
-      );
+      const candidate = (payload.search || []).find(item => {
+        const matchedText = item.match && item.match.text ? item.match.text : '';
+        const exactAlias = engine.normaliseAnswer(item.label) === answerKey ||
+          engine.normaliseAnswer(matchedText) === answerKey;
+        return exactAlias &&
+          expected.some(term => String(item.description || '').toLowerCase().includes(term));
+      });
       if (!candidate) return null;
 
+      const aliases = new Map();
+      const addAlias = value => {
+        const alias = String(value || '').trim().slice(0, 80);
+        const normal = engine.normaliseAnswer(alias);
+        if (normal && normal !== engine.normaliseAnswer(candidate.label)) aliases.set(normal, alias);
+      };
+      addAlias(cleanAnswer);
+      addAlias(candidate.match && candidate.match.text);
+
+      // Search can find a local/alternate name. Expand that entity's official
+      // labels and aliases across languages so later players get the same match.
+      try {
+        const aliasParams = new URLSearchParams({
+          action: 'wbgetentities',
+          ids: candidate.id,
+          props: 'labels|aliases',
+          languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi',
+          format: 'json'
+        });
+        const aliasResponse = await fetch('https://www.wikidata.org/w/api.php?' + aliasParams.toString(), {
+          headers: { Accept: 'application/json', 'User-Agent': 'HUMANITY-Geography-Engine/1.0' },
+          signal: AbortSignal.timeout(3000)
+        });
+        if (aliasResponse.ok) {
+          const aliasPayload = await aliasResponse.json();
+          const entity = aliasPayload.entities && aliasPayload.entities[candidate.id];
+          for (const label of Object.values(entity && entity.labels || {})) addAlias(label && label.value);
+          for (const languageAliases of Object.values(entity && entity.aliases || {})) {
+            for (const alias of Array.isArray(languageAliases) ? languageAliases : []) addAlias(alias && alias.value);
+          }
+        }
+      } catch (_) {
+        // The exact typed entity match remains usable if alias expansion times out.
+      }
+
       const key = engine.normaliseAnswer(candidate.label);
+      const approvedAliases = [...aliases.values()].slice(0, 100);
       await pool.query(
         'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) ' +
         'VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO UPDATE SET ' +
-        'answer_text = EXCLUDED.answer_text, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by',
-        [question.id, key, candidate.label, JSON.stringify([]), candidate.concepturi || null, 'automatic Wikidata type match']
+        'aliases = EXCLUDED.aliases, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by',
+        [question.id, key, candidate.label, JSON.stringify(approvedAliases), candidate.concepturi || null, 'automatic Wikidata type match']
       );
       await pool.query(
         'UPDATE humanity_answer_review_queue SET status = $2, confidence = $3, source_url = $4, reviewer_note = $5, updated_at = NOW() ' +
@@ -576,7 +641,9 @@ async function maybeVerifyWithWikidata(question, answerText) {
       );
       return {
         name: candidate.label,
-        source: candidate.concepturi || 'Wikidata exact-label and geography-type verification'
+        aliases: approvedAliases,
+        rarity: 2,
+        source: candidate.concepturi || 'Wikidata exact-label/alias and expected entity-type verification'
       };
     } catch (error) {
       console.warn('Wikidata verification skipped:', error.message);
