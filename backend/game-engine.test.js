@@ -109,7 +109,13 @@ test('private Globe Rush lobby settings have safe defaults', () => {
     maxLives: 3,
     turnDurationSeconds: 0,
     maxWrongAnswersPerCategory: 2,
-    maxTurnsPerCategory: 10
+    maxTurnsPerCategory: 10,
+    gameMode: 'classic',
+    difficulty: 'normal',
+    categoryTheme: 'all',
+    countdownSeconds: 5,
+    ratingEnabled: false,
+    autoStartWhenFull: false
   });
 });
 
@@ -125,7 +131,13 @@ test('private Globe Rush lobby settings are clamped and keep max lives above sta
     maxLives: 5,
     turnDurationSeconds: 15,
     maxWrongAnswersPerCategory: 4,
-    maxTurnsPerCategory: 20
+    maxTurnsPerCategory: 20,
+    gameMode: 'classic',
+    difficulty: 'normal',
+    categoryTheme: 'all',
+    countdownSeconds: 5,
+    ratingEnabled: false,
+    autoStartWhenFull: false
   });
 
   assert.deepEqual(partyRules.normaliseRoomSettings({
@@ -133,14 +145,69 @@ test('private Globe Rush lobby settings are clamped and keep max lives above sta
     maxLives: 99,
     turnDurationSeconds: 7,
     maxWrongAnswersPerCategory: 0,
-    maxTurnsPerCategory: 99
+    maxTurnsPerCategory: 99,
+    countdownSeconds: 4,
+    gameMode: 'unknown',
+    difficulty: 'impossible',
+    categoryTheme: 'moon',
+    ratingEnabled: 'yes',
+    autoStartWhenFull: 1
   }), {
     startingLives: 5,
     maxLives: 6,
     turnDurationSeconds: 0,
     maxWrongAnswersPerCategory: 1,
-    maxTurnsPerCategory: 10
+    maxTurnsPerCategory: 10,
+    gameMode: 'classic',
+    difficulty: 'normal',
+    categoryTheme: 'all',
+    countdownSeconds: 5,
+    ratingEnabled: false,
+    autoStartWhenFull: false
   });
+});
+
+test('hosted Globe Rush game modes clamp lives and preserve the selected theme', () => {
+  assert.deepEqual(partyRules.normaliseRoomSettings({
+    gameMode: 'sudden-death',
+    difficulty: 'hard',
+    categoryTheme: 'landmarks',
+    countdownSeconds: 10,
+    ratingEnabled: true,
+    autoStartWhenFull: true,
+    startingLives: 4,
+    maxLives: 5
+  }), {
+    startingLives: 1,
+    maxLives: 1,
+    turnDurationSeconds: 0,
+    maxWrongAnswersPerCategory: 2,
+    maxTurnsPerCategory: 10,
+    gameMode: 'sudden-death',
+    difficulty: 'hard',
+    categoryTheme: 'landmarks',
+    countdownSeconds: 10,
+    ratingEnabled: true,
+    autoStartWhenFull: true
+  });
+});
+
+test('Globe Rush question selection respects hosted room category themes', () => {
+  for (let index = 0; index < 20; index += 1) {
+    const countries = engine.getPartyQuestion([], { categoryTheme: 'countries' });
+    assert.match(countries.topicId, /countr/i);
+    const cities = engine.getPartyQuestion([], { categoryTheme: 'cities' });
+    assert.match(cities.topicId, /capital|cit/i);
+    const culture = engine.getPartyQuestion([], { categoryTheme: 'culture' });
+    assert.match(culture.topicId, /dish|snack|language/i);
+  }
+});
+
+test('Globe Rush question selection applies the selected difficulty to available topics', () => {
+  const easy = engine.getPartyQuestion([], { difficulty: 'easy' });
+  const hard = engine.getPartyQuestion([], { difficulty: 'hard' });
+  assert.ok(easy.answers.length >= 16);
+  assert.ok(hard.answers.length <= 12);
 });
 
 test('private Globe Rush category rules use each room custom thresholds', () => {

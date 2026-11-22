@@ -1,0 +1,871 @@
+/* HUMANITY Globe Rush — space lobby and orbital room UI */
+#view-party .party-intro {
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  padding: 25px 18px 17px;
+  text-align: center;
+}
+#view-party .party-intro-copy {
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+#view-party .party-intro-copy .party-live-count {
+  justify-content: center;
+}
+#view-party .party-intro-copy .eyebrow {
+  justify-content: center;
+}
+#view-party .party-intro h1 {
+  margin: 5px 0 1px;
+  color: #f2f6ff;
+  font-family: 'VT323', monospace;
+  font-size: clamp(36px, 5vw, 56px);
+  letter-spacing: .12em;
+  text-shadow: 3px 3px 0 #e45b9a, 0 0 22px rgba(82, 220, 255, .28);
+}
+#view-party .party-intro p {
+  max-width: 570px;
+  margin: 0 auto;
+  color: #a9bfd9;
+  font-size: 11px;
+  line-height: 1.65;
+}
+#view-party .party-intro-stats {
+  justify-content: center;
+  margin-top: 9px;
+  font-size: 12px;
+}
+#view-party .party-intro .party-preview-world {
+  display: none;
+}
+#view-party .party-lobby {
+  display: grid;
+  grid-template-columns: minmax(270px, 330px) minmax(300px, 1fr) minmax(270px, 330px);
+  align-items: stretch;
+  gap: 14px;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+#view-party .party-lobby-main {
+  display: contents;
+}
+#view-party .party-play-panel {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #24476d;
+  border-radius: 2px;
+  color: #dbeaff;
+  background: linear-gradient(155deg, rgba(8, 23, 43, .97), rgba(5, 16, 32, .94));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(126, 190, 229, .08);
+}
+#view-party .party-play-panel .panel-topline {
+  margin-bottom: 13px;
+  padding-bottom: 9px;
+  border-bottom: 1px dashed rgba(115, 157, 193, .32);
+}
+#view-party .party-play-panel .panel-kicker,
+#view-party .party-play-panel .micro-label,
+#view-party .party-play-panel .field-label {
+  color: #83d8ed;
+}
+#view-party .party-play-panel .attempt-label {
+  color: #f18bb4;
+}
+#view-party .display-name-row {
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border: 1px solid #294b72;
+  border-radius: 2px;
+  background: rgba(7, 20, 39, .84);
+}
+#view-party .display-name-row label {
+  color: #92acc8;
+  font: 10px 'VT323', monospace;
+  letter-spacing: .14em;
+}
+#view-party .display-name-row input {
+  min-height: 37px;
+  color: #f0f6ff;
+  background: #0b1b32;
+  border: 1px solid #31547b;
+  border-radius: 0;
+}
+#view-party .party-mode-grid {
+  gap: 8px;
+}
+#view-party .mode-card {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #27486c;
+  border-radius: 2px;
+  color: #dcecff;
+  background: linear-gradient(155deg, #102744, #091a30);
+  box-shadow: none;
+}
+#view-party .mode-card h2 {
+  margin: 7px 0 3px;
+  color: #eef6ff;
+  font: 20px 'VT323', monospace;
+  letter-spacing: .06em;
+}
+#view-party .mode-card p {
+  min-height: 37px;
+  margin: 0 0 9px;
+  color: #90a9c5;
+  font-size: 9px;
+  line-height: 1.45;
+}
+#view-party .mode-card .mode-icon {
+  width: 31px;
+  height: 31px;
+  border-color: #346286;
+  border-radius: 2px;
+  color: #66e7fb;
+  background: #0c2946;
+  box-shadow: none;
+}
+#view-party .ranked-card {
+  background: linear-gradient(155deg, #152740, #101d32);
+}
+#view-party .mode-footnote {
+  color: #f09abb;
+  font-size: 8px;
+}
+#view-party .party-play-panel .select-input,
+#view-party .party-play-panel .code-input {
+  min-height: 34px;
+  color: #dcecff;
+  border: 1px solid #29496e;
+  border-radius: 0;
+  background: #08182e;
+}
+#view-party .party-play-panel .button {
+  min-height: 37px;
+  border-radius: 1px;
+  font: 17px 'VT323', monospace;
+  letter-spacing: .09em;
+}
+#view-party .party-play-panel .button-primary {
+  color: #07172a;
+  background: #5fe0f2;
+  border-color: #5fe0f2;
+}
+#view-party .party-play-panel .button-dark {
+  color: #f3d3e1;
+  background: #812f59;
+  border-color: #bd5b87;
+}
+#view-party .party-tools-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 11px;
+}
+#view-party .room-tool {
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr);
+  gap: 7px 9px;
+  padding: 10px;
+  border: 1px solid #284a70;
+  border-radius: 2px;
+  color: #dcecff;
+  background: #0b1d34;
+  box-shadow: none;
+}
+#view-party .room-tool-icon {
+  grid-row: span 2;
+  color: #66e6f8;
+}
+#view-party .room-tool strong {
+  color: #f0f6ff;
+  font: 18px 'VT323', monospace;
+  letter-spacing: .07em;
+}
+#view-party .room-tool p {
+  margin: 1px 0 0;
+  color: #91a9c4;
+  font-size: 9px;
+}
+#view-party .room-tool .button {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+#view-party .host-visibility {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #8fa9c6;
+  font: 10px 'VT323', monospace;
+  letter-spacing: .1em;
+}
+#view-party .host-visibility select {
+  width: min(165px, 60%);
+  padding: 7px;
+  color: #dff4ff;
+  border: 1px solid #31577e;
+  border-radius: 0;
+  background: #08182e;
+  font: 11px var(--font-mono);
+}
+#view-party .join-tool {
+  grid-template-columns: 29px minmax(0, 1fr);
+}
+#view-party .join-tool .code-input {
+  grid-column: 1 / -1;
+  width: 100%;
+  letter-spacing: .22em;
+}
+#view-party .join-tool .button {
+  grid-column: 1 / -1;
+}
+#view-party .public-rooms-card {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: stretch;
+  min-width: 0;
+  max-height: 670px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  border: 1px solid #24476d;
+  border-radius: 2px;
+  color: #dbeaff;
+  background: linear-gradient(155deg, rgba(8, 23, 43, .97), rgba(5, 16, 32, .94));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .26);
+}
+#view-party .public-rooms-card .side-card-head {
+  flex: 0 0 auto;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(115, 157, 193, .32);
+}
+#view-party .public-rooms-card h3 {
+  color: #eef6ff;
+  font: 18px 'VT323', monospace;
+  letter-spacing: .1em;
+}
+#view-party .public-rooms-card .micro-label {
+  color: #86dced;
+}
+#view-party .open-rooms-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+#view-party .public-room-row {
+  padding: 11px 3px;
+  border-bottom: 1px solid rgba(70, 108, 147, .27);
+  background: transparent;
+}
+#view-party .public-room-row strong {
+  color: #63def2;
+  font: 20px 'VT323', monospace;
+  letter-spacing: .14em;
+}
+#view-party .public-room-row small {
+  color: #91a8c1;
+  font: 9px var(--font-mono);
+}
+#view-party .public-room-row button {
+  color: #f18ab5;
+  border: 0;
+  background: transparent;
+  font: 15px 'VT323', monospace;
+  letter-spacing: .08em;
+}
+#view-party .empty-room-note {
+  color: #8fa8c5;
+}
+#view-party .party-sidebar {
+  display: none;
+}
+.party-centre-scene {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 570px;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 49%, rgba(20, 91, 140, .22), transparent 48%),
+    radial-gradient(ellipse at 50% 95%, rgba(10, 24, 52, .38), transparent 55%);
+}
+.party-centre-scene::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  width: 68%;
+  height: 17%;
+  left: 16%;
+  bottom: 16%;
+  border-radius: 50%;
+  background: rgba(0, 5, 16, .42);
+  filter: blur(22px);
+}
+.centre-starfield {
+  position: absolute;
+  inset: 0;
+  opacity: .9;
+  background-image:
+    radial-gradient(1px 1px at 12% 14%, #e8f7ff 50%, transparent 100%),
+    radial-gradient(1px 1px at 27% 33%, #9bc8ed 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 73% 19%, #e8f7ff 50%, transparent 100%),
+    radial-gradient(1px 1px at 82% 62%, #9bc8ed 50%, transparent 100%),
+    radial-gradient(1px 1px at 39% 79%, #d6ebff 50%, transparent 100%),
+    radial-gradient(1px 1px at 61% 90%, #d6ebff 50%, transparent 100%);
+  animation: humanity-star-drift 26s linear infinite;
+}
+.centre-orbit {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 47%;
+  width: min(92%, 470px);
+  height: 155px;
+  border: 1px solid rgba(95, 206, 235, .3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-24deg);
+  box-shadow: 0 0 28px rgba(60, 186, 228, .08);
+}
+.centre-orbit-b {
+  width: min(78%, 390px);
+  height: 245px;
+  border-color: rgba(232, 112, 164, .22);
+  transform: translate(-50%, -50%) rotate(54deg);
+}
+.centre-earth-halo {
+  position: relative;
+  z-index: 4;
+  width: clamp(170px, 22vw, 235px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(74, 199, 238, .17), transparent 68%);
+  animation: humanity-earth-float 5.2s ease-in-out infinite;
+}
+.centre-earth {
+  width: 76%;
+  height: 76%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #11486c;
+  box-shadow: 0 0 28px rgba(70, 210, 245, .32), 0 24px 55px rgba(0, 0, 0, .36), inset -15px -18px 23px rgba(1, 9, 25, .35);
+}
+.centre-earth > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.centre-caption {
+  position: absolute;
+  z-index: 5;
+  left: 8px;
+  right: 8px;
+  bottom: 10%;
+  color: #87b5d4;
+  font: 12px 'VT323', monospace;
+  text-align: center;
+  letter-spacing: .14em;
+}
+.centre-shooting-star {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 18%;
+  width: 2px;
+  height: 72px;
+  opacity: 0;
+  background: linear-gradient(to bottom, rgba(122, 235, 255, 0), rgba(122, 235, 255, .95), rgba(122, 235, 255, 0));
+  filter: drop-shadow(0 0 5px #67e5fa);
+  transform: rotate(42deg);
+  animation: humanity-shooting-star 5.8s linear infinite;
+}
+.centre-shooting-star.star-two { left: 77%; animation-delay: 1.8s; animation-duration: 6.8s; }
+.centre-shooting-star.star-three { left: 52%; animation-delay: 3.5s; animation-duration: 7.2s; }
+.centre-shooting-star.star-four { left: 33%; animation-delay: 4.6s; animation-duration: 8s; }
+@keyframes humanity-earth-float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-15px) rotate(2deg); } }
+@keyframes humanity-star-drift { from { transform: translateY(0); } to { transform: translateY(-18px); } }
+@keyframes humanity-shooting-star {
+  0% { opacity: 0; transform: translate(35px, -110px) rotate(42deg); }
+  8% { opacity: .9; }
+  28% { opacity: 0; transform: translate(-100px, 280px) rotate(42deg); }
+  100% { opacity: 0; transform: translate(-100px, 280px) rotate(42deg); }
+}
+.planet-avatar-picker {
+  margin: 10px 0 14px;
+  padding: 10px;
+  border: 1px solid #294b70;
+  background: rgba(5, 18, 34, .68);
+}
+.planet-avatar-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: #8da8c5;
+  font: 10px 'VT323', monospace;
+  letter-spacing: .13em;
+}
+.planet-avatar-picker-head strong {
+  color: #6be4f7;
+  font-weight: 400;
+}
+#planet-avatar-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+.planet-avatar-choice {
+  min-width: 0;
+  min-height: 65px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 2px;
+  border: 1px solid #294665;
+  border-radius: 1px;
+  color: #a9bfd8;
+  background: #091a30;
+  cursor: pointer;
+}
+.planet-avatar-choice b {
+  max-width: 100%;
+  overflow: hidden;
+  color: #d8e8fb;
+  font: 12px 'VT323', monospace;
+  text-overflow: ellipsis;
+}
+.planet-avatar-choice small {
+  color: #7995b4;
+  font: 7px var(--font-mono);
+  letter-spacing: .04em;
+  text-align: center;
+}
+.planet-avatar-choice.selected {
+  border-color: #65e4f4;
+  box-shadow: 0 0 0 1px rgba(101, 228, 244, .3), inset 0 0 18px rgba(70, 211, 238, .08);
+}
+.planet-avatar-choice.locked {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.planet-avatar-visual, .planet-avatar {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+  border-radius: 50%;
+  box-shadow: inset -5px -6px 9px rgba(0, 0, 0, .36), 0 0 12px rgba(82, 194, 230, .18);
+}
+.planet-avatar-mercury { background: radial-gradient(circle at 30% 27%, #e4ddc7, #99958b 48%, #4f5968 100%); }
+.planet-avatar-venus { background: radial-gradient(circle at 32% 28%, #fff0b8, #d79b54 55%, #80543f 100%); }
+.planet-avatar-earth { background: radial-gradient(circle at 35% 27%, #8ee8f1, #2588c8 50%, #123a70 100%); }
+.planet-avatar-mars { background: radial-gradient(circle at 33% 28%, #ffc0a0, #d45e47 53%, #742c3c 100%); }
+.planet-avatar-jupiter { background: repeating-linear-gradient(0deg, #8c543b 0 4px, #edc38b 4px 8px, #ad7550 8px 12px); }
+.planet-avatar-saturn { background: repeating-linear-gradient(0deg, #876a4f 0 4px, #e1c393 4px 8px, #a98660 8px 12px); }
+.planet-avatar-saturn::after {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 9px;
+  width: 42px;
+  height: 9px;
+  border: 2px solid rgba(232, 207, 151, .88);
+  border-radius: 50%;
+  transform: rotate(-24deg);
+}
+.planet-avatar-uranus { background: radial-gradient(circle at 32% 28%, #e1fdff, #7cd6de 55%, #327e9a 100%); }
+.planet-avatar-neptune { background: radial-gradient(circle at 32% 28%, #b7ccff, #4568c6 55%, #18265f 100%); }
+#party-room {
+  padding: 14px;
+  border: 1px solid #24476d;
+  border-radius: 2px;
+  color: #dcecff;
+  background: linear-gradient(155deg, #07172b, #091a31);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .3);
+}
+#party-room .planet-room-topbar {
+  min-height: 48px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(77, 121, 164, .3);
+}
+#party-room .planet-brand-lockup b,
+#party-room .planet-room-code-pill strong {
+  color: #6ee4f4;
+}
+#party-room .planet-brand-mark {
+  color: #06172c;
+  background: #65deef;
+  border-radius: 2px;
+}
+#party-room .planet-room-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 310px);
+  gap: 13px;
+}
+#party-room .planet-arena {
+  min-height: 590px;
+  border: 1px solid #24476d;
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(19, 92, 144, .26), transparent 48%),
+    radial-gradient(ellipse at 50% 100%, rgba(7, 11, 27, .92), transparent 52%),
+    linear-gradient(160deg, #0b2b4d, #06152a 82%);
+}
+#party-room .planet-arena::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  opacity: .6;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 13% 18%, #dff8ff 50%, transparent),
+    radial-gradient(1px 1px at 83% 30%, #b7dcf8 50%, transparent),
+    radial-gradient(1.4px 1.4px at 68% 78%, #e9f6ff 50%, transparent),
+    radial-gradient(1px 1px at 29% 68%, #9ed2ee 50%, transparent);
+  animation: humanity-star-drift 22s linear infinite;
+}
+#party-room .planet-floating-island,
+#party-room .planet-satellite {
+  opacity: .25;
+}
+#party-room .planet-arena-heading {
+  z-index: 5;
+}
+#party-room .planet-arena-heading strong {
+  color: #f1f6ff;
+  text-shadow: 3px 3px 0 #d94e8c, 0 0 20px rgba(97, 222, 248, .26);
+}
+#party-room .planet-arena-heading b {
+  color: #75e5f6;
+}
+#party-room .planet-earth {
+  width: clamp(120px, 15vw, 190px);
+  height: clamp(120px, 15vw, 190px);
+  border-radius: 50%;
+  box-shadow: 0 0 26px rgba(82, 209, 245, .38), 0 22px 55px rgba(0, 0, 0, .4);
+}
+#party-room .planet-player-field {
+  z-index: 6;
+}
+#party-room .planet-seat {
+  background: rgba(7, 23, 42, .78);
+  border: 1px solid rgba(76, 126, 169, .4);
+  border-radius: 2px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
+}
+#party-room .planet-seat-name { color: #e2efff; }
+#party-room .planet-seat-status { color: #78a1c4; }
+#party-room .planet-seat.is-you { border-color: #69e2f0; box-shadow: 0 0 0 1px rgba(105, 226, 240, .16); }
+#party-room .planet-seat-avatar {
+  width: 32px;
+  height: 32px;
+  margin: 0 0 5px;
+  background: transparent;
+  filter: none;
+  animation: humanity-earth-float 3.2s ease-in-out infinite;
+}
+#party-room .planet-arena-footer {
+  color: #79b5d4;
+}
+#party-room .planet-console {
+  min-width: 0;
+  gap: 9px;
+}
+#party-room .planet-console-card {
+  padding: 13px;
+  border: 1px solid #24476d;
+  border-radius: 2px;
+  color: #dcecff;
+  background: rgba(6, 19, 37, .94);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .2);
+}
+#party-room .planet-console-heading {
+  color: #83d8ed;
+  border-bottom: 1px dashed rgba(115, 157, 193, .32);
+}
+#party-room .planet-console-heading i,
+#party-room .planet-rule-line span,
+#party-room .planet-chat-empty {
+  color: #7d9cba;
+}
+#party-room .planet-room-code-value {
+  color: #65e4f4;
+  text-shadow: 0 0 18px rgba(101, 228, 244, .22);
+}
+#party-room .planet-room-code-card p {
+  color: #95aecb;
+}
+#party-room .planet-player-roster .planet-roster-row {
+  border-color: rgba(77, 121, 164, .22);
+}
+#party-room .planet-roster-name {
+  color: #dcecff;
+}
+#party-room .planet-rule-line b {
+  color: #f0c5da;
+}
+#party-room .planet-chat-log {
+  border-color: #1d3a5b;
+}
+#party-room .planet-chat-log span,
+#party-room .planet-chat-log p {
+  color: #aac2dc;
+}
+#party-room .planet-chat-form input {
+  color: #dcecff;
+  border-color: #29496e;
+  background: #08182e;
+}
+#party-room .planet-chat-form button {
+  color: #07172a;
+  background: #5fe0f2;
+}
+#party-room .planet-private-settings {
+  margin-top: 10px;
+  border-top: 1px dashed rgba(115, 157, 193, .3);
+}
+#party-room .planet-private-settings summary {
+  color: #73e1f2;
+}
+#party-room .planet-private-settings-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+#party-room .planet-private-settings-grid label {
+  color: #8eabc8;
+  font: 10px 'VT323', monospace;
+  letter-spacing: .06em;
+}
+#party-room .planet-private-settings-grid select {
+  width: 100%;
+  min-height: 34px;
+  color: #e1efff;
+  border: 1px solid #2a4c71;
+  border-radius: 0;
+  background: #08182e;
+  font: 9px var(--font-mono);
+}
+#party-room .planet-setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 5px 7px;
+  border: 1px solid #29496e;
+  color: #dcecff !important;
+  background: #0a1d34;
+}
+#party-room .planet-setting-toggle input {
+  accent-color: #5fe0f2;
+}
+#party-room .planet-private-settings-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+#party-room .planet-copy-button,
+#party-room .planet-start-button {
+  min-height: 38px;
+  border: 1px solid #5bd8eb;
+  border-radius: 1px;
+  color: #07172a;
+  background: #5fe0f2;
+  font: 17px 'VT323', monospace;
+  letter-spacing: .1em;
+}
+#party-room .planet-leave-button {
+  color: #f19cba;
+}
+#party-room .rush-game-header h2 {
+  color: #f0f6ff;
+}
+#party-room .rush-game-header p {
+  color: #92acc8;
+}
+#party-room .orb-stage {
+  min-height: 440px;
+  border: 1px solid #23466d;
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse at 50% 49%, rgba(20, 96, 149, .26), transparent 50%),
+    linear-gradient(180deg, #0b2542, #06152a);
+}
+#party-room .orb-stage::before,
+#party-room .orb-stage::after {
+  display: none;
+}
+#party-room .orb-stage .stage-orb {
+  filter: drop-shadow(0 0 28px rgba(77, 205, 244, .34));
+}
+#party-room .orb-holder-label,
+#party-room .rush-stage-kicker,
+#party-room .rush-stage-footer {
+  color: #86b8d5;
+}
+#party-room .category-cycle {
+  border: 1px solid #29496e;
+  border-radius: 2px;
+  background: #08182e;
+}
+#party-room .category-cycle-stat > span { color: #8ca9c5; }
+#party-room .category-cycle-stat > b { color: #69dfef; }
+#party-room .category-cycle-stat > i { background: #1b3553; }
+#party-room .category-cycle-stat > i > span { background: linear-gradient(90deg, #5bd8eb, #ed79a8); }
+#party-room .rush-player-row,
+#party-room .rush-player-hearts,
+#party-room .used-answer-chip {
+  color: #c9dcef;
+}
+#party-room .used-answer-chip {
+  border-color: #2b4d70;
+  background: #0a1e35;
+}
+#party-room .rush-answer-panel,
+#party-room .rush-players-panel {
+  border-color: #24476d;
+  border-radius: 2px;
+  color: #dcecff;
+  background: #08182e;
+}
+#party-room #rush-answer,
+#party-room #rush-answer-time-track {
+  color: #e7f3ff;
+  border-color: #2c5077;
+  background: #07162a;
+}
+#party-room .rush-submit {
+  color: #06182b;
+  background: #5fe0f2;
+}
+#party-room .orb-player-avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#party-room .orb-player-avatar.planet-avatar {
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgba(145, 220, 245, .4);
+}
+#party-room .orb-player-avatar.planet-avatar-saturn::after {
+  left: -6px;
+  top: 8px;
+  width: 36px;
+}
+#party-room .orb-player-marker.is-holder .orb-player-avatar {
+  outline: 2px solid #66e1f2;
+  outline-offset: 4px;
+}
+@media (max-width: 1080px) {
+  #view-party .party-lobby {
+    grid-template-columns: minmax(250px, 320px) minmax(250px, 1fr);
+  }
+  #view-party .party-play-panel { grid-column: 1; }
+  #view-party .public-rooms-card { grid-column: 2; }
+  .party-centre-scene { display: none; }
+}
+@media (max-width: 720px) {
+  #view-party .party-intro { padding: 17px 7px 13px; }
+  #view-party .party-intro-stats { gap: 7px; font-size: 10px; }
+  #view-party .party-lobby {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+  }
+  #view-party .party-play-panel,
+  #view-party .public-rooms-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  #view-party .public-rooms-card { max-height: 360px; }
+  #view-party .party-mode-grid { grid-template-columns: 1fr 1fr; }
+  #view-party .mode-card { padding: 9px; }
+  .party-centre-scene { display: none; }
+  #party-room { padding: 8px; }
+  #party-room .planet-room-layout { grid-template-columns: minmax(0, 1fr); }
+  #party-room .planet-arena { min-height: 440px; }
+  #party-room .planet-console { grid-row: 1; }
+  #party-room .planet-arena { grid-row: 2; }
+  #party-room .planet-private-settings-grid { grid-template-columns: 1fr 1fr; }
+  #party-room .orb-stage { min-height: 300px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .centre-earth-halo,
+  .centre-starfield,
+  .centre-shooting-star,
+  #party-room .planet-seat-avatar {
+    animation: none !important;
+  }
+}
+
+
+/* Keep the planet textures visible on the room's player markers. */
+#party-room .planet-seat-avatar.planet-avatar-mercury,
+#party-room .orb-player-avatar.planet-avatar-mercury,
+#party-room .planet-roster-dot.planet-avatar-mercury { background: radial-gradient(circle at 30% 27%, #e4ddc7, #99958b 48%, #4f5968 100%); }
+#party-room .planet-seat-avatar.planet-avatar-venus,
+#party-room .orb-player-avatar.planet-avatar-venus,
+#party-room .planet-roster-dot.planet-avatar-venus { background: radial-gradient(circle at 32% 28%, #fff0b8, #d79b54 55%, #80543f 100%); }
+#party-room .planet-seat-avatar.planet-avatar-earth,
+#party-room .orb-player-avatar.planet-avatar-earth,
+#party-room .planet-roster-dot.planet-avatar-earth { background: radial-gradient(circle at 35% 27%, #8ee8f1, #2588c8 50%, #123a70 100%); }
+#party-room .planet-seat-avatar.planet-avatar-mars,
+#party-room .orb-player-avatar.planet-avatar-mars,
+#party-room .planet-roster-dot.planet-avatar-mars { background: radial-gradient(circle at 33% 28%, #ffc0a0, #d45e47 53%, #742c3c 100%); }
+#party-room .planet-seat-avatar.planet-avatar-jupiter,
+#party-room .orb-player-avatar.planet-avatar-jupiter,
+#party-room .planet-roster-dot.planet-avatar-jupiter { background: repeating-linear-gradient(0deg, #8c543b 0 4px, #edc38b 4px 8px, #ad7550 8px 12px); }
+#party-room .planet-seat-avatar.planet-avatar-saturn,
+#party-room .orb-player-avatar.planet-avatar-saturn,
+#party-room .planet-roster-dot.planet-avatar-saturn { background: repeating-linear-gradient(0deg, #876a4f 0 4px, #e1c393 4px 8px, #a98660 8px 12px); }
+#party-room .planet-seat-avatar.planet-avatar-saturn::after,
+#party-room .orb-player-avatar.planet-avatar-saturn::after {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 9px;
+  width: 42px;
+  height: 9px;
+  border: 2px solid rgba(232, 207, 151, .88);
+  border-radius: 50%;
+  transform: rotate(-24deg);
+}
+#party-room .planet-seat-avatar.planet-avatar-uranus,
+#party-room .orb-player-avatar.planet-avatar-uranus,
+#party-room .planet-roster-dot.planet-avatar-uranus { background: radial-gradient(circle at 32% 28%, #e1fdff, #7cd6de 55%, #327e9a 100%); }
+#party-room .planet-seat-avatar.planet-avatar-neptune,
+#party-room .orb-player-avatar.planet-avatar-neptune,
+#party-room .planet-roster-dot.planet-avatar-neptune { background: radial-gradient(circle at 32% 28%, #b7ccff, #4568c6 55%, #18265f 100%); }
+#party-room .planet-roster-dot.planet-avatar {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(145, 220, 245, .4);
+}
+#party-room .planet-seat-avatar.planet-avatar {
+  border: 1px solid rgba(145, 220, 245, .4);
+}
+#party-room #invite-room {
+  margin-top: 7px;
+  color: #7ae4f3;
+  background: #102942;
+}

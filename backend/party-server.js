@@ -16,8 +16,20 @@ const DEFAULT_ROOM_SETTINGS = Object.freeze({
   maxLives: MAX_HEARTS,
   turnDurationSeconds: 0,
   maxWrongAnswersPerCategory: MAX_WRONG_ANSWERS_PER_CATEGORY,
-  maxTurnsPerCategory: MAX_TURNS_PER_CATEGORY
+  maxTurnsPerCategory: MAX_TURNS_PER_CATEGORY,
+  gameMode: 'classic',
+  difficulty: 'normal',
+  categoryTheme: 'all',
+  countdownSeconds: 5,
+  ratingEnabled: false,
+  autoStartWhenFull: false
 });
+const PLANET_AVATARS = [
+  { key: 'mercury', streak: 0 }, { key: 'venus', streak: 3 },
+  { key: 'earth', streak: 7 }, { key: 'mars', streak: 14 },
+  { key: 'jupiter', streak: 30 }, { key: 'saturn', streak: 60 },
+  { key: 'uranus', streak: 90 }, { key: 'neptune', streak: 150 }
+];
 const HEART_METER = [0, 5, 10, 35, 55, 100];
 const ROOM_IDLE_MS = 5 * 60 * 1000;
 
@@ -84,12 +96,25 @@ function normaliseRoomSettings(input = {}) {
   const requestedTurns = Number(source.maxTurnsPerCategory);
   const maxTurnsPerCategory = [5, 10, 15, 20].includes(requestedTurns)
     ? requestedTurns : DEFAULT_ROOM_SETTINGS.maxTurnsPerCategory;
+  const gameMode = ['classic', 'sudden-death'].includes(source.gameMode) ? source.gameMode : 'classic';
+  const difficulty = ['easy', 'normal', 'hard'].includes(source.difficulty) ? source.difficulty : 'normal';
+  const categoryTheme = ['all', 'countries', 'cities', 'nature', 'landmarks', 'culture'].includes(source.categoryTheme)
+    ? source.categoryTheme : 'all';
+  const requestedCountdown = Number(source.countdownSeconds);
+  const countdownSeconds = [0, 3, 5, 10, 15].includes(requestedCountdown)
+    ? requestedCountdown : DEFAULT_ROOM_SETTINGS.countdownSeconds;
   return {
-    startingLives,
-    maxLives: Math.max(startingLives, requestedMaxLives),
+    startingLives: gameMode === 'sudden-death' ? 1 : startingLives,
+    maxLives: gameMode === 'sudden-death' ? 1 : Math.max(startingLives, requestedMaxLives),
     turnDurationSeconds,
     maxWrongAnswersPerCategory,
-    maxTurnsPerCategory
+    maxTurnsPerCategory,
+    gameMode,
+    difficulty,
+    categoryTheme,
+    countdownSeconds,
+    ratingEnabled: source.ratingEnabled === true,
+    autoStartWhenFull: source.autoStartWhenFull === true
   };
 }
 
@@ -158,6 +183,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       code: room.code,
       visibility: room.visibility,
       mode: room.mode,
+      isHostedRoom: Boolean(room.isHostedRoom),
       group: room.group,
       phase: room.phase,
       round: room.round,
@@ -185,6 +211,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       players: room.players.map(player => ({
         id: player.id,
         nickname: player.nickname,
+        avatarKey: player.avatarKey || 'mercury',
         hearts: player.hearts,
         score: player.score,
         rarityMeter: player.rarityMeter,
@@ -226,6 +253,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       capacity: options.capacity || 10,
       targetMin: options.targetMin || 2,
       settings: normaliseRoomSettings(options.settings),
+      isHostedRoom: Boolean(options.isHostedRoom),
       autoStartAt: null,
       hostId: host.id,
       phase: 'lobby',
@@ -268,7 +296,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         group: GROUPS[room.group] ? GROUPS[room.group].label : 'Open room',
         players: room.players.length,
         minimum: room.targetMin,
-        capacity: room.capacity
+        capacity: room.capacity,
+        ratingEnabled: room.mode === 'ranked',
+        settings: { difficulty: room.settings.difficulty, categoryTheme: room.settings.categoryTheme }
       }));
   }
 
@@ -319,6 +349,19 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         const position = index + 1;
         let ratingAfter = player.rating;
         let ratingBefore = player.rating;
+        if (player.playerId) {
+          const today = now.toISOString().slice(0, 10);
+          const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1))
+            .toISOString().slice(0, 10);
+          const activity = await pool.query(
+            'UPDATE humanity_players SET party_streak_days = CASE ' +
+            'WHEN party_streak_date = $2::date THEN party_streak_days ' +
+            'WHEN party_streak_date = $3::date THEN party_streak_days + 1 ELSE 1 END, ' +
+            'party_streak_date = $2::date, updated_at = NOW() WHERE id = $1 RETURNING party_streak_days',
+            [player.playerId, today, yesterday]
+          );
+          if (activity.rows[0]) player.partyStreakDays = Number(activity.rows[0].party_streak_days || 0);
+        }
         if (room.mode === 'ranked' && player.playerId) {
           const expected = 1 / (1 + Math.pow(10, (averageRating - player.rating) / 400));
           const actual = position === 1 ? 1 : position === 2 ? 0.5 : 0;
@@ -386,7 +429,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   }
 
   function newRound(room, afterPlayerId, reason) {
-    const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId);
+    const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId, room.settings);
     room.category = category;
     room.lastCategoryId = category.id;
     room.categoryHistory = [...(room.categoryHistory || []), category.id];
@@ -445,7 +488,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     if (room.phase !== 'lobby' || room.players.length < 2) return false;
     room.phase = 'playing';
     room.players.forEach(player => {
-      player.hearts = room.settings.startingLives;
+      player.hearts = room.settings.gameMode === 'sudden-death' ? 1 : room.settings.startingLives;
       player.rarityMeter = 0;
       player.score = 0;
       player.turnsTaken = 0;
@@ -477,10 +520,15 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       sendError(socket, 'Choose a display name between 2 and 18 characters.', 'invalid_name');
       return null;
     }
+    const streakDays = account ? Math.max(0, Number(account.party_streak_days || 0)) : 0;
+    const requestedAvatar = String(message.avatarKey || 'mercury');
+    const unlockedAvatar = PLANET_AVATARS.filter(item => item.streak <= streakDays).some(item => item.key === requestedAvatar)
+      ? requestedAvatar : 'mercury';
     const player = {
       id: crypto.randomUUID(),
       playerId: account ? account.id : null,
       nickname,
+      avatarKey: unlockedAvatar,
       rating: account ? Number(account.party_rating || 1000) : null,
       hearts: STARTING_HEARTS,
       rarityMeter: 0,
@@ -509,12 +557,16 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       roomCode: room.code,
       playerId: player.id
     });
-    const privateThreshold = Math.max(2, Number(room.targetMin || 2), Number(room.capacity || 10) - 1);
-    const startsAutomatically = room.visibility === 'private' && room.phase === 'lobby' &&
-      room.players.length >= privateThreshold && !room.autoStartAt;
-    if (startsAutomatically) room.autoStartAt = Date.now() + 3500;
+    const startsAutomatically = room.isHostedRoom && room.phase === 'lobby' &&
+      room.settings.autoStartWhenFull && room.players.length >= room.capacity && !room.autoStartAt;
+    const countdownMs = Math.max(0, Number(room.settings.countdownSeconds || 0) * 1000);
+    if (startsAutomatically) room.autoStartAt = Date.now() + countdownMs;
     broadcastState(room);
-    if (startsAutomatically) broadcast(room, { type: 'match_ready', startsInMs: 3500 });
+    if (startsAutomatically) broadcast(room, {
+      type: 'match_ready',
+      startsInMs: countdownMs,
+      message: countdownMs ? 'Room full · starting soon.' : 'Room full · starting now.'
+    });
   }
 
   async function joinQueue(socket, message) {
@@ -585,7 +637,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
 
     if (message.type === 'create_room') {
-      const mode = message.mode === 'ranked' ? 'ranked' : 'private';
+      const initialSettings = normaliseRoomSettings(message.settings);
+      const mode = initialSettings.ratingEnabled ? 'ranked' : 'private';
       const player = await makePlayer(socket, { ...message, mode });
       if (!player) return;
       const capacity = Math.max(2, Math.min(10, Number(message.capacity) || 10));
@@ -595,7 +648,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         group: 'private',
         capacity,
         targetMin: 2,
-        settings: message.settings
+        settings: initialSettings,
+        isHostedRoom: true
       });
       const ownContext = sockets.get(socket) || {};
       ownContext.roomCode = room.code;
@@ -665,8 +719,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
 
     if (message.type === 'update_room_settings') {
-      if (player.id !== room.hostId || room.visibility !== 'private' || room.mode !== 'private') {
-        sendError(socket, 'Only the host can edit settings in a private room.', 'not_room_host');
+      if (player.id !== room.hostId || !room.isHostedRoom) {
+        sendError(socket, 'Only the host of a hosted room can edit settings.', 'not_room_host');
         return;
       }
       if (room.phase !== 'lobby') {
@@ -678,21 +732,25 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         sendError(socket, 'Maximum players must be between the current room size and 10.', 'invalid_capacity');
         return;
       }
-      room.capacity = capacity;
-      room.settings = normaliseRoomSettings(message.settings);
-      const launchThreshold = Math.max(2, Number(room.targetMin || 2), Number(room.capacity || 10) - 1);
-      let autoStartScheduled = false;
-      if (room.visibility === 'private' && room.players.length >= launchThreshold) {
-        if (!room.autoStartAt) {
-          room.autoStartAt = Date.now() + 3500;
-          autoStartScheduled = true;
-        }
-      } else {
-        room.autoStartAt = null;
+      const nextSettings = normaliseRoomSettings(message.settings);
+      if (nextSettings.ratingEnabled && room.players.some(existing => !existing.playerId)) {
+        sendError(socket, 'Rated rooms require every explorer to sign in with a HUMANITY account first.', 'rated_requires_accounts');
+        return;
       }
+      room.capacity = capacity;
+      room.visibility = message.visibility === 'public' ? 'public' : 'private';
+      room.settings = nextSettings;
+      room.mode = nextSettings.ratingEnabled ? 'ranked' : 'private';
+      const autoStartScheduled = nextSettings.autoStartWhenFull && room.players.length >= room.capacity && !room.autoStartAt;
+      if (autoStartScheduled) room.autoStartAt = Date.now() + nextSettings.countdownSeconds * 1000;
+      else if (!nextSettings.autoStartWhenFull || room.players.length < room.capacity) room.autoStartAt = null;
       broadcast(room, { type: 'room_settings_saved' });
       broadcastState(room);
-      if (autoStartScheduled) broadcast(room, { type: 'match_ready', startsInMs: 3500 });
+      if (autoStartScheduled) broadcast(room, {
+        type: 'match_ready',
+        startsInMs: nextSettings.countdownSeconds * 1000,
+        message: 'Room full · starting soon.'
+      });
       return;
     }
 
@@ -724,6 +782,14 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       if (room.phase !== 'lobby' || room.players.length < 2) {
         sendError(socket, 'At least two explorers are needed to start.', 'not_enough_players');
+        return;
+      }
+      if (room.autoStartAt) return;
+      const countdownMs = Math.max(0, Number(room.settings.countdownSeconds || 0) * 1000);
+      if (countdownMs > 0) {
+        room.autoStartAt = Date.now() + countdownMs;
+        broadcastState(room);
+        broadcast(room, { type: 'match_ready', startsInMs: countdownMs, message: 'The host is launching the match.' });
         return;
       }
       room.autoStartAt = null;
@@ -870,7 +936,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       return;
     }
     if (room.hostId === player.id) room.hostId = room.players[0].id;
-    if (room.visibility === 'private' && room.phase === 'lobby') {
+    if (room.isHostedRoom && room.phase === 'lobby' &&
+        (!room.settings.autoStartWhenFull || room.players.length < room.capacity)) {
+      room.autoStartAt = null;
+    } else if (!room.isHostedRoom && room.visibility === 'private' && room.phase === 'lobby') {
       const launchThreshold = Math.max(2, Number(room.targetMin || 2), Number(room.capacity || 10) - 1);
       if (room.players.length < launchThreshold) room.autoStartAt = null;
     }

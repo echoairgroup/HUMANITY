@@ -81,7 +81,7 @@ function bearer(request) {
 async function authenticateToken(token) {
   if (!token) return null;
   const result = await pool.query(
-    'SELECT p.id, p.username, p.email, p.avatar_url, p.country_code, p.xp, p.level, p.daily_streak, p.best_streak, p.party_rating ' +
+    'SELECT p.id, p.username, p.email, p.avatar_url, p.country_code, p.xp, p.level, p.daily_streak, p.best_streak, p.party_rating, p.party_streak_days ' +
     'FROM humanity_sessions s JOIN humanity_players p ON p.id = s.player_id ' +
     'WHERE s.token_hash = $1 AND s.expires_at > NOW() LIMIT 1',
     [hashToken(token)]
@@ -120,6 +120,7 @@ function publicUser(user, admin) {
     dailyStreak: Number(user.daily_streak || 0),
     bestStreak: Number(user.best_streak || 0),
     partyRating: Number(user.party_rating || 1000),
+    partyStreak: Number(user.party_streak_days || 0),
     isAdmin: Boolean(admin)
   };
 }
@@ -594,7 +595,7 @@ async function handleRegister(request, response) {
   const id = crypto.randomUUID();
   try {
     const result = await pool.query(
-      'INSERT INTO humanity_players (id, username, email, password_salt, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating',
+      'INSERT INTO humanity_players (id, username, email, password_salt, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days',
       [id, username, email || null, salt, Buffer.from(digest).toString('hex')]
     );
     const token = await createSession(id);
@@ -614,7 +615,7 @@ async function handleLogin(request, response) {
     return;
   }
   const result = await pool.query(
-    'SELECT id, username, email, password_salt, password_hash, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating ' +
+    'SELECT id, username, email, password_salt, password_hash, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days ' +
     'FROM humanity_players WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1) LIMIT 1',
     [identifier]
   );
@@ -666,7 +667,7 @@ async function upsertOAuthPlayer(provider, profile) {
   const providerColumn = isGoogle ? 'google_sub' : 'discord_id';
 
   let found = await pool.query(
-    'SELECT id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating FROM humanity_players WHERE ' +
+    'SELECT id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days FROM humanity_players WHERE ' +
     providerColumn + ' = $1 OR ($2::text IS NOT NULL AND email = $2) LIMIT 1',
     [providerId, email]
   );
@@ -691,7 +692,7 @@ async function upsertOAuthPlayer(provider, profile) {
   const columns = isGoogle ? 'google_sub' : 'discord_id';
   const result = await pool.query(
     'INSERT INTO humanity_players (id, username, email, avatar_url, ' + columns + ') VALUES ($1,$2,$3,$4,$5) ' +
-    'RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating',
+    'RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days',
     [id, username, email, avatar, providerId]
   );
   return result.rows[0];
