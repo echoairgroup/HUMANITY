@@ -113,6 +113,18 @@ test('country answer sets include multilingual aliases and all inhabited contine
   assert.ok(engine.listWorldCountryAnswers().length >= 150);
 });
 
+test('Globe Rush uses the complete multilingual North America and Oceania country banks', () => {
+  const bank = engine.listPartyQuestionBank();
+  const northAmerica = bank.find(item => item.topicId === 'north-america-countries');
+  const oceania = bank.find(item => item.topicId === 'oceania-countries');
+  assert.ok(northAmerica && northAmerica.answerCount >= 20);
+  assert.ok(oceania && oceania.answerCount >= 10);
+  const northAmericaAnswers = engine.getQuestion('north-america-countries');
+  assert.equal(engine.matchAnswer(northAmericaAnswers, 'México').name, 'Mexico');
+  const oceaniaAnswers = engine.getQuestion('oceania-countries');
+  assert.equal(engine.matchAnswer(oceaniaAnswers, 'Aotearoa').name, 'New Zealand');
+});
+
 test('Krillion-style autocorrection checks aliases and handles one missing or mistyped letter', () => {
   const rivers = engine.getQuestion('world-rivers');
   assert.equal(engine.matchAnswer(rivers, 'Amazn River').name, 'Amazon River');
