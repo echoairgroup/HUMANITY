@@ -820,7 +820,7 @@
       state.pendingNextIndex >= 7 ? 'FINISH DAILY  →' : 'CONTINUE  →';
     nextButton.focus({ preventScroll: true });
   }
-function renderDailyAnswerReveal(reveal,accepted,submittedAnswer) {
+  function renderDailyAnswerReveal(reveal,accepted,submittedAnswer) {
     const panel=$('#daily-answer-reveal');
     if(!panel)return;
     const entries=(Array.isArray(reveal)?reveal:[]).slice()
@@ -944,7 +944,7 @@ function renderDailyAnswerReveal(reveal,accepted,submittedAnswer) {
     }
   }
 
-    async function nextDailyQuestion() {
+  async function nextDailyQuestion() {
     if (!state.runId || state.pendingNextIndex === null || state.advancing) return;
     state.advancing = true;
     const index = state.pendingNextIndex;
