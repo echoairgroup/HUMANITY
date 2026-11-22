@@ -782,9 +782,12 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
 
     if (message.type === 'reconnect') {
-      const room = findRoom(message.code);
+      const resumeToken = String(message.resumeToken || '');
+      const room = findRoom(message.code) || [...rooms.values()].find(candidate =>
+        candidate.players.some(item => item.resumeToken && item.resumeToken === resumeToken)
+      );
       const player = room && room.players.find(item =>
-        item.resumeToken && item.resumeToken === String(message.resumeToken || '')
+        item.resumeToken && item.resumeToken === resumeToken
       );
       if (!room || !player) {
         sendError(socket, 'This seat is no longer available. Rejoin the room.', 'reconnect_failed');
@@ -1049,11 +1052,16 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       const next = nextAlive(room, player.id);
       startPlayerTurn(room, next ? next.id : null);
     }
-    if (room.phase === 'playing' && room.players.filter(item => item.alive).length <= 1) {
-      finishGame(room).catch(error => console.error(error.message));
-    } else {
-      broadcastState(room);
+    if (room.phase === 'playing') {
+      const activeCompetitors = room.variant === 'team-rush'
+        ? new Set(room.players.filter(item => item.alive).map(item => item.team).filter(Boolean)).size
+        : room.players.filter(item => item.alive).length;
+      if (activeCompetitors <= 1) {
+        finishGame(room).catch(error => console.error(error.message));
+        return;
+      }
     }
+    broadcastState(room);
   }
 
   function removeDisconnectedPlayer(room, playerId) {
