@@ -208,111 +208,169 @@ async function checkLivePartyRound() {
     host.send({ type: 'start_game' });
     const [hostPlaying, guestPlaying] = await Promise.all([hostPlayingPromise, guestPlayingPromise]);
     assert.ok(hostPlaying.currentHolderId);
-    assertRandomTurnDuration(hostPlaying, 'The opening turn');
-    assertRandomTurnDuration(guestPlaying, 'The guest opening turn');
-    assert.equal(guestPlaying.timerDurationMs, hostPlaying.timerDurationMs, 'Everyone should see the same shared room timer');
+    assertRandomTurnDuration(hostPlaying, 'The opening shared fuse');
+    assertRandomTurnDuration(guestPlaying, 'The guest opening shared fuse');
+    assert.equal(guestPlaying.timerDurationMs, hostPlaying.timerDurationMs,
+      'Everyone should see the same shared fuse duration');
     assert.equal(hostPlaying.turnNumber, 1);
 
-    const holder = hostPlaying.players.find(player => player.id === hostPlaying.currentHolderId);
-    assert.ok(holder, 'The first round should have an active Orb holder');
-    const holderClient = holder.isHost ? host : guest;
-    const nextHolderClient = holder.isHost ? guest : host;
+    const firstHolder = hostPlaying.players.find(player => player.id === hostPlaying.currentHolderId);
+    assert.ok(firstHolder, 'The first round should have an active Orb holder');
+    const firstHolderClient = firstHolder.isHost ? host : guest;
     const correctQuestion = engine.getQuestion(hostPlaying.category.id);
-    assert.ok(correctQuestion && correctQuestion.answers.length, 'The live category should exist in the approved geography bank');
+    assert.ok(correctQuestion && correctQuestion.answers.length > 1,
+      'The live category should have at least two approved geography answers');
+    const firstAnswer = correctQuestion.answers[0].name;
+    const secondAnswer = correctQuestion.answers.find(answer => answer.name !== firstAnswer)?.name;
+    assert.ok(secondAnswer, 'The live category should have another unused answer');
 
-    const acceptedHost = host.waitFor(message => message.type === 'answer_accepted', 15000, 'host accepted answer');
-    const acceptedGuest = guest.waitFor(message => message.type === 'answer_accepted', 15000, 'guest accepted answer');
+    const acceptedHost = host.waitFor(message => message.type === 'answer_accepted', 15000, 'first accepted answer');
+    const acceptedGuest = guest.waitFor(message => message.type === 'answer_accepted', 15000, 'first accepted answer on guest');
     const passedHost = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
-      message.round === 1 && message.turnNumber === 2 && message.currentHolderId !== holder.id,
-      15000, 'fresh timer after a valid pass'
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId !== firstHolder.id,
+      15000, 'shared fuse after a valid pass'
     );
     const passedGuest = guest.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
-      message.round === 1 && message.turnNumber === 2 && message.currentHolderId !== holder.id,
-      15000, 'guest sees fresh timer after a valid pass'
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId !== firstHolder.id,
+      15000, 'guest sees shared fuse after a valid pass'
     );
-    holderClient.send({ type: 'submit_answer', answer: correctQuestion.answers[0].name });
+    firstHolderClient.send({ type: 'submit_answer', answer: firstAnswer });
     await Promise.all([acceptedHost, acceptedGuest]);
     const [hostPassed, guestPassed] = await Promise.all([passedHost, passedGuest]);
-    assertRandomTurnDuration(hostPassed, 'The next player turn');
-    assertRandomTurnDuration(guestPassed, 'The guest next-player turn');
-    assert.equal(hostPassed.timerDurationMs, guestPassed.timerDurationMs, 'Both players should receive the same new random duration');
-    assert.ok(hostPassed.timerRemainingMs > hostPassed.timerDurationMs - 1500,
-      'The next player should receive almost all of their own fresh random time');
-    const nextHolder = hostPassed.players.find(player => player.id === hostPassed.currentHolderId);
-    assert.ok(nextHolder && nextHolder.id !== holder.id);
-    assert.equal(nextHolder.turnsTaken, 1);
+    assert.equal(hostPassed.timerDurationMs, hostPlaying.timerDurationMs,
+      'A pass above the eight-second floor must keep the original fuse duration');
+    assert.equal(guestPassed.timerDurationMs, hostPlaying.timerDurationMs,
+      'The other player must see the same inherited fuse duration');
+    assert.ok(hostPassed.timerRemainingMs < hostPlaying.timerRemainingMs,
+      'The shared fuse must continue counting down while it is passed');
+    assert.ok(hostPassed.timerRemainingMs > 8000,
+      'The first pass should happen while more than eight seconds remain');
 
-    const firstWrongClient = nextHolder.isHost ? host : guest;
+    const nextHolder = hostPassed.players.find(player => player.id === hostPassed.currentHolderId);
+    assert.ok(nextHolder && nextHolder.id !== firstHolder.id);
+    assert.equal(nextHolder.turnsTaken, 1);
+    const nextHolderClient = nextHolder.isHost ? host : guest;
     const alreadyUsedAnswer = hostPassed.usedAnswers[0];
-    await pause(1300);
-    const wrongOneError = firstWrongClient.waitFor(message =>
+
+    await pause(900);
+    const duplicateErrorOne = nextHolderClient.waitFor(message =>
       message.type === 'error' && message.code === 'answer_used',
       10000, 'first duplicate answer response'
     );
-    const hostWrongOnePromise = host.waitFor(message =>
+    const duplicateStateOne = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
-      message.round === 1 && message.wrongAnswersThisCategory === 1,
-      10000, 'host sees first incorrect answer count'
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId === nextHolder.id,
+      10000, 'host sees the same holder after a duplicate answer'
     );
-    const guestWrongOnePromise = guest.waitFor(message =>
+    const guestDuplicateStateOne = guest.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
-      message.round === 1 && message.wrongAnswersThisCategory === 1,
-      10000, 'guest sees first incorrect answer count'
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId === nextHolder.id,
+      10000, 'guest sees the same holder after a duplicate answer'
     );
-    firstWrongClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
-    await wrongOneError;
-    const [hostWrongOne, guestWrongOne] = await Promise.all([hostWrongOnePromise, guestWrongOnePromise]);
-    const afterInvalid = firstWrongClient === host ? hostWrongOne : guestWrongOne;
-    assert.ok(afterInvalid.timerRemainingMs < hostPassed.timerRemainingMs - 700,
-      'A duplicate answer must not reset the current player clock');
-    await pause(1200);
+    nextHolderClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
+    await duplicateErrorOne;
+    const [afterDuplicateHost, afterDuplicateGuest] = await Promise.all([duplicateStateOne, guestDuplicateStateOne]);
+    assert.equal(afterDuplicateHost.category.id, hostPlaying.category.id,
+      'A duplicate must not change the shared category');
+    assert.ok(afterDuplicateHost.timerRemainingMs < hostPassed.timerRemainingMs - 500,
+      'A duplicate answer must not reset or pause the shared fuse');
+    assert.equal(afterDuplicateGuest.turnNumber, 2);
 
-    const wrongTwoError = firstWrongClient.waitFor(message =>
-      message.type === 'error' && message.code === 'category_changed',
-      10000, 'second incorrect answer triggers category rotation'
+    await pause(900);
+    const duplicateErrorTwo = nextHolderClient.waitFor(message =>
+      message.type === 'error' && message.code === 'answer_used',
+      10000, 'second duplicate answer response'
     );
-    const hostCategoryChange = host.waitFor(message =>
-      message.type === 'new_round' && message.reason === 'mistakes',
-      10000, 'host category change reason'
+    const hostAfterSecondDuplicate = host.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId === nextHolder.id,
+      10000, 'category remains unchanged after two invalid attempts'
     );
-    const guestCategoryChange = guest.waitFor(message =>
-      message.type === 'new_round' && message.reason === 'mistakes',
-      10000, 'guest category change reason'
+    const guestAfterSecondDuplicate = guest.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.turnNumber === 2 && message.currentHolderId === nextHolder.id,
+      10000, 'guest sees no category rotation after two invalid attempts'
     );
+    nextHolderClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
+    await duplicateErrorTwo;
+    const [hostStillSameRound, guestStillSameRound] = await Promise.all([
+      hostAfterSecondDuplicate, guestAfterSecondDuplicate
+    ]);
+    assert.equal(hostStillSameRound.round, 1, 'Two invalid answers must not rotate the category');
+    assert.equal(guestStillSameRound.category.id, hostPlaying.category.id);
+    assert.equal(guestStillSameRound.currentHolderId, nextHolder.id);
+
+    const hostNearFuseEnd = host.waitFor(message =>
+      message.type === 'timer' && message.turnNumber === 2 &&
+      message.holderId === nextHolder.id && message.remainingMs <= 7500,
+      45000, 'shared fuse reaches the eight-second pass threshold'
+    );
+    const guestNearFuseEnd = guest.waitFor(message =>
+      message.type === 'timer' && message.turnNumber === 2 &&
+      message.holderId === nextHolder.id && message.remainingMs <= 7500,
+      45000, 'guest sees the shared fuse reach the eight-second pass threshold'
+    );
+    const [hostTimerNearEnd, guestTimerNearEnd] = await Promise.all([hostNearFuseEnd, guestNearFuseEnd]);
+    assert.ok(hostTimerNearEnd.remainingMs > 0 && guestTimerNearEnd.remainingMs > 0,
+      'The fuse should still be live when it reaches the minimum-pass threshold');
+
+    const acceptedFloorHost = host.waitFor(message => message.type === 'answer_accepted', 12000, 'answer accepted near fuse end');
+    const acceptedFloorGuest = guest.waitFor(message => message.type === 'answer_accepted', 12000, 'guest sees answer accepted near fuse end');
+    const floorPassedHost = host.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.turnNumber === 3 && message.currentHolderId !== nextHolder.id,
+      12000, 'Orb passes with the eight-second minimum'
+    );
+    const floorPassedGuest = guest.waitFor(message =>
+      message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
+      message.round === 1 && message.turnNumber === 3 && message.currentHolderId !== nextHolder.id,
+      12000, 'guest sees the eight-second minimum after a pass'
+    );
+    nextHolderClient.send({ type: 'submit_answer', answer: secondAnswer });
+    await Promise.all([acceptedFloorHost, acceptedFloorGuest]);
+    const [hostFloorPassed, guestFloorPassed] = await Promise.all([floorPassedHost, floorPassedGuest]);
+    assert.equal(hostFloorPassed.timerDurationMs, 8000,
+      'Passing with fewer than eight seconds remaining must raise the fuse to eight seconds');
+    assert.equal(guestFloorPassed.timerDurationMs, 8000,
+      'All players must receive the same eight-second minimum fuse');
+    assert.ok(hostFloorPassed.timerRemainingMs > 7000,
+      'The next player should receive almost all of the eight-second minimum');
+    assert.equal(hostFloorPassed.category.id, hostPlaying.category.id,
+      'Passing the Orb must not change the current category');
+
+    const holderAtPop = hostFloorPassed.players.find(player => player.id === hostFloorPassed.currentHolderId);
+    assert.ok(holderAtPop && holderAtPop.id !== nextHolder.id);
     const hostNextRoundPromise = host.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
       message.round === 2 && message.turnNumber === 1,
-      10000, 'host new category with reset counters'
+      20000, 'host sees a new category after the Orb pops'
     );
     const guestNextRoundPromise = guest.waitFor(message =>
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' &&
       message.round === 2 && message.turnNumber === 1,
-      10000, 'guest new category with reset counters'
+      20000, 'guest sees a new category after the Orb pops'
     );
-    firstWrongClient.send({ type: 'submit_answer', answer: alreadyUsedAnswer });
-    await wrongTwoError;
-    const [hostReason, guestReason, hostNextRound, guestNextRound] = await Promise.all([
-      hostCategoryChange, guestCategoryChange, hostNextRoundPromise, guestNextRoundPromise
+    const hostOverloadPromise = host.waitFor(message => message.type === 'orb_overload', 20000, 'host sees Orb overload');
+    const guestOverloadPromise = guest.waitFor(message => message.type === 'orb_overload', 20000, 'guest sees Orb overload');
+    const [hostNextRound, guestNextRound, hostOverload, guestOverload] = await Promise.all([
+      hostNextRoundPromise, guestNextRoundPromise, hostOverloadPromise, guestOverloadPromise
     ]);
-    assert.equal(hostReason.round, 2);
-    assert.equal(guestReason.round, 2);
-    assert.equal(hostNextRound.round, 2);
-    assert.equal(guestNextRound.round, 2);
-    assert.notEqual(hostNextRound.category.id, hostPlaying.category.id, 'The category should rotate to a new prompt');
-    assert.equal(hostNextRound.wrongAnswersThisCategory, 0);
-    assert.equal(guestNextRound.wrongAnswersThisCategory, 0);
-    assert.equal(hostNextRound.turnsThisCategory, 0);
-    assert.equal(guestNextRound.turnsThisCategory, 0);
-    assertRandomTurnDuration(hostNextRound, 'The new-category turn');
-    assertRandomTurnDuration(guestNextRound, 'The guest new-category turn');
+    assert.equal(hostOverload.hearts, 1, 'The holder should lose one heart when the Orb pops');
+    assert.equal(guestOverload.hearts, 1, 'All players should see the same lost heart');
+    assert.notEqual(hostNextRound.category.id, hostPlaying.category.id,
+      'The category should change only after the Orb pops');
+    assert.equal(hostNextRound.players.find(player => player.id === holderAtPop.id).hearts, 1,
+      'The holder who was popped should retain one heart in this two-heart test room');
+    assertRandomTurnDuration(hostNextRound, 'The new fuse after an overload');
+    assertRandomTurnDuration(guestNextRound, 'The guest new fuse after an overload');
     assert.equal(hostNextRound.timerDurationMs, guestNextRound.timerDurationMs,
-      'Both players should see the same new-category timer');
+      'All players should see the same fresh fuse after an overload');
     assert.ok(hostNextRound.timerRemainingMs > hostNextRound.timerDurationMs - 1500,
-      'A new category starts with a fresh random personal clock');
+      'A fresh random fuse should start after the Orb overload');
 
-    console.log('PASS: Globe Rush shared random 10–30 second turns, valid-pass reset, wrong-answer counting and category rotation after two mistakes.');
+    console.log('PASS: shared fuse carry-over, no reset on duplicate answers, eight-second minimum pass, heart loss and new category after pop.');
   } finally {
     for (const client of [host, guest]) {
       if (!client?.socket) continue;
@@ -326,7 +384,6 @@ async function checkLivePartyRound() {
     if (roomCode) console.log('Globe Rush smoke-test room ' + roomCode + ' cleaned up.');
   }
 }
-
 async function main() {
   await checkHttpSurface();
   await checkLivePartyRound();
