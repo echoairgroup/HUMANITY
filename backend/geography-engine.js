@@ -840,7 +840,17 @@ for (const [id, continent, category, prompt, note] of [
 }
 
 function makePartyTopic(id, category, prompt, names, sourceId) {
-  const source = sourceId ? Q.find(item => item.id === sourceId) : null;
+  const source = Q.find(item => item.id === (sourceId || id)) || null;
+  if (source && !sourceId) {
+    return {
+      ...source,
+      id,
+      topicId: id,
+      category,
+      prompt,
+      source: source.source || 'HUMANITY curated geography dataset'
+    };
+  }
   const seen = new Set();
   const answers = names.map((name, index) => {
     const key = normaliseAnswer(name);
