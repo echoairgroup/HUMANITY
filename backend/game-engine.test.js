@@ -131,7 +131,13 @@ test('private Globe Rush lobby settings are clamped and keep max lives above sta
     maxLives: 5,
     turnDurationSeconds: 15,
     maxWrongAnswersPerCategory: 4,
-    maxTurnsPerCategory: 20
+    maxTurnsPerCategory: 20,
+    gameMode: 'classic',
+    difficulty: 'normal',
+    categoryTheme: 'all',
+    countdownSeconds: 5,
+    ratingEnabled: false,
+    autoStartWhenFull: false
   });
 
   assert.deepEqual(partyRules.normaliseRoomSettings({
