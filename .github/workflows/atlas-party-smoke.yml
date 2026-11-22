@@ -23,7 +23,7 @@ permissions:
 jobs:
   live-game:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Check out HUMANITY
         uses: actions/checkout@v4

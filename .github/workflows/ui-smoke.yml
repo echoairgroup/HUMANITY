@@ -1,0 +1,35 @@
+name: HUMANITY Browser Layout Smoke
+
+on:
+  workflow_run:
+    workflows: ["pages build and deployment"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  browser-layout:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out the deployed HUMANITY commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install --no-save --no-package-lock playwright@1.56.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Check responsive layouts and visible game controls
+        run: node scripts/ui-smoke.cjs
+        env:
+          HUMANITY_SITE_URL: https://echoairgroup.github.io/HUMANITY/
+          HUMANITY_API_ROOT: https://humanity-api-jyk5.onrender.com/api

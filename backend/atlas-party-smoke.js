@@ -587,28 +587,35 @@ async function checkLargeQueueFallback() {
 async function waitForStableBackend() {
   let previousUptime = null;
   let stableIntervals = 0;
-  const maxAttempts = 24;
+  let stableSince = Date.now();
+  const maxAttempts = 42;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const health = await getJson('/health');
     assert.equal(health.database, true, 'Neon must remain connected before live multiplayer tests');
     const uptime = Number(health.uptimeSeconds || 0);
 
-    if (previousUptime !== null && uptime > previousUptime && uptime - previousUptime <= 15) {
+    if (previousUptime !== null && uptime > previousUptime && uptime - previousUptime <= 12) {
       stableIntervals += 1;
     } else {
       stableIntervals = 0;
+      stableSince = Date.now();
     }
     previousUptime = uptime;
 
+    const stableForMs = Date.now() - stableSince;
     console.log('Backend stability check ' + attempt + '/' + maxAttempts +
-      ': uptime=' + uptime + 's, stable intervals=' + stableIntervals + '/2');
+      ': uptime=' + uptime + 's, stable intervals=' + stableIntervals +
+      ', stable for=' + Math.floor(stableForMs / 1000) + 's');
 
-    if (uptime >= 25 && stableIntervals >= 2) {
-      console.log('PASS: Backend and Neon stayed healthy across consecutive checks.');
+    // Render can finish building a commit while the previous process still answers
+    // health checks. Require a full 75-second quiet window so the test cannot begin
+    // just before the replacement process is switched live.
+    if (uptime >= 25 && stableIntervals >= 8 && stableForMs >= 75000) {
+      console.log('PASS: Backend and Neon stayed healthy after the deployment window.');
       return;
     }
-    await pause(8000);
+    await pause(5000);
   }
 
   throw new Error('The backend did not remain stable long enough to start the live multiplayer checks.');
