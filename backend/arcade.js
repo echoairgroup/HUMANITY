@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const { WebSocketServer, WebSocket } = require('ws');
+const geographyEngine = require('./geography-engine');
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_CAPACITY = 8;
@@ -160,37 +161,7 @@ function cleanNickname(value) {
 }
 
 function normaliseAnswer(value) {
-  return String(value || '').normalize('NFKD')
-    .replace(/\p{M}+/gu, '')
-    .toLocaleLowerCase('en')
-    .replace(/&/g, ' and ')
-    .replace(/[’']/g, '')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-function countryNameEditDistance(left, right, limit) {
-  const a = [...left];
-  const b = [...right];
-  if (Math.abs(a.length - b.length) > limit) return limit + 1;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = new Array(b.length + 1).fill(limit + 1);
-    current[0] = i;
-    let rowMinimum = current[0];
-    for (let j = 1; j <= b.length; j += 1) {
-      current[j] = Math.min(
-        previous[j] + 1,
-        current[j - 1] + 1,
-        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-      rowMinimum = Math.min(rowMinimum, current[j]);
-    }
-    if (rowMinimum > limit) return limit + 1;
-    previous = current;
-  }
-  return previous[b.length];
+  return geographyEngine.normaliseAnswer(value);
 }
 
 function hashNumber(value) {
@@ -267,9 +238,21 @@ function createArcade({ server, pool, allowedOrigins }) {
         const byName = new Map();
         for (const country of rows) {
           if (!country || !/^[A-Z]{3}$/.test(String(country.code || '').toUpperCase())) continue;
-          const item = { code: String(country.code).toUpperCase(), name: String(country.name || country.code) };
+          const item = {
+            code: String(country.code).toUpperCase(),
+            name: String(country.name || country.code),
+            aliases: []
+          };
           byCode.set(item.code, item);
           byName.set(normaliseAnswer(item.name), item);
+          for (const alias of Array.isArray(country.aliases) ? country.aliases : []) {
+            const cleanAlias = String(alias || '').trim().slice(0, 80);
+            const aliasKey = normaliseAnswer(cleanAlias);
+            if (aliasKey && aliasKey !== normaliseAnswer(item.name) && !item.aliases.some(value => normaliseAnswer(value) === aliasKey)) {
+              item.aliases.push(cleanAlias);
+              byName.set(aliasKey, item);
+            }
+          }
         }
         const aliases = {
           'us': 'USA', 'u s': 'USA', 'u s a': 'USA',
@@ -301,9 +284,25 @@ function createArcade({ server, pool, allowedOrigins }) {
           'micronesia': 'FSM', 'federated states of micronesia': 'FSM'
         };
         for (const [alias, code] of Object.entries(aliases)) {
-          if (byCode.has(code)) byName.set(alias, byCode.get(code));
+          const country = byCode.get(code);
+          if (country) {
+            if (!country.aliases.some(value => normaliseAnswer(value) === normaliseAnswer(alias))) {
+              country.aliases.push(alias);
+            }
+            byName.set(normaliseAnswer(alias), country);
+          }
         }
-        return { byCode, byName };
+        const matchingQuestion = {
+          id: 'globe-rush-country-names',
+          category: 'Countries',
+          prompt: 'Name a country.',
+          answers: [...byCode.values()].map(country => ({
+            name: country.name,
+            aliases: country.aliases,
+            rarity: 0
+          }))
+        };
+        return { byCode, byName, matchingQuestion };
       }).catch(error => {
         countryCatalogPromise = null;
         throw error;
@@ -755,33 +754,14 @@ function createArcade({ server, pool, allowedOrigins }) {
 
   async function resolveCountryAnswer(message) {
     const catalog = await countryCatalog();
-    let country = null;
-    if (message.countryCode) country = catalog.byCode.get(String(message.countryCode).toUpperCase()) || null;
-    if (!country && message.answer) {
-      const target = normaliseAnswer(message.answer);
-      country = catalog.byName.get(target) || null;
-      if (!country && target.length >= 6) {
-        let bestDistance = Infinity;
-        const bestCountries = new Map();
-        for (const [name, candidate] of catalog.byName.entries()) {
-          if (name.length < 6) continue;
-          const limit = Math.max(target.length, name.length) >= 12 ? 2 : 1;
-          const distance = countryNameEditDistance(target, name, limit);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            bestCountries.clear();
-            bestCountries.set(candidate.code, candidate);
-          } else if (distance === bestDistance && distance !== Infinity) {
-            bestCountries.set(candidate.code, candidate);
-          }
-        }
-        const allowedDistance = Math.max(target.length, [...bestCountries.values()][0]?.name.length || 0) >= 12 ? 2 : 1;
-        if (bestCountries.size === 1 && bestDistance <= allowedDistance) {
-          country = [...bestCountries.values()][0];
-        }
-      }
+    if (message.countryCode) {
+      return catalog.byCode.get(String(message.countryCode).toUpperCase()) || null;
     }
-    return country;
+    if (!message.answer) return null;
+
+    // Globe Rush and Atlas Daily now use the same answer rules and ambiguity checks.
+    const match = geographyEngine.matchAnswer(catalog.matchingQuestion, message.answer);
+    return match ? catalog.byName.get(match.key) || null : null;
   }
 
   function roomForSocket(socket) {
