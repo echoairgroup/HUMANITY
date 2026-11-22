@@ -1,6 +1,8 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const POINTS_BY_LEVEL = [10, 20, 40, 60, 80, 100];
 const LEVEL_NAMES = ['Familiar', 'Known', 'Uncommon', 'Rare', 'Remarkable', 'Exceptional'];
@@ -16,6 +18,80 @@ function normaliseAnswer(value) {
     .trim()
     .replace(/\s+/g, ' ');
 }
+
+const COUNTRY_LANGUAGE_FIELDS = [
+  'NAME_AR', 'NAME_BN', 'NAME_DE', 'NAME_EN', 'NAME_ES', 'NAME_FA',
+  'NAME_FR', 'NAME_EL', 'NAME_HE', 'NAME_HI', 'NAME_HU', 'NAME_ID',
+  'NAME_IT', 'NAME_JA', 'NAME_KO', 'NAME_NL', 'NAME_PL', 'NAME_PT',
+  'NAME_RU', 'NAME_SV', 'NAME_TR', 'NAME_UK', 'NAME_UR', 'NAME_VI',
+  'NAME_ZH', 'NAME_ZHT'
+];
+
+function loadWorldCountryAnswers() {
+  try {
+    const filename = path.join(__dirname, '..', 'world-countries.geojson');
+    const geojson = JSON.parse(fs.readFileSync(filename, 'utf8'));
+    const acceptedTypes = new Set(['Sovereign country', 'Country', 'Sovereignty']);
+    const countries = new Map();
+
+    for (const feature of Array.isArray(geojson.features) ? geojson.features : []) {
+      const props = feature && feature.properties;
+      if (!props || !acceptedTypes.has(String(props.TYPE || ''))) continue;
+      const code = String(props.ADM0_A3 || props.ISO_A3 || '').toUpperCase();
+      const name = String(props.ADMIN || props.NAME_EN || props.NAME_LONG || props.NAME || '').trim();
+      if (!/^[A-Z]{3}$/.test(code) || !name || name.length > 80) continue;
+
+      const aliasSet = new Map();
+      const addName = (value, isAbbreviation = false) => {
+        const alias = String(value || '').trim().slice(0, 80);
+        const key = normaliseAnswer(alias);
+        if (!key || alias.length < 2 || (isAbbreviation && key.length < 3)) return;
+        if (key !== normaliseAnswer(name)) aliasSet.set(key, alias);
+      };
+
+      for (const field of ['NAME', 'ADMIN', 'NAME_LONG', 'FORMAL_EN', 'NAME_CIAWF', 'NAME_ALT', 'ABBREV']) {
+        addName(props[field], field === 'ABBREV');
+      }
+      for (const field of COUNTRY_LANGUAGE_FIELDS) addName(props[field]);
+
+      const record = {
+        code,
+        name,
+        continent: String(props.CONTINENT || ''),
+        aliases: [...aliasSet.values()],
+        source: 'Natural Earth country names and multilingual labels'
+      };
+      const existing = countries.get(code);
+      if (!existing) {
+        countries.set(code, record);
+      } else {
+        const merged = new Map(existing.aliases.map(alias => [normaliseAnswer(alias), alias]));
+        for (const alias of record.aliases) merged.set(normaliseAnswer(alias), alias);
+        if (normaliseAnswer(existing.name) !== normaliseAnswer(record.name)) {
+          merged.set(normaliseAnswer(record.name), record.name);
+        }
+        existing.aliases = [...merged.values()];
+      }
+    }
+    return [...countries.values()].sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    console.warn('HUMANITY country reference file could not be loaded:', error.message);
+    return [];
+  }
+}
+
+const WORLD_COUNTRY_ANSWERS = loadWorldCountryAnswers();
+
+function listWorldCountryAnswers() {
+  return WORLD_COUNTRY_ANSWERS.map(country => ({
+    code: country.code,
+    name: country.name,
+    continent: country.continent,
+    aliases: [...country.aliases],
+    source: country.source
+  }));
+}
+
 
 const COUNTRY_EQUIVALENT_GROUPS = [
   ['united states', 'united states of america', 'usa', 'u s a', 'us', 'america'],
@@ -714,6 +790,54 @@ const Q = [
   }
 ];
 
+function enrichCountryQuestion(question, continent) {
+  const candidates = WORLD_COUNTRY_ANSWERS.filter(country => country.continent === continent);
+  for (const country of candidates) {
+    const countryNames = [country.name].concat(country.aliases);
+    let existing = question.answers.find(entry =>
+      [entry.name].concat(entry.aliases || []).some(name =>
+        countryNames.some(candidate => normaliseAnswer(candidate) === normaliseAnswer(name))
+      )
+    );
+    if (!existing) {
+      existing = answer(country.name, country.aliases, 2, country.source);
+      question.answers.push(existing);
+    } else {
+      const merged = new Map((existing.aliases || []).map(alias => [normaliseAnswer(alias), alias]));
+      for (const alias of countryNames) {
+        const key = normaliseAnswer(alias);
+        if (key && key !== normaliseAnswer(existing.name)) merged.set(key, alias);
+      }
+      existing.aliases = [...merged.values()];
+    }
+  }
+}
+
+const COUNTRY_CONTINENT_QUESTIONS = [
+  ['europe-countries', 'Europe', 'Countries in Europe', 'Name a country in Europe.', 'Countries across Europe, including smaller states.'],
+  ['africa-countries', 'Africa', 'Countries in Africa', 'Name a country in Africa.', 'Countries from North Africa to the southern tip of the continent.'],
+  ['asia-countries', 'Asia', 'Countries in Asia', 'Name a country in Asia.', 'Countries across East, Central, South and West Asia.'],
+  ['south-america-countries', 'South America', 'Countries in South America', 'Name a country in South America.', 'Independent countries across South America.']
+];
+
+for (const [id, continent] of COUNTRY_CONTINENT_QUESTIONS) {
+  const question = Q.find(item => item.id === id);
+  if (question) enrichCountryQuestion(question, continent);
+}
+
+for (const [id, continent, category, prompt, note] of [
+  ['north-america-countries', 'North America', 'Countries in North America', 'Name a country in North America.', 'Countries from Canada and the United States through Central America and the Caribbean.'],
+  ['oceania-countries', 'Oceania', 'Countries in Oceania', 'Name a country in Oceania.', 'Island countries and mainland countries across Oceania.']
+]) {
+  const answers = WORLD_COUNTRY_ANSWERS
+    .filter(country => country.continent === continent)
+    .map(country => answer(country.name, country.aliases, 2, country.source));
+  if (answers.length) Q.push({
+    id, domain: 'geography', type: 'countries', category, prompt, note,
+    source: 'Natural Earth country names and multilingual labels',
+    answers
+  });
+}
 
 function makePartyTopic(id, category, prompt, names, sourceId) {
   const source = sourceId ? Q.find(item => item.id === sourceId) : null;
@@ -915,12 +1039,51 @@ function publicQuestion(question, index) {
   };
 }
 
+function boundedDamerauDistance(left, right, limit) {
+  const a = [...left];
+  const b = [...right];
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let previousPrevious = null;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = new Array(b.length + 1).fill(limit + 1);
+    current[0] = i;
+    let rowMinimum = current[0];
+    const start = Math.max(1, i - limit);
+    const end = Math.min(b.length, i + limit);
+
+    for (let j = start; j <= end; j += 1) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+      if (i > 1 && j > 1 && previousPrevious &&
+          a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        current[j] = Math.min(current[j], previousPrevious[j - 2] + 1);
+      }
+      rowMinimum = Math.min(rowMinimum, current[j]);
+    }
+
+    if (rowMinimum > limit) return limit + 1;
+    previousPrevious = previous;
+    previous = current;
+  }
+  return previous[b.length];
+}
+
 function matchAnswer(question, rawAnswer) {
   const target = normaliseAnswer(rawAnswer);
   if (!target || target.length > 80) return null;
 
   const entries = Array.isArray(question && question.answers) ? question.answers : [];
   const targetForms = answerVariants(target, question);
+  const entryForms = entries.map(entry => ({
+    entry,
+    forms: new Set([entry.name].concat(Array.isArray(entry.aliases) ? entry.aliases : [])
+      .flatMap(name => [...answerVariants(name, question)]))
+  }));
   const buildMatch = entry => {
     const rarity = Math.max(0, Math.min(5, Number(entry.rarity) || 0));
     return {
@@ -932,39 +1095,48 @@ function matchAnswer(question, rawAnswer) {
       source: entry.source || question.source || 'HUMANITY curated dataset'
     };
   };
-  const collectMatches = forms => {
-    const matches = new Map();
-    for (const entry of entries) {
-      const names = [entry.name].concat(Array.isArray(entry.aliases) ? entry.aliases : []);
-      let found = false;
-      for (const name of names) {
-        const variants = answerVariants(name, question);
-        if ([...variants].some(variant => forms.has(variant))) {
-          found = true;
-          break;
-        }
+
+  const exactMatches = entryForms.filter(item =>
+    [...item.forms].some(form => targetForms.has(form))
+  );
+  if (exactMatches.length === 1) return buildMatch(exactMatches[0].entry);
+  if (exactMatches.length > 1) return null;
+
+  // Krillion-style autocorrection: compare every accepted name/alias, then
+  // accept only a single unambiguous canonical answer. Short names stay exact.
+  let bestDistance = Infinity;
+  let bestEntries = [];
+  for (const item of entryForms) {
+    let entryDistance = Infinity;
+    for (const inputForm of targetForms) {
+      if (inputForm.length < 5) continue;
+      for (const acceptedForm of item.forms) {
+        const longest = Math.max(inputForm.length, acceptedForm.length);
+        if (longest < 6) continue;
+        const allowance = longest >= 12 ? 2 : 1;
+        const distance = boundedDamerauDistance(inputForm, acceptedForm, allowance);
+        if (distance < entryDistance) entryDistance = distance;
+        if (entryDistance === 0) break;
       }
-      if (found) matches.set(normaliseAnswer(entry.name), entry);
+      if (entryDistance === 0) break;
     }
-    return matches;
-  };
 
-  // First use the curated answer sheet, with Krillion-style spelling variants.
-  const exactMatches = collectMatches(targetForms);
-  if (exactMatches.size === 1) return buildMatch([...exactMatches.values()][0]);
-  if (exactMatches.size > 1) return null;
-
-  // Then allow exactly one neighbouring-letter transposition. A correction
-  // must identify one unique approved answer; ambiguous near-matches are rejected.
-  const typoForms = new Set();
-  for (const form of targetForms) {
-    for (const swapped of adjacentTranspositions(form)) typoForms.add(swapped);
+    if (entryDistance < bestDistance) {
+      bestDistance = entryDistance;
+      bestEntries = [item.entry];
+    } else if (entryDistance === bestDistance && entryDistance !== Infinity) {
+      bestEntries.push(item.entry);
+    }
   }
-  const typoMatches = collectMatches(typoForms);
-  if (typoMatches.size !== 1) return null;
-  return buildMatch([...typoMatches.values()][0]);
-}
 
+  if (bestEntries.length !== 1 || bestDistance === Infinity) return null;
+  const bestName = normaliseAnswer(bestEntries[0].name);
+  const matchedForms = entryForms.find(item => item.entry === bestEntries[0]).forms;
+  const longest = Math.max(...[...targetForms].map(form => form.length).concat(
+    [...matchedForms].map(form => form.length)
+  ));
+  return bestDistance <= (longest >= 12 ? 2 : 1) ? buildMatch(bestEntries[0]) : null;
+}
 function pointsForUsage(entry, answerCount, totalAnswers) {
   if (!entry) return 0;
   if (!Number.isFinite(totalAnswers) || totalAnswers < 20 || !Number.isFinite(answerCount)) {
@@ -1046,6 +1218,7 @@ module.exports = {
   LEVEL_NAMES,
   normaliseAnswer,
   answerVariants,
+  listWorldCountryAnswers,
   generateDailyChallenge,
   publicQuestion,
   matchAnswer,
