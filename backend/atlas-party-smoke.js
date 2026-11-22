@@ -397,8 +397,12 @@ async function checkLivePartyRound() {
 }
 
 async function createPair(label, options = {}) {
-  const host = await connect(label + 'Host');
-  const guest = await connect(label + 'Guest');
+  // Keep generated smoke-test display names inside the game's 18-character limit.
+  const shortLabel = String(label || 'Smoke').replace(/[^A-Za-z0-9]/g, '').slice(0, 8) || 'Smoke';
+  const hostName = shortLabel + 'H' + suffix;
+  const guestName = shortLabel + 'G' + suffix;
+  const host = await connect(hostName);
+  const guest = await connect(guestName);
   const hostJoinedPromise = host.waitFor(message => message.type === 'joined', 12000, label + ' host joins');
   const hostLobbyPromise = host.waitFor(message =>
     message.type === 'room_state' && message.phase === 'lobby' && message.players?.length === 1,
@@ -410,7 +414,7 @@ async function createPair(label, options = {}) {
     mode: 'private',
     variant: options.variant || 'classic',
     capacity: 2,
-    nickname: label + 'Host' + suffix,
+    nickname: hostName,
     settings: options.settings || {}
   });
   const hostJoined = await hostJoinedPromise;
@@ -423,7 +427,7 @@ async function createPair(label, options = {}) {
     message.type === 'room_state' && message.code === roomCode && message.players?.length === 2,
     12000, label + ' host sees guest'
   );
-  guest.send({ type: 'join_room', code: roomCode, nickname: label + 'Guest' + suffix });
+  guest.send({ type: 'join_room', code: roomCode, nickname: guestName });
   const guestJoined = await guestJoinedPromise;
   const hostRoom = await hostTwoPlayersPromise;
   return { host, guest, roomCode, hostJoined, guestJoined, hostRoom };
