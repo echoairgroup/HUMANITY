@@ -583,7 +583,38 @@ async function checkLargeQueueFallback() {
   }
 }
 
+async function waitForStableBackend() {
+  let previousUptime = null;
+  let stableIntervals = 0;
+  const maxAttempts = 24;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const health = await getJson('/health');
+    assert.equal(health.database, true, 'Neon must remain connected before live multiplayer tests');
+    const uptime = Number(health.uptimeSeconds || 0);
+
+    if (previousUptime !== null && uptime > previousUptime && uptime - previousUptime <= 15) {
+      stableIntervals += 1;
+    } else {
+      stableIntervals = 0;
+    }
+    previousUptime = uptime;
+
+    console.log('Backend stability check ' + attempt + '/' + maxAttempts +
+      ': uptime=' + uptime + 's, stable intervals=' + stableIntervals + '/2');
+
+    if (uptime >= 25 && stableIntervals >= 2) {
+      console.log('PASS: Backend and Neon stayed healthy across consecutive checks.');
+      return;
+    }
+    await pause(8000);
+  }
+
+  throw new Error('The backend did not remain stable long enough to start the live multiplayer checks.');
+}
+
 async function main() {
+  await waitForStableBackend();
   await checkHttpSurface();
   await checkLivePartyRound();
   await checkRoomReconnect();
