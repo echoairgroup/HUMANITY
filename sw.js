@@ -1,12 +1,16 @@
 'use strict';
 
-const CACHE_NAME = 'humanity-universe-v21';
+const CACHE_NAME = 'humanity-universe-v22';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
   './upgrades.css',
-  './globe-rush-space.css',
+  './globe-rush-space.css?v=1',
+  './globe-rush-party.css?v=2',
+  './humanity-motion-polish.css?v=1',
+  './humanity-layout-guard.css?v=2',
+  './humanity-atlas-polish.css?v=1',
   './app.js',
   './globe.js',
   './world-countries.geojson',
