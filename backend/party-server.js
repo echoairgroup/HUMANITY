@@ -214,14 +214,16 @@ const PARTY_WIKIDATA_TYPES = {
   seas: ['sea', 'ocean'],
   deserts: ['desert'],
   'capital-cities': ['capital'],
-  'major-cities': ['city', 'town'],
+  'island-countries': ['island country', 'island nation'],
+  'euro-countries': ['eurozone member', 'member of the euro area', 'uses the euro', 'currency is the euro'],
+  'major-cities': ['major city', 'large city', 'metropolis', 'largest city', 'capital city'],
   'world-landmarks': ['landmark', 'monument', 'bridge', 'tower', 'statue', 'heritage site'],
   'world-heritage-sites': ['world heritage site', 'unesco world heritage site'],
   'national-parks': ['national park'],
   languages: ['language'],
   'popular-dishes': ['dish', 'cuisine', 'traditional food'],
   'popular-snacks': ['snack', 'food'],
-  'olympic-sports': ['sport']
+  'olympic-sports': ['olympic sport', 'sport at the olympic games', 'sport contested at the olympic games']
 };
 const PARTY_WIKIDATA_CACHE = new Map();
 
