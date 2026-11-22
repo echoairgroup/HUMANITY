@@ -596,13 +596,29 @@ async function waitForStableBackend() {
   let previousUptime = null;
   let stableIntervals = 0;
   let stableSince = Date.now();
-  const maxAttempts = 42;
+  const maxAttempts = 60;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const health = await getJson('/health');
-    assert.equal(health.database, true, 'Neon must remain connected before live multiplayer tests');
-    const uptime = Number(health.uptimeSeconds || 0);
+    let health;
+    try {
+      const response = await fetch(API_ROOT + '/health', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Health endpoint returned HTTP ' + response.status);
+      }
+      health = await response.json();
+      if (health.database !== true) {
+        throw new Error('Neon database is not connected yet');
+      }
+    } catch (error) {
+      previousUptime = null;
+      stableIntervals = 0;
+      stableSince = Date.now();
+      console.log('Backend is temporarily unavailable; stability window reset: ' + error.message);
+      await pause(5000);
+      continue;
+    }
 
+    const uptime = Number(health.uptimeSeconds || 0);
     if (previousUptime !== null && uptime > previousUptime && uptime - previousUptime <= 12) {
       stableIntervals += 1;
     } else {
