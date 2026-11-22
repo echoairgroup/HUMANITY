@@ -205,6 +205,8 @@ async function checkLivePartyRound() {
       message.type === 'room_state' && message.code === roomCode && message.phase === 'playing' && message.round === 1
     );
 
+    // Respect the server's anti-spam action window after the preceding chat message.
+    await pause(150);
     host.send({ type: 'start_game' });
     const [hostPlaying, guestPlaying] = await Promise.all([hostPlayingPromise, guestPlayingPromise]);
     assert.ok(hostPlaying.currentHolderId);
