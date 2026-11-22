@@ -1,0 +1,576 @@
+/* HUMANITY · Globe Rush party polish
+   Keeps the existing Earth-and-space identity while tightening the lobby and
+   making each explorer's planet avatar unmistakable during live play. */
+
+#view-party .party-intro {
+  min-height: 0;
+  padding: 8px 12px 10px;
+}
+#view-party .party-intro h1 {
+  margin: 1px 0 0;
+  font-size: clamp(38px, 4vw, 48px);
+  line-height: .92;
+}
+#view-party .party-intro-copy {
+  width: min(100%, 900px);
+}
+#view-party .party-intro p {
+  max-width: 760px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+#view-party .party-intro-stats {
+  gap: 9px;
+  margin-top: 7px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+#view-party .party-lobby {
+  grid-template-columns: minmax(325px, 1.08fr) minmax(255px, .82fr) minmax(265px, .9fr);
+  gap: 10px;
+  max-width: 1500px;
+}
+#view-party .party-play-panel {
+  padding: 10px;
+  align-self: stretch;
+}
+#view-party .party-play-panel .panel-topline {
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+}
+#view-party .display-name-row {
+  margin-bottom: 7px;
+  padding: 6px 8px;
+}
+#view-party .display-name-row input {
+  min-height: 29px;
+}
+#view-party .planet-avatar-picker {
+  margin: 6px 0 8px;
+  padding: 6px;
+}
+#view-party .planet-avatar-picker-head {
+  margin-bottom: 5px;
+  font-size: 11px;
+}
+#view-party #planet-avatar-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+#view-party .planet-avatar-choice {
+  min-height: 46px;
+  gap: 1px;
+  padding: 3px 1px;
+  border-radius: 2px;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+#view-party .planet-avatar-choice:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #75dced;
+  box-shadow: 0 5px 14px rgba(40, 153, 199, .18);
+}
+#view-party .planet-avatar-choice .planet-avatar-visual {
+  width: 23px;
+  height: 23px;
+}
+#view-party .planet-avatar-choice b {
+  font-size: 10px;
+  line-height: 1.05;
+}
+#view-party .planet-avatar-choice small {
+  font-size: 8px;
+  line-height: 1.05;
+}
+#view-party .party-mode-grid {
+  gap: 6px;
+}
+#view-party .mode-card {
+  padding: 8px;
+  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+#view-party .mode-card:hover {
+  transform: translateY(-3px);
+  border-color: #5ca9cc;
+  box-shadow: 0 9px 22px rgba(0, 0, 0, .2);
+}
+#view-party .mode-card .mode-icon {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+#view-party .mode-card h2 {
+  margin: 3px 0;
+  font-size: 19px;
+  line-height: 1;
+}
+#view-party .mode-card p {
+  min-height: 32px;
+  margin: 0 0 6px;
+  font-size: 9px;
+  line-height: 1.35;
+}
+#view-party .mode-card .field-label {
+  margin-bottom: 3px;
+  font-size: 9px;
+}
+#view-party .mode-card .select-input {
+  min-height: 29px;
+  margin-bottom: 5px;
+  padding: 0 7px;
+  font-size: 10px;
+}
+#view-party .party-play-panel .button {
+  min-height: 31px;
+  padding: 0 8px;
+}
+#view-party .mode-footnote {
+  margin-top: 5px;
+  font-size: 8px;
+}
+#view-party .party-tools-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 7px;
+}
+#view-party .room-tool {
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-content: start;
+  gap: 4px 6px;
+  min-width: 0;
+  padding: 7px;
+}
+#view-party .room-tool-icon {
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+}
+#view-party .room-tool strong {
+  font-size: 10px;
+}
+#view-party .room-tool p {
+  font-size: 8px;
+  line-height: 1.25;
+}
+#view-party .room-tool .button,
+#view-party .room-tool .host-visibility,
+#view-party .join-tool .code-input {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+#view-party .room-tool .button {
+  min-height: 28px;
+  margin-top: 1px;
+  padding: 0 5px;
+  font-size: 9px;
+}
+#view-party .host-visibility {
+  min-width: 0;
+  font-size: 9px;
+}
+#view-party .host-visibility select {
+  min-width: 0;
+  width: 62%;
+  padding: 5px;
+  font-size: 9px;
+}
+#view-party .join-tool .code-input {
+  min-height: 28px;
+  padding: 0 5px;
+  font-size: 9px;
+}
+#view-party .public-rooms-card {
+  max-height: 505px;
+  padding: 10px;
+}
+#view-party .public-rooms-card .side-card-head {
+  padding-bottom: 6px;
+}
+#view-party .public-rooms-card h3 {
+  margin: 2px 0;
+}
+#view-party .open-rooms-list {
+  margin-top: 5px;
+  gap: 2px;
+}
+#view-party .public-room-row {
+  padding: 7px 2px;
+}
+#view-party .public-room-row strong {
+  font-size: 17px;
+}
+#view-party .public-room-row small {
+  font-size: 8px;
+}
+#view-party .public-room-row button {
+  padding: 4px 5px;
+  font-size: 12px;
+}
+.party-centre-scene {
+  min-height: 470px;
+  background:
+    radial-gradient(ellipse at 50% 49%, rgba(28, 113, 165, .29), transparent 50%),
+    radial-gradient(ellipse at 18% 78%, rgba(113, 74, 164, .12), transparent 42%),
+    radial-gradient(ellipse at 84% 18%, rgba(50, 173, 195, .12), transparent 38%),
+    linear-gradient(180deg, rgba(4, 13, 30, .35), rgba(4, 13, 30, .05));
+}
+.party-centre-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .55;
+  background-image:
+    radial-gradient(1px 1px at 17% 22%, #f4fbff 50%, transparent 100%),
+    radial-gradient(1px 1px at 83% 36%, #b6e7ff 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 67% 77%, #f4dca6 50%, transparent 100%),
+    radial-gradient(1px 1px at 35% 68%, #b6e7ff 50%, transparent 100%);
+  background-size: 180px 155px, 230px 180px, 270px 220px, 210px 175px;
+  animation: globe-rush-stardust 28s linear infinite;
+}
+.centre-earth-halo {
+  animation: globe-rush-earth-float 5.8s ease-in-out infinite;
+}
+.centre-orbit {
+  border-color: rgba(128, 219, 245, .26);
+  box-shadow: 0 0 15px rgba(75, 193, 228, .08);
+}
+.centre-shooting-star {
+  animation-duration: 5.8s;
+}
+.centre-shooting-star.star-two { animation-delay: 1.4s; }
+.centre-shooting-star.star-three { animation-delay: 3.1s; }
+.centre-shooting-star.star-four { animation-delay: 4.4s; }
+
+/* Shared-fuse progress and the rarity-to-heart meter. */
+#party-room .category-cycle {
+  border-color: rgba(91, 186, 218, .38);
+  background: linear-gradient(110deg, rgba(9, 30, 54, .96), rgba(17, 35, 63, .96));
+}
+#party-room .category-cycle-stat > b {
+  color: #a8eff5;
+  font-variant-numeric: tabular-nums;
+}
+#party-room .rarity-meter-stat > i > span {
+  background: linear-gradient(90deg, #6adff0, #b4e9a4);
+}
+#party-room .used-meter-stat > i > span {
+  background: linear-gradient(90deg, #79a6e8, #a991ec);
+}
+#party-room .orb-stage {
+  min-height: 455px;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 47%, rgba(47, 155, 203, .32), transparent 34%),
+    radial-gradient(ellipse at 14% 18%, rgba(95, 91, 184, .21), transparent 35%),
+    radial-gradient(ellipse at 86% 80%, rgba(167, 93, 164, .15), transparent 35%),
+    radial-gradient(ellipse at 51% 110%, rgba(24, 99, 137, .26), transparent 44%),
+    linear-gradient(145deg, #06142b 0%, #102b4d 48%, #07162d 100%);
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, .35), 0 0 26px rgba(43, 135, 184, .12);
+}
+#party-room .rush-stage-stars {
+  opacity: .9;
+  background-size: 183px 139px, 211px 171px, 257px 193px, 227px 181px;
+  animation: globe-rush-star-drift 24s linear infinite;
+}
+#party-room .rush-stage-stars::before,
+#party-room .rush-stage-stars::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+}
+#party-room .rush-stage-stars::before {
+  opacity: .54;
+  background-image:
+    radial-gradient(2px 2px at 9% 15%, #a9eaff 50%, transparent 100%),
+    radial-gradient(1px 1px at 28% 83%, #fff0ca 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 66% 9%, #e4faff 50%, transparent 100%),
+    radial-gradient(1px 1px at 91% 66%, #a7d6ff 50%, transparent 100%),
+    radial-gradient(1px 1px at 53% 54%, #fff 50%, transparent 100%);
+  background-size: 270px 220px, 310px 240px, 250px 190px, 330px 260px, 210px 190px;
+  animation: globe-rush-star-drift 38s linear infinite reverse;
+}
+#party-room .rush-stage-stars::after {
+  opacity: .55;
+  background:
+    linear-gradient(116deg, transparent 0 46%, rgba(159, 225, 255, .75) 49%, transparent 52%) 8% 25% / 125px 2px no-repeat,
+    linear-gradient(116deg, transparent 0 46%, rgba(255, 221, 168, .65) 49%, transparent 52%) 88% 60% / 100px 2px no-repeat;
+  animation: globe-rush-shooting-stars 9s ease-in-out infinite;
+}
+#party-room .rush-stage-nebula {
+  opacity: .32;
+  filter: blur(25px);
+  animation: globe-rush-nebula-pulse 9s ease-in-out infinite alternate;
+}
+#party-room .rush-nebula-right { animation-delay: -4s; }
+#party-room .rush-stage-orbit {
+  border-color: rgba(135, 218, 244, .35);
+  box-shadow: 0 0 14px rgba(84, 183, 224, .06);
+}
+#party-room .rush-orbit-one {
+  animation: globe-rush-orbit-a 25s linear infinite;
+}
+#party-room .rush-orbit-two {
+  animation: globe-rush-orbit-b 32s linear infinite;
+}
+#party-room .rush-orbit-three {
+  animation: globe-rush-orbit-c 44s linear infinite;
+}
+#party-room .rush-stage-moon {
+  box-shadow: 0 0 22px rgba(212, 232, 246, .24), inset -5px -5px 8px rgba(0, 0, 0, .24);
+  animation: globe-rush-moon-float 7s ease-in-out infinite;
+}
+#party-room .rush-moon-two { animation-delay: -3.5s; }
+#party-room .rush-stage-satellite {
+  filter: drop-shadow(0 0 10px rgba(118, 213, 244, .45));
+  animation: globe-rush-satellite-drift 8s ease-in-out infinite;
+}
+#party-room .rush-satellite-two { animation-delay: -4s; }
+#party-room .rush-stage-island {
+  filter: drop-shadow(0 9px 8px rgba(0, 0, 0, .28));
+  animation: globe-rush-island-hover 6s ease-in-out infinite;
+}
+#party-room .rush-island-right { animation-delay: -3s; }
+#party-room .orb-stage-halo {
+  animation: globe-rush-halo-pulse 4.5s ease-in-out infinite;
+}
+#party-room .stage-ring {
+  border-color: rgba(150, 226, 246, .44);
+  box-shadow: 0 0 15px rgba(88, 193, 227, .08);
+  animation: globe-rush-ring-breathe 5.5s ease-in-out infinite;
+}
+#party-room .stage-ring-b { animation-delay: -2.7s; }
+#party-room .stage-orb {
+  filter: drop-shadow(0 0 34px rgba(77, 205, 244, .42));
+}
+#party-room .orb-holder-label {
+  padding: 4px 11px;
+  border: 1px solid rgba(107, 193, 221, .38);
+  background: rgba(5, 19, 38, .76);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, .24);
+}
+
+/* Player badges are real spherical planet textures, not square placeholders. */
+#party-room .orb-player-marker {
+  width: clamp(100px, 14%, 150px);
+  min-height: 52px;
+  padding: 5px 7px;
+  gap: 8px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(14, 40, 67, .97), rgba(5, 19, 39, .96));
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .3), 0 0 15px rgba(74, 167, 206, .13);
+  backdrop-filter: blur(5px);
+}
+#party-room .orb-player-avatar.planet-avatar {
+  position: relative;
+  display: block;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(195, 235, 255, .62);
+  border-radius: 50%;
+  box-shadow: inset -8px -9px 13px rgba(0, 0, 0, .38), 0 0 0 2px rgba(104, 200, 232, .12), 0 0 15px rgba(81, 190, 228, .2);
+}
+#party-room .orb-player-avatar.planet-avatar::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 28% 21%, rgba(255,255,255,.72), rgba(255,255,255,.12) 26%, transparent 52%);
+}
+#party-room .orb-player-avatar.planet-avatar-mercury { background: radial-gradient(circle at 30% 27%, #e4ddc7, #99958b 48%, #4f5968 100%); }
+#party-room .orb-player-avatar.planet-avatar-venus { background: radial-gradient(circle at 32% 28%, #fff0b8, #d79b54 55%, #80543f 100%); }
+#party-room .orb-player-avatar.planet-avatar-earth { background: radial-gradient(circle at 35% 27%, #8ee8f1, #2588c8 50%, #123a70 100%); }
+#party-room .orb-player-avatar.planet-avatar-mars { background: radial-gradient(circle at 33% 28%, #ffc0a0, #d45e47 53%, #742c3c 100%); }
+#party-room .orb-player-avatar.planet-avatar-jupiter { background: repeating-linear-gradient(0deg, #8c543b 0 5px, #edc38b 5px 10px, #ad7550 10px 15px); }
+#party-room .orb-player-avatar.planet-avatar-saturn { background: repeating-linear-gradient(0deg, #876a4f 0 5px, #e1c393 5px 10px, #a98660 10px 15px); }
+#party-room .orb-player-avatar.planet-avatar-uranus { background: radial-gradient(circle at 32% 28%, #e1fdff, #7cd6de 55%, #327e9a 100%); }
+#party-room .orb-player-avatar.planet-avatar-neptune { background: radial-gradient(circle at 32% 28%, #b7ccff, #4568c6 55%, #18265f 100%); }
+#party-room .orb-player-avatar.planet-avatar-saturn::after {
+  left: -7px;
+  top: 13px;
+  width: 52px;
+  height: 12px;
+  border-width: 2px;
+  border-color: rgba(240, 218, 171, .94);
+  box-shadow: 0 0 7px rgba(232, 207, 151, .36);
+}
+#party-room .orb-player-marker.is-holder .orb-player-avatar.planet-avatar {
+  outline: 2px solid #76e6f4;
+  outline-offset: 4px;
+  box-shadow: inset -8px -9px 13px rgba(0, 0, 0, .38), 0 0 0 5px rgba(92, 222, 241, .1), 0 0 22px rgba(102, 225, 242, .48);
+}
+#party-room .orb-player-copy b {
+  font-size: 16px;
+}
+#party-room .orb-player-copy small {
+  font-size: 11px;
+}
+#party-room .orb-player-marker.is-out .orb-player-avatar {
+  filter: grayscale(.75);
+}
+#party-room .planet-seat-avatar.planet-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: transparent;
+  box-shadow: inset -7px -8px 12px rgba(0, 0, 0, .34), 0 0 14px rgba(75, 174, 219, .22);
+}
+#party-room .planet-roster-dot.planet-avatar {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+/* Small interaction details make the whole mode feel alive without obscuring controls. */
+#view-party .party-play-panel .button,
+#view-party .room-tool .button,
+#view-party .public-room-row button {
+  transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+}
+#view-party .party-play-panel .button:hover:not(:disabled),
+#view-party .room-tool .button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+  box-shadow: 0 5px 14px rgba(48, 157, 191, .18);
+}
+#party-room .orb-player-marker {
+  transition: left .28s ease, top .28s ease, border-color .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+#party-room .orb-player-marker.is-holder {
+  animation: globe-rush-holder-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes globe-rush-stardust {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 180px 120px, -210px 180px, 260px -150px, -180px 190px; }
+}
+@keyframes globe-rush-earth-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes globe-rush-star-drift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 240px 180px, -260px 220px, 210px -170px, -180px 210px; }
+}
+@keyframes globe-rush-shooting-stars {
+  0%, 18%, 100% { opacity: 0; transform: translate3d(0, 0, 0); }
+  24% { opacity: .9; transform: translate3d(18px, 22px, 0); }
+  31% { opacity: 0; transform: translate3d(60px, 70px, 0); }
+  62% { opacity: 0; transform: translate3d(0, 0, 0); }
+  68% { opacity: .7; transform: translate3d(-16px, 20px, 0); }
+  75% { opacity: 0; transform: translate3d(-55px, 68px, 0); }
+}
+@keyframes globe-rush-nebula-pulse {
+  from { opacity: .18; transform: scale(.88) translateY(0); }
+  to { opacity: .38; transform: scale(1.12) translateY(-10px); }
+}
+@keyframes globe-rush-orbit-a {
+  from { transform: translate(-50%, -50%) rotate(-19deg); }
+  to { transform: translate(-50%, -50%) rotate(341deg); }
+}
+@keyframes globe-rush-orbit-b {
+  from { transform: translate(-50%, -50%) rotate(48deg); }
+  to { transform: translate(-50%, -50%) rotate(408deg); }
+}
+@keyframes globe-rush-orbit-c {
+  from { transform: translate(-50%, -50%) rotate(7deg); }
+  to { transform: translate(-50%, -50%) rotate(367deg); }
+}
+@keyframes globe-rush-moon-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -9px; }
+}
+@keyframes globe-rush-satellite-drift {
+  0%, 100% { translate: 0 0; rotate: -5deg; }
+  50% { translate: 12px -10px; rotate: 7deg; }
+}
+@keyframes globe-rush-island-hover {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -7px; }
+}
+@keyframes globe-rush-halo-pulse {
+  0%, 100% { opacity: .7; scale: .96; }
+  50% { opacity: 1; scale: 1.08; }
+}
+@keyframes globe-rush-ring-breathe {
+  0%, 100% { opacity: .52; }
+  50% { opacity: .95; }
+}
+@keyframes globe-rush-holder-glow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(104, 225, 242, .12), 0 0 14px rgba(104, 225, 242, .2); }
+  50% { box-shadow: 0 0 0 4px rgba(104, 225, 242, .18), 0 0 24px rgba(104, 225, 242, .46); }
+}
+
+@media (min-width: 1200px) and (min-height: 820px) {
+  #view-party .party-intro { padding-top: 5px; padding-bottom: 7px; }
+  #view-party .party-lobby { min-height: 470px; }
+  #view-party .party-play-panel,
+  #view-party .public-rooms-card { min-height: 470px; }
+  #view-party .public-rooms-card { max-height: 470px; }
+  .party-centre-scene { min-height: 470px; }
+}
+
+@media (max-width: 1080px) {
+  #view-party .party-lobby {
+    grid-template-columns: minmax(0, 1.1fr) minmax(250px, .9fr);
+    gap: 10px;
+  }
+  #view-party .party-play-panel { grid-column: 1; grid-row: 1; }
+  #view-party .public-rooms-card { grid-column: 2; grid-row: 1; max-height: 520px; }
+  .party-centre-scene { display: none; }
+}
+@media (max-width: 720px) {
+  #view-party .party-intro { padding: 12px 7px 10px; }
+  #view-party .party-intro-stats { gap: 6px; font-size: 9px; }
+  #view-party .party-lobby { grid-template-columns: minmax(0, 1fr); }
+  #view-party .party-play-panel,
+  #view-party .public-rooms-card { grid-column: 1; grid-row: auto; }
+  #view-party .public-rooms-card { max-height: 330px; }
+  #view-party .party-tools-grid { grid-template-columns: 1fr 1fr; }
+  #party-room .orb-stage { min-height: 340px; }
+  #party-room .orb-player-marker { width: 92px; min-height: 48px; padding: 4px; gap: 5px; }
+  #party-room .orb-player-avatar.planet-avatar { flex-basis: 32px; width: 32px; height: 32px; }
+  #party-room .orb-player-avatar.planet-avatar-saturn::after { left: -6px; top: 10px; width: 42px; height: 10px; }
+  #party-room .orb-player-copy b { font-size: 13px; }
+  #party-room .orb-player-copy small { font-size: 9px; }
+}
+@media (max-width: 420px) {
+  #view-party .party-tools-grid { grid-template-columns: 1fr; }
+  #view-party .room-tool { grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; }
+  #view-party .room-tool .button { grid-column: 3; width: auto; }
+  #view-party .room-tool .host-visibility { grid-column: 1 / -1; }
+  #view-party .join-tool .code-input { grid-column: 2 / 4; }
+  #view-party .join-tool .button { grid-column: 3; }
+  #party-room .orb-player-marker { width: 80px; }
+  #party-room .orb-player-avatar.planet-avatar { flex-basis: 28px; width: 28px; height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .party-centre-scene::after,
+  .centre-earth-halo,
+  .centre-shooting-star,
+  #party-room .rush-stage-stars,
+  #party-room .rush-stage-stars::before,
+  #party-room .rush-stage-stars::after,
+  #party-room .rush-stage-nebula,
+  #party-room .rush-stage-orbit,
+  #party-room .rush-stage-moon,
+  #party-room .rush-stage-satellite,
+  #party-room .rush-stage-island,
+  #party-room .orb-stage-halo,
+  #party-room .stage-ring,
+  #party-room .orb-player-marker.is-holder {
+    animation: none !important;
+  }
+  #view-party .mode-card,
+  #view-party .planet-avatar-choice,
+  #view-party .party-play-panel .button,
+  #view-party .room-tool .button {
+    transition: none !important;
+  }
+}
