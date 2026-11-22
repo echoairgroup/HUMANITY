@@ -217,6 +217,35 @@ async function checkPrivateRoomLayout(page, width, live) {
 async function checkTwoPlayerRoomAndLiveGame(browser, hostPage, pageErrors) {
   let guestContext = null;
   let guestPage = null;
+  const socketTrace = { host: [], guest: [] };
+  const traceSockets = (page, label) => {
+    page.on('websocket', socket => {
+      socket.on('framereceived', data => {
+        let message;
+        try { message = JSON.parse(String(data)); } catch (_) { return; }
+        socketTrace[label].push({
+          direction: 'in',
+          type: message.type,
+          phase: message.phase,
+          round: message.round,
+          players: Array.isArray(message.players) ? message.players.length : undefined,
+          countdown: message.autoStartInMs,
+          startsInMs: message.startsInMs,
+          code: message.code,
+          message: message.message,
+          errorCode: message.code && message.type === 'error' ? message.code : undefined
+        });
+        socketTrace[label] = socketTrace[label].slice(-40);
+      });
+      socket.on('framesent', data => {
+        let message;
+        try { message = JSON.parse(String(data)); } catch (_) { return; }
+        socketTrace[label].push({ direction: 'out', type: message.type, code: message.code });
+        socketTrace[label] = socketTrace[label].slice(-40);
+      });
+    });
+  };
+  traceSockets(hostPage, 'host');
   try {
     await hostPage.setViewportSize({ width: 1440, height: 950 });
     await hostPage.locator('#party-display-name').fill('LayoutHost');
@@ -235,6 +264,7 @@ async function checkTwoPlayerRoomAndLiveGame(browser, hostPage, pageErrors) {
     });
     guestPage = await guestContext.newPage();
     guestPage.on('pageerror', error => pageErrors.push('guest: ' + error.message));
+    traceSockets(guestPage, 'guest');
     const response = await guestPage.goto(SITE_URL, {
       waitUntil: 'domcontentloaded',
       timeout: 60000
@@ -259,8 +289,24 @@ async function checkTwoPlayerRoomAndLiveGame(browser, hostPage, pageErrors) {
 
     await hostPage.setViewportSize({ width: 1440, height: 950 });
     await hostPage.locator('#room-start').click();
-    await hostPage.locator('#room-game-state:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
-    await guestPage.locator('#room-game-state:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+    try {
+      await hostPage.locator('#room-game-state:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+      await guestPage.locator('#room-game-state:not([hidden])').waitFor({ state: 'visible', timeout: 25000 });
+    } catch (error) {
+      const hostSnapshot = await hostPage.evaluate(() => ({
+        statusLabel: document.querySelector('#room-status-label')?.textContent,
+        startHidden: document.querySelector('#room-start')?.hidden,
+        startDisabled: document.querySelector('#room-start')?.disabled,
+        lobbyHidden: document.querySelector('#room-lobby-state')?.hidden,
+        gameHidden: document.querySelector('#room-game-state')?.hidden,
+        launchStatus: document.querySelector('#room-status-note')?.textContent,
+        toast: document.querySelector('#toast')?.textContent
+      }));
+      throw new Error('Globe Rush did not enter its live game state. Snapshot=' +
+        JSON.stringify(hostSnapshot) + ' host socket=' + JSON.stringify(socketTrace.host.slice(-25)) +
+        ' guest socket=' + JSON.stringify(socketTrace.guest.slice(-25)) +
+        ' original=' + error.message);
+    }
 
     // Check the real two-player game view too, not just the lobby/footer.
     for (const width of [320, 375, 430, 768, 1024, 1440]) {
