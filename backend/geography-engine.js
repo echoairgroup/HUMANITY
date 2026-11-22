@@ -479,9 +479,9 @@ const Q = [
       answer('Vaduz', [], 2), answer('Skopje', [], 1), answer('Belgrade', [], 0),
       answer('Sarajevo', [], 1), answer('Zagreb', [], 0), answer('Minsk', [], 1),
       answer('Chisinau', ['Chișinău'], 2), answer('Kigali', [], 1),
-      answer('Kampala', [], 1), answer('Kigali', [], 1), answer('Addis Ababa', [], 1),
+      answer('Kampala', [], 1), answer('Addis Ababa', [], 1),
       answer('Ulaanbaatar', [], 2), answer('Kathmandu', [], 1), answer('Thimphu', [], 2),
-      answer('Vientiane', [], 2), answer('N'Djamena', ['Ndjamena'], 3),
+      answer("Vientiane", [], 2), answer("N'Djamena", ['Ndjamena'], 3),
       answer('Niamey', [], 2), answer('Ouagadougou', [], 2), answer('Bamako', [], 1),
       answer('Lusaka', [], 1), answer('Harare', [], 1), answer('Asuncion', ['Asunción'], 1)
     ]
