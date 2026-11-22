@@ -46,17 +46,18 @@ All globe illustrations use actual country polygon geometry from Natural Earth r
 
 - Quick Play and Ranked support 1v1, 3-player, 4–6-player and 8–10-player matchmaking groups.
 - Private rooms support 2–10 players.
-- A round uses one geography category; answers cannot be repeated during that category.
-- Every player receives a server-generated random personal clock between 10 and 30 seconds when the Orb reaches them. The next player and every new category receive a newly randomised timer.
-- Invalid and duplicate answers do not reset the current player's clock; the player can keep trying while their own time is running.
-- A category changes for the whole room after **2 incorrect answers** (not necessarily consecutive) or **10 accepted turns**, whichever happens first. Both counters reset when the category changes.
-- The timer and category counters are controlled by the server and shown to everyone, with the active player clearly highlighted.
-- As the clock runs low, the Atlas Orb grows and begins to shake. When it expires, the Orb bursts in a bright animated overload, costs the current holder one Stability Point, and a new category begins with a newly randomised turn.
-- The live player list tracks each explorer's turns taken, approved answers, Stability Points and score.
+- Every player shares the same category. An answer can only be used once until the Atlas Orb pops and a fresh category begins.
+- The Atlas Orb has one server-controlled hidden fuse. By default it starts at a random **10–30 seconds** and keeps running while the Orb is passed between players.
+- A valid, unused answer passes the Orb to the next active explorer without restarting the fuse. If fewer than **8 seconds** remain on a pass, the next holder receives the 8-second minimum.
+- Invalid or duplicate answers do not pass the Orb or pause the shared fuse. The current holder can keep trying while the fuse runs.
+- Rarer valid answers fill that player's bonus-heart meter. Reaching the meter threshold grants an extra heart up to the room's configured maximum.
+- When the fuse expires, the Atlas Orb overloads and its current holder loses one heart. A player with no hearts left is eliminated. A new category and a fresh random fuse then begin for the remaining players.
+- As the shared fuse runs low, the Atlas Orb grows and begins to shake. The server controls the holder, fuse, answer validation, hearts and elimination state for every player in the room.
+- The live player list shows each explorer's heart count, turns taken, approved answers and score.
 - The last active player wins.
 - Ranked requires an account. A player's rating is soft-reset toward 1000 between quarterly seasons.
 
-The starting number of Stability Points and rarity-to-extra-heart balance are configuration choices in `backend/party-server.js`; tune these against real playtests before treating them as a final competitive balance.
+The default shared-fuse duration, heart limits and rarity-to-extra-heart balance are configured in `backend/party-server.js`; tune these against real playtests before treating them as a final competitive balance.
 
 ## Local development
 
