@@ -650,7 +650,7 @@ async function maybeVerifyWithWikidata(question, answerText) {
         [
           question.id, 'auto_approved', 0.96, candidate.concepturi || null,
           'Exact entity label and expected geography type verified in Wikidata.',
-          key, 'pending'
+          answerKey, 'pending'
         ]
       );
       return {
