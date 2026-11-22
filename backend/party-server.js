@@ -232,7 +232,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       autoStartInMs: room.autoStartAt ? Math.max(0, room.autoStartAt - Date.now()) : null,
       wrongAnswersThisCategory: room.wrongAnswersThisCategory,
       turnsThisCategory: room.turnsThisCategory,
-      settings: { ...room.settings },
+      settings: { ...room.settings, difficulty: room.currentDifficulty || room.settings.difficulty },
+      currentDifficulty: room.currentDifficulty || room.settings.difficulty || 'normal',
       maxWrongAnswersPerCategory: room.settings.maxWrongAnswersPerCategory,
       maxTurnsPerCategory: room.settings.maxTurnsPerCategory,
       timerRemainingMs: remaining,
@@ -511,6 +512,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const roundSettings = room.variant === 'survival'
       ? { ...room.settings, difficulty: survivalDifficulty(room.round) }
       : room.settings;
+    room.currentDifficulty = roundSettings.difficulty || room.settings.difficulty || 'normal';
     const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId, roundSettings);
     room.category = category;
     room.lastCategoryId = category.id;
@@ -854,6 +856,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       room.capacity = capacity;
       room.visibility = message.visibility === 'public' ? 'public' : 'private';
       room.settings = nextSettings;
+      room.variant = normaliseVariant(message.variant || room.variant);
       room.mode = nextSettings.ratingEnabled ? 'ranked' : 'private';
       const autoStartScheduled = nextSettings.autoStartWhenFull && room.players.length >= room.capacity && !room.autoStartAt;
       if (autoStartScheduled) room.autoStartAt = Date.now() + nextSettings.countdownSeconds * 1000;
@@ -1082,14 +1085,51 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       if (!rooms.has(code)) continue;
       if (shouldDownshiftLargeQueue(room, now)) {
-        room.group = 'flex';
-        room.capacity = room.players.length;
-        room.targetMin = room.players.length;
-        room.fallbackApplied = true;
-        room.autoStartAt = now + 4500;
-        broadcast(room, { type: 'queue_adjusted', group: 'flex', players: room.players.length, message: 'The large queue was resized to fit the explorers waiting. Your smaller match is starting shortly.' });
-        broadcastState(room);
-        broadcast(room, { type: 'match_ready', startsInMs: 4500, message: 'Flexible match · starting shortly.' });
+        const previousCode = room.code;
+        const players = [...room.players];
+        const host = players.find(player => player.id === room.hostId) || players[0];
+        const flexibleRoom = makeRoom(host, {
+          visibility: 'public',
+          mode: room.mode,
+          group: 'flex',
+          variant: room.variant || 'classic',
+          capacity: players.length,
+          targetMin: 2,
+          settings: room.settings
+        });
+        flexibleRoom.players = players;
+        flexibleRoom.targetMin = 2;
+        flexibleRoom.fallbackApplied = true;
+        flexibleRoom.chatMessages = room.chatMessages || [];
+        flexibleRoom.createdAt = now;
+        flexibleRoom.lastActivityAt = now;
+        flexibleRoom.autoStartAt = now + 4500;
+        for (const player of players) {
+          player.roomCode = flexibleRoom.code;
+          if (!player.socket) continue;
+          const socketContext = sockets.get(player.socket) || {};
+          socketContext.roomCode = flexibleRoom.code;
+          socketContext.playerId = player.id;
+          sockets.set(player.socket, socketContext);
+          safeSend(player.socket, {
+            type: 'queue_adjusted',
+            group: 'flex',
+            players: players.length,
+            message: 'The 8–10 player wait group has been moved into a ' + players.length + '-player match so you can start.'
+          });
+          safeSend(player.socket, {
+            type: 'joined',
+            roomCode: flexibleRoom.code,
+            playerId: player.id,
+            resumeToken: player.resumeToken,
+            migrated: true,
+            previousRoomCode: previousCode
+          });
+        }
+        rooms.delete(previousCode);
+        broadcastState(flexibleRoom);
+        broadcast(flexibleRoom, { type: 'match_ready', startsInMs: 4500, message: 'Smaller match · starting shortly.' });
+        continue;
       }
       if (now - room.lastActivityAt > ROOM_IDLE_MS && (room.phase === 'lobby' || room.phase === 'finished')) {
         rooms.delete(code);
