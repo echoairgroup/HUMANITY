@@ -1091,6 +1091,15 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const now = Date.now();
     for (const [code, room] of rooms.entries()) {
       for (const player of [...room.players]) {
+        // A WebSocket can become CLOSING/CLOSED before its close callback is
+        // delivered. Detect that state on the room heartbeat as a second path,
+        // so the remaining players immediately see the offline indicator.
+        if (player.socket && player.socket.readyState !== WebSocket.OPEN && !player.disconnectedAt) {
+          player.socket = null;
+          player.disconnectedAt = now;
+          room.lastActivityAt = now;
+          broadcastState(room);
+        }
         if (!player.socket && player.disconnectedAt && now - player.disconnectedAt >= RECONNECT_GRACE_MS) {
           removeDisconnectedPlayer(room, player.id);
         }
