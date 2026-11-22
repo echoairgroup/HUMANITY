@@ -103,6 +103,37 @@ test('country aliases are matched across common international names', () => {
   }
 });
 
+test('country answer sets include multilingual aliases and all inhabited continent banks', () => {
+  const europe = engine.getQuestion('europe-countries');
+  assert.ok(europe);
+  assert.equal(engine.matchAnswer(europe, 'Nederland').name, 'Netherlands');
+  assert.equal(engine.matchAnswer(europe, 'Czech Republic').name, 'Czechia');
+  assert.ok(engine.getQuestion('north-america-countries'));
+  assert.ok(engine.getQuestion('oceania-countries'));
+  assert.ok(engine.listWorldCountryAnswers().length >= 150);
+});
+
+test('Krillion-style autocorrection checks aliases and handles one missing or mistyped letter', () => {
+  const rivers = engine.getQuestion('world-rivers');
+  assert.equal(engine.matchAnswer(rivers, 'Amazn River').name, 'Amazon River');
+  assert.equal(engine.matchAnswer(rivers, 'Amazon Rvier').name, 'Amazon River');
+  assert.equal(engine.matchAnswer(rivers, 'Amazzon River').name, 'Amazon River');
+  assert.equal(engine.matchAnswer(rivers, 'zzzzzzzz'), null);
+});
+
+test('autocorrection rejects a typo that is equally close to two valid answers', () => {
+  const ambiguous = {
+    id: 'ambiguous-typo-test',
+    category: 'Names',
+    prompt: 'Name an example.',
+    answers: [
+      { name: 'coasting', aliases: [], rarity: 0 },
+      { name: 'boasting', aliases: [], rarity: 0 }
+    ]
+  };
+  assert.equal(engine.matchAnswer(ambiguous, 'doasting'), null);
+});
+
 test('the party category changes between rounds', () => {
   const first = engine.getPartyQuestion(null);
   const second = engine.getPartyQuestion(first.id);
