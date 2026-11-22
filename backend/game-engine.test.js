@@ -178,24 +178,28 @@ test('Practice Lab answer matching accepts curated aliases',()=>{
 });
 
 
+
 test('frontend collection selectors use querySelectorAll helpers', () => {
   const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const collectionMethods = ['.forEach(', '.map(', '.filter(', '.some(', '.every(', '.reduce('];
-  const invalid = frontend.split('\\n').filter(line =>
-    line.includes('$(') && !line.includes('$$(') &&
-    collectionMethods.some(method => line.includes(method))
-  );
+  const invalid = frontend.split('\n').filter(line => {
+    const start = line.indexOf('$(');
+    if (start < 0) return false;
+    const close = line.indexOf(')', start + 2);
+    if (close < 0) return false;
+    const suffix = line.slice(close + 1).trimStart();
+    return collectionMethods.some(method => suffix.startsWith(method));
+  });
   assert.deepEqual(invalid, []);
 });
 
-test('daily reveal and recap renderers are available to game flows', () => {
+test('daily reveal and recap renderers are top-level helpers', () => {
   const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-  const reveal = frontend.indexOf('  function renderDailyAnswerReveal(');
-  const recap = frontend.indexOf('  function renderDailyRecap(');
-  const flight = frontend.indexOf('  function renderFlightDistribution(result)');
-  assert.ok(reveal >= 0 && recap >= 0 && flight >= 0);
-  assert.ok(reveal < flight, 'answer renderer must not be nested inside flight renderer');
-  assert.ok(recap < flight, 'recap renderer must not be nested inside flight renderer');
+  assert.ok(frontend.includes('\n  function renderDailyAnswerReveal('));
+  assert.ok(frontend.includes('\n  function renderDailyRecap('));
+  assert.ok(frontend.includes('\n  function renderFlightDistribution(result)'));
+  assert.ok(frontend.indexOf('function renderDailyAnswerReveal(') < frontend.indexOf('function renderFlightDistribution(result)'));
+  assert.ok(frontend.indexOf('function renderDailyRecap(') < frontend.indexOf('function renderFlightDistribution(result)'));
   assert.ok(frontend.includes('renderDailyAnswerReveal(reveal || [], accepted, answer);'));
   assert.ok(frontend.includes('renderDailyRecap();'));
 });
@@ -204,8 +208,8 @@ test('frontend event bindings and critical game panels exist in the HTML', () =>
   const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const boundIds = [];
-  for (const line of frontend.split('\\n')) {
-    if (!line.includes(".addEventListener")) continue;
+  for (const line of frontend.split('\n')) {
+    if (!line.includes('.addEventListener')) continue;
     const marker = "$('#";
     const start = line.indexOf(marker);
     if (start < 0) continue;
