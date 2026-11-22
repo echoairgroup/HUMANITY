@@ -6,6 +6,16 @@
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const number = new Intl.NumberFormat('en-US');
+  const PLANET_AVATARS = [
+    { id: 'mercury', name: 'Mercury', streak: 0 },
+    { id: 'venus', name: 'Venus', streak: 3 },
+    { id: 'earth', name: 'Earth', streak: 7 },
+    { id: 'mars', name: 'Mars', streak: 14 },
+    { id: 'jupiter', name: 'Jupiter', streak: 30 },
+    { id: 'saturn', name: 'Saturn', streak: 60 },
+    { id: 'uranus', name: 'Uranus', streak: 90 },
+    { id: 'neptune', name: 'Neptune', streak: 150 }
+  ];
   const state = {
     token: localStorage.getItem('humanity-session-token') || '',
     player: null, guestId: getGuestId(), daily: null, runId: null,
@@ -1251,6 +1261,7 @@
 
   function setAccountUI(player) {
     state.player = player || null;
+    renderPlanetAvatarOptions();
     if (!player) {
       $('#account-avatar').textContent = '?';
       $('#account-label').textContent = 'Sign in';
@@ -1536,8 +1547,7 @@
         (eliminated ? ' is-out' : '') + '" style="left:' + positions[index].x.toFixed(2) +
         '%;top:' + positions[index].y.toFixed(2) + '" title="' + esc(player.nickname) +
         (holder ? ' — current turn' : '') + '">' +
-        '<span class="orb-player-avatar" aria-hidden="true">' +
-        esc(String(player.nickname || '?').slice(0, 1).toUpperCase()) + '</span>' +
+        '<span class="orb-player-avatar planet-avatar planet-avatar-' + planetAvatarKey(player.avatarKey) + '" aria-hidden="true"></span>' +
         '<span class="orb-player-copy"><b>' + esc(player.nickname) + '</b><small>' + label +
         '</small></span></div>';
     }).join('');
@@ -1599,8 +1609,9 @@
     $('#planet-category-rule').textContent = Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)) +
       ' MISSES / ' + Math.max(1, Number(settings.maxTurnsPerCategory || 10)) + ' TURNS';
     const privateSettings = $('#planet-private-settings');
-    const canEditPrivateSettings = lobby && hostIsYou && room.mode === 'private' && room.visibility === 'private';
+    const canEditPrivateSettings = lobby && hostIsYou && Boolean(room.isHostedRoom);
     privateSettings.hidden = !canEditPrivateSettings;
+    $('#planet-room-visibility').textContent = room.visibility === 'public' ? 'PUBLIC' : 'PRIVATE';
     if (canEditPrivateSettings) {
       $('#private-capacity').value = String(capacity);
       [...$('#private-capacity').options].forEach(option => {
@@ -1611,13 +1622,20 @@
       $('#private-turn-duration').value = String(Number(settings.turnDurationSeconds || 0));
       $('#private-category-misses').value = String(Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)));
       $('#private-category-turns').value = String(Math.max(5, Number(settings.maxTurnsPerCategory || 10)));
+      $('#private-visibility').value = room.visibility === 'public' ? 'public' : 'private';
+      $('#private-game-mode').value = settings.gameMode === 'sudden-death' ? 'sudden-death' : 'classic';
+      $('#private-difficulty').value = settings.difficulty || 'normal';
+      $('#private-category-theme').value = settings.categoryTheme || 'all';
+      $('#private-countdown').value = String(Number(settings.countdownSeconds ?? 5));
+      $('#private-rated').checked = room.mode === 'ranked' || settings.ratingEnabled === true;
+      $('#private-auto-start').checked = settings.autoStartWhenFull === true;
     }
     const autoStarting = room.autoStartInMs !== null && room.autoStartInMs !== undefined;
-    const nearlyFull = lobby && room.visibility === 'private' &&
+    const nearlyFull = lobby && !room.isHostedRoom && room.visibility === 'private' &&
       room.players.length >= Math.max(2, Number(room.targetMin || 2), capacity - 1);
     $('#room-status-note').textContent = lobby
-      ? (autoStarting || nearlyFull
-        ? 'The lobby is nearly full · Globe Rush will launch automatically.'
+      ? (autoStarting
+        ? 'The match countdown has started. New explorers can still join until the launch.'
         : room.players.length + ' of ' + capacity + ' explorers aboard · Invite friends with this room code.')
       : room.players.length + ' explorers on this mission.';
     const seats = Array.from({ length: capacity }, (_, index) => {
@@ -1628,8 +1646,9 @@
       const status = player
         ? (player.isHost ? 'HOST' : 'EXPLORER') + ' · ' + (player.isConnected ? 'ONLINE' : 'RECONNECTING')
         : 'AWAITING PLAYER';
+      const avatar = player ? planetAvatarKey(player.avatarKey) : 'mercury';
       return '<div class="' + seatClass + '" style="--sprite-hue:' + hue + 'deg">' +
-        '<span class="planet-seat-avatar" aria-hidden="true"><i></i><b></b><em></em></span>' +
+        '<span class="planet-seat-avatar planet-avatar planet-avatar-' + avatar + '" aria-hidden="true"></span>' +
         '<span class="planet-seat-platform" aria-hidden="true"></span>' +
         '<span class="planet-seat-name">' + name + '</span>' +
         '<span class="planet-seat-status">' + status + '</span>' +
@@ -1639,7 +1658,7 @@
     $('#planet-roster-count').textContent = room.players.length + ' ONLINE';
     $('#planet-player-roster').innerHTML = room.players.map(player =>
       '<div class="planet-roster-row ' + (player.isYou ? 'is-you' : '') + '">' +
-      '<span class="planet-roster-dot"></span><span class="planet-roster-name">' + esc(player.nickname) + '</span>' +
+      '<span class="planet-roster-dot planet-avatar planet-avatar-' + planetAvatarKey(player.avatarKey) + '"></span><span class="planet-roster-name">' + esc(player.nickname) + '</span>' +
       '<small>' + (player.isHost ? 'HOST' : (player.isConnected ? 'ONLINE' : 'OFFLINE')) + '</small></div>'
     ).join('') || '<div class="planet-roster-empty">Waiting for explorers…</div>';
     $('#room-start').hidden = !lobby || !hostIsYou || autoStarting || nearlyFull;
@@ -1828,6 +1847,34 @@
     if ($('#party-display-name')) $('#party-display-name').value = value;
     return value;
   }
+  function planetAvatarKey(value) {
+    const key = String(value || 'mercury').toLowerCase();
+    return PLANET_AVATARS.some(planet => planet.id === key) ? key : 'mercury';
+  }
+  function selectedPlanetAvatar() {
+    const streak = Math.max(0, Number(state.player && state.player.dailyStreak || 0));
+    const preferred = localStorage.getItem('humanity-globe-avatar') || 'mercury';
+    const unlocked = PLANET_AVATARS.find(planet => planet.id === preferred && planet.streak <= streak);
+    return unlocked ? unlocked.id : 'mercury';
+  }
+  function renderPlanetAvatarOptions() {
+    const root = $('#planet-avatar-options');
+    if (!root) return;
+    const streak = Math.max(0, Number(state.player && state.player.dailyStreak || 0));
+    const selected = selectedPlanetAvatar();
+    $('#planet-avatar-streak').textContent = streak + (streak === 1 ? ' DAY STREAK' : ' DAY STREAK');
+    root.innerHTML = PLANET_AVATARS.map(planet => {
+      const locked = streak < planet.streak;
+      const active = selected === planet.id;
+      const status = locked ? planet.streak + ' DAY STREAK' : planet.streak ? 'UNLOCKED' : 'STARTER';
+      return '<button class="planet-avatar-choice' + (active ? ' selected' : '') + (locked ? ' locked' : '') +
+        '" type="button" data-planet-avatar="' + planet.id + '"' + (locked ? ' disabled aria-disabled="true"' : '') +
+        ' title="' + (locked ? 'Reach a ' + planet.streak + '-day playing streak to unlock ' + planet.name : 'Choose ' + planet.name) + '">' +
+        '<span class="planet-avatar-visual planet-avatar-' + planet.id + '"></span><b>' + planet.name +
+        '</b><small>' + status + '</small></button>';
+    }).join('');
+  }
+
   function queueMatch(mode, group) {
     if (mode === 'ranked' && !state.token) {
       toast('Sign in with a free account to play Ranked.');
@@ -1837,7 +1884,7 @@
     playSound('queue');
     connectSocket({
       type: mode === 'ranked' ? 'ranked_queue' : 'quick_play',
-      mode, group, nickname: nickname(), token: state.token || undefined
+      mode, group, nickname: nickname(), avatarKey: selectedPlanetAvatar(), token: state.token || undefined
     });
   }
   function loadOpenRooms() {
@@ -1849,7 +1896,8 @@
       }
       list.innerHTML = result.rooms.map(room =>
         '<div class="public-room-row"><div><strong>' + esc(room.code) + '</strong><small>' +
-        esc(room.group) + ' · ' + room.players + '/' + room.capacity + ' explorers</small></div>' +
+        esc(room.group) + ' · ' + room.players + '/' + room.capacity + ' explorers · ' +
+        (room.ratingEnabled ? 'RATED' : 'CASUAL') + ' · ' + esc(room.settings?.difficulty || 'normal') + '</small></div>' +
         '<button type="button" data-join-room="' + esc(room.code) + '">Join ↗</button></div>'
       ).join('');
     }).catch(() => { $('#open-rooms-list').innerHTML = '<div class="empty-room-note">Open rooms are temporarily unavailable.</div>'; });
@@ -2022,20 +2070,27 @@
       event.preventDefault();
       const room = state.room;
       const host = room && room.players.some(player => player.isYou && player.isHost);
-      if (!room || room.phase !== 'lobby' || !host || room.mode !== 'private') {
-        toast('Only the host can edit settings before a private match starts.');
+      if (!room || room.phase !== 'lobby' || !host || !room.isHostedRoom) {
+        toast('Only the host can edit settings before the match starts.');
         return;
       }
       $('#private-settings-feedback').textContent = 'Saving room settings…';
       sendSocket({
         type: 'update_room_settings',
         capacity: Number($('#private-capacity').value),
+        visibility: $('#private-visibility').value,
         settings: {
           startingLives: Number($('#private-starting-lives').value),
           maxLives: Number($('#private-max-lives').value),
           turnDurationSeconds: Number($('#private-turn-duration').value),
           maxWrongAnswersPerCategory: Number($('#private-category-misses').value),
-          maxTurnsPerCategory: Number($('#private-category-turns').value)
+          maxTurnsPerCategory: Number($('#private-category-turns').value),
+          gameMode: $('#private-game-mode').value,
+          difficulty: $('#private-difficulty').value,
+          categoryTheme: $('#private-category-theme').value,
+          countdownSeconds: Number($('#private-countdown').value),
+          ratingEnabled: $('#private-rated').checked,
+          autoStartWhenFull: $('#private-auto-start').checked
         }
       });
     });
@@ -2052,8 +2107,19 @@
     $('#create-room-form').addEventListener('submit', event => {
       event.preventDefault();
       connectSocket({
-        type: 'create_room', visibility: 'private', mode: 'private',
-        capacity: 10, nickname: nickname(), token: state.token || undefined
+        type: 'create_room',
+        visibility: $('#host-visibility').value,
+        mode: 'private',
+        capacity: 10,
+        nickname: nickname(),
+        avatarKey: selectedPlanetAvatar(),
+        token: state.token || undefined,
+        settings: {
+          startingLives: 2, maxLives: 3, turnDurationSeconds: 0,
+          maxWrongAnswersPerCategory: 2, maxTurnsPerCategory: 10,
+          gameMode: 'classic', difficulty: 'normal', categoryTheme: 'all',
+          countdownSeconds: 5, ratingEnabled: false, autoStartWhenFull: false
+        }
       });
     });
     $('#join-room-form').addEventListener('submit', event => { event.preventDefault(); joinRoom($('#join-code').value); });
@@ -2140,7 +2206,35 @@
       catch (_) { toast('Room code: ' + state.roomCode); }
     });
     $('#room-start').addEventListener('click', () => sendSocket({ type: 'start_game' }));
+    $('#invite-room').addEventListener('click', async () => {
+      if (!state.roomCode) return;
+      const inviteUrl = new URL(location.href);
+      inviteUrl.hash = 'party';
+      inviteUrl.searchParams.set('room', state.roomCode);
+      const shareData = {
+        title: 'Join my HUMANITY Globe Rush room',
+        text: 'Join my Globe Rush room in HUMANITY. Room code: ' + state.roomCode,
+        url: inviteUrl.toString()
+      };
+      try {
+        if (navigator.share) await navigator.share(shareData);
+        else {
+          await navigator.clipboard.writeText(shareData.url);
+          toast('Invite link copied.');
+        }
+      } catch (_) {
+        try { await navigator.clipboard.writeText(shareData.url); toast('Invite link copied.'); }
+        catch (_) { toast('Room code: ' + state.roomCode); }
+      }
+    });
     $('#room-rematch').addEventListener('click', () => sendSocket({ type: 'rematch' }));
+    $('#planet-avatar-options').addEventListener('click', event => {
+      const button = event.target.closest('[data-planet-avatar]');
+      if (!button || button.disabled) return;
+      localStorage.setItem('humanity-globe-avatar', button.dataset.planetAvatar);
+      renderPlanetAvatarOptions();
+      playSound('toggle');
+    });
     $('#rush-answer').addEventListener('input', schedulePartySuggestion);
     $('#rush-suggestion').addEventListener('click', event => {
       if (event.target.closest('[data-use-rush-suggestion]')) usePartySuggestion();
@@ -2181,11 +2275,15 @@
   function joinRoom(code) {
     const clean = String(code || '').trim().toUpperCase();
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(clean)) { toast('Enter a valid six-character room code.'); return; }
-    connectSocket({ type: 'join_room', code: clean, nickname: nickname(), token: state.token || undefined });
+    connectSocket({
+      type: 'join_room', code: clean, nickname: nickname(),
+      avatarKey: selectedPlanetAvatar(), token: state.token || undefined
+    });
   }
   async function bootstrap() {
     const params = new URLSearchParams(location.search);
     const oauthToken = params.get('session');
+    const inviteRoomCode = params.get('room');
     if (oauthToken) {
       state.token = oauthToken;
       localStorage.setItem('humanity-session-token', oauthToken);
@@ -2200,9 +2298,13 @@
     }
     await Promise.all([loadAuthProviders(), loadProfile(true)]);
     await loadDaily();
-    if (location.hash === '#party') setView('party');
+    if (location.hash === '#party' || inviteRoomCode) setView('party');
     else if (location.hash === '#rankings') setView('rankings');
     else setView('daily');
+    if (inviteRoomCode && /^[A-HJ-NP-Z2-9]{6}$/i.test(inviteRoomCode)) {
+      $('#join-code').value = inviteRoomCode.toUpperCase();
+      joinRoom(inviteRoomCode);
+    }
     if (state.player) {
       $('#account-signed-out').hidden = true;
       $('#account-signed-in').hidden = false;
