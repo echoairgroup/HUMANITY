@@ -1497,7 +1497,8 @@
       handleSocketMessage(message);
     });
     socket.addEventListener('close', () => {
-      if (state.ws === socket) state.ws = null;
+      if (state.ws !== socket) return;
+      state.ws = null;
       if (state.roomCode && state.resumeToken && !state.isLeavingRoom) {
         setPartyConnectionStatus('reconnecting', 'CONNECTION LOST');
         schedulePartyReconnect();
