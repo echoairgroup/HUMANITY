@@ -163,18 +163,24 @@ async function checkPrivateRoomLayout(page, width, live) {
         ]
       : [
           ['world arena', '#room-lobby-state .planet-arena'],
-          ['room console', '#room-lobby-state .planet-console'],
-          ['room code card', '#room-lobby-state .planet-room-code-card'],
-          ['crew card', '#room-lobby-state .planet-console > .planet-console-card:nth-child(2)'],
-          ['mission settings', '#room-lobby-state .planet-rules-card'],
-          ['start button', '#room-lobby-state .planet-start-button'],
-          ['crew chat', '#room-lobby-state .planet-chat-card']
+          ['room console', '#room-lobby-state .planet-console']
         ];
+    const consoleChildren = [
+      ['room code card', '#room-lobby-state .planet-room-code-card'],
+      ['crew card', '#room-lobby-state .planet-console > .planet-console-card:nth-child(2)'],
+      ['mission settings', '#room-lobby-state .planet-rules-card'],
+      ['start button', '#room-lobby-state .planet-start-button'],
+      ['crew chat', '#room-lobby-state .planet-chat-card']
+    ];
     return {
       documentWidth: document.documentElement.scrollWidth,
       room: rect(document.querySelector('#party-room')),
       layout: rect(document.querySelector(isLive ? '#room-game-state' : '#room-lobby-state')),
       panels: selectors.map(([name, selector]) => ({
+        name,
+        box: rect(document.querySelector(selector))
+      })).filter(item => item.box),
+      consoleChildren: isLive ? [] : consoleChildren.map(([name, selector]) => ({
         name,
         box: rect(document.querySelector(selector))
       })).filter(item => item.box)
@@ -184,22 +190,26 @@ async function checkPrivateRoomLayout(page, width, live) {
   assert.ok(metrics.room && metrics.layout, 'Globe Rush room state should be visible at ' + width + 'px.');
   assert.ok(metrics.documentWidth <= width + 1,
     'Globe Rush room must not create horizontal overflow at ' + width + 'px.');
-  assert.ok(metrics.panels.length >= (live ? 4 : 4),
-    'Globe Rush room should display its key panels at ' + width + 'px.');
-  for (let i = 0; i < metrics.panels.length; i += 1) {
-    for (let j = i + 1; j < metrics.panels.length; j += 1) {
-      const a = metrics.panels[i];
-      const b = metrics.panels[j];
-      const horizontal = Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left);
-      const vertical = Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top);
-      assert.ok(!(horizontal > 1 && vertical > 1),
-        a.name + ' overlaps ' + b.name + ' at ' + width + 'px.');
+  assert.ok(metrics.panels.length >= (live ? 4 : 2),
+    'Globe Rush room should display its main panels at ' + width + 'px.');
+  const assertNoOverlap = items => {
+    for (let i = 0; i < items.length; i += 1) {
+      for (let j = i + 1; j < items.length; j += 1) {
+        const a = items[i];
+        const b = items[j];
+        const horizontal = Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left);
+        const vertical = Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top);
+        assert.ok(!(horizontal > 1 && vertical > 1),
+          a.name + ' overlaps ' + b.name + ' at ' + width + 'px.');
+      }
     }
-  }
-  for (const item of metrics.panels) {
-    assert.ok(item.box.left >= -1 && item.box.right <= width + 1,
-      item.name + ' must stay inside the viewport at ' + width + 'px.');
-  }
+    for (const item of items) {
+      assert.ok(item.box.left >= -1 && item.box.right <= width + 1,
+        item.name + ' must stay inside the viewport at ' + width + 'px.');
+    }
+  };
+  assertNoOverlap(metrics.panels);
+  assertNoOverlap(metrics.consoleChildren);
   console.log('PASS: Globe Rush ' + (live ? 'live match' : 'room lobby') +
     ' has no panel overlap at ' + width + 'px.');
 }
