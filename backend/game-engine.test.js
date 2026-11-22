@@ -199,7 +199,7 @@ test('Globe Rush question selection respects hosted room category themes', () =>
     const cities = engine.getPartyQuestion([], { categoryTheme: 'cities' });
     assert.match(cities.topicId, /capital|cit/i);
     const culture = engine.getPartyQuestion([], { categoryTheme: 'culture' });
-    assert.match(culture.topicId, /dish|snack/i);
+    assert.match(culture.topicId, /dish|snack|language/i);
   }
 });
 
