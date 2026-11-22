@@ -13,6 +13,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./upgrades.css">
+  <link rel="stylesheet" href="./globe-rush-space.css?v=1">
   <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
   <script src="./globe.js" defer></script>
   <script src="./app.js" defer></script>
@@ -288,6 +289,14 @@
                 <label for="party-display-name">PLAYING AS</label>
                 <input id="party-display-name" maxlength="18" minlength="2" autocomplete="nickname" placeholder="Choose a display name">
               </div>
+              <section class="planet-avatar-picker" aria-label="Choose your planet avatar">
+                <div class="planet-avatar-picker-head"><span>YOUR PLANET AVATAR</span><strong id="planet-avatar-streak">0 DAY STREAK</strong></div>
+                <div id="planet-avatar-options" role="group" aria-label="Unlocked planet avatars">
+                  <button class="planet-avatar-choice selected" type="button" data-planet-avatar="mercury">
+                    <span class="planet-avatar-visual planet-avatar-mercury"></span><b>Mercury</b><small>STARTER</small>
+                  </button>
+                </div>
+              </section>
               <div class="party-mode-grid">
                 <article class="mode-card quick-card">
                   <div class="mode-icon quick-icon">↗</div><span class="micro-label">NO RATING CHANGE</span>
@@ -317,8 +326,9 @@
               </div>
               <div class="party-tools-grid">
                 <form class="room-tool private-room-tool" id="create-room-form">
-                  <div class="room-tool-icon">＋</div><div class="private-tool-copy"><strong>Host a private room</strong><p>Create your room first, then tune its rules inside the lobby.</p></div>
-                  <button class="button button-outline" type="submit">Create room</button>
+                  <div class="room-tool-icon">＋</div><div class="private-tool-copy"><strong>Host a room</strong><p>Set the room type now. Change every game rule once you are inside.</p></div>
+                  <label class="host-visibility"><span>ROOM TYPE</span><select id="host-visibility" aria-label="Room visibility"><option value="private">Private · code only</option><option value="public">Public · listed</option></select></label>
+                  <button class="button button-outline" type="submit">Host a room</button>
                 </form>
                 <form class="room-tool join-tool" id="join-room-form">
                   <div class="room-tool-icon">⌗</div><div><strong>Join with a code</strong><p>Enter a friend's six-character room code.</p></div>
@@ -334,6 +344,14 @@
               <div class="open-rooms-list" id="open-rooms-list"><div class="empty-room-note">Looking for open rooms…</div></div>
             </section>
           </div>
+        <div class="party-centre-scene" aria-hidden="true">
+          <div class="centre-starfield"></div>
+          <i class="centre-shooting-star"></i><i class="centre-shooting-star star-two"></i>
+          <i class="centre-shooting-star star-three"></i><i class="centre-shooting-star star-four"></i>
+          <div class="centre-orbit"></div><div class="centre-orbit centre-orbit-b"></div>
+          <div class="centre-earth-halo"><div class="centre-earth" data-earth-globe></div></div>
+          <div class="centre-caption">PASS THE ATLAS ORB · DON'T LET IT OVERLOAD</div>
+        </div>
 
           <aside class="party-sidebar">
             <section class="side-card how-card">
@@ -400,7 +418,7 @@
 
               <aside class="planet-console">
                 <section class="planet-console-card planet-room-code-card">
-                  <div class="planet-console-heading"><span>YOUR ROOM</span><i>PRIVATE</i></div>
+                  <div class="planet-console-heading"><span>YOUR ROOM</span><i id="planet-room-visibility">PRIVATE</i></div>
                   <strong class="planet-room-code-value" id="planet-room-code">------</strong>
                   <p id="room-status-note">Share this code and bring your crew aboard.</p>
                   <button class="planet-copy-button" id="copy-room-code" type="button">COPY ROOM CODE <span aria-hidden="true">▣</span></button>
@@ -430,6 +448,13 @@
                         <label>TURN CLOCK<select class="select-input" id="private-turn-duration"><option value="0">Random · 10–30 sec</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="25">25 seconds</option><option value="30">30 seconds</option></select></label>
                         <label>CATEGORY MISTAKES<select class="select-input" id="private-category-misses"><option value="1">1 mistake</option><option value="2">2 mistakes</option><option value="3">3 mistakes</option><option value="4">4 mistakes</option><option value="5">5 mistakes</option></select></label>
                         <label>CATEGORY TURN LIMIT<select class="select-input" id="private-category-turns"><option value="5">5 turns</option><option value="10">10 turns</option><option value="15">15 turns</option><option value="20">20 turns</option></select></label>
+                        <label>ROOM VISIBILITY<select class="select-input" id="private-visibility"><option value="private">Private · code only</option><option value="public">Public · listed</option></select></label>
+                        <label>GAME MODE<select class="select-input" id="private-game-mode"><option value="classic">Classic · lives</option><option value="sudden-death">Sudden death · one life</option></select></label>
+                        <label>DIFFICULTY<select class="select-input" id="private-difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Expert</option></select></label>
+                        <label>CATEGORY THEME<select class="select-input" id="private-category-theme"><option value="all">All world categories</option><option value="countries">Countries</option><option value="cities">Cities & capitals</option><option value="nature">Nature & geography</option><option value="landmarks">Landmarks</option><option value="culture">Food & culture</option></select></label>
+                        <label>START COUNTDOWN<select class="select-input" id="private-countdown"><option value="0">Instant start</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label>
+                        <label class="planet-setting-toggle"><span>RATED MATCH</span><input type="checkbox" id="private-rated"></label>
+                        <label class="planet-setting-toggle"><span>AUTO-START WHEN FULL</span><input type="checkbox" id="private-auto-start"></label>
                       </div>
                       <div class="planet-private-settings-actions"><span id="private-settings-feedback" role="status">Changes apply to the next match.</span><button class="planet-copy-button" type="submit">SAVE SETTINGS ↗</button></div>
                     </form>
