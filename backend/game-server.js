@@ -667,7 +667,7 @@ async function upsertOAuthPlayer(provider, profile) {
   const providerColumn = isGoogle ? 'google_sub' : 'discord_id';
 
   let found = await pool.query(
-    'SELECT id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating FROM humanity_players WHERE ' +
+    'SELECT id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days FROM humanity_players WHERE ' +
     providerColumn + ' = $1 OR ($2::text IS NOT NULL AND email = $2) LIMIT 1',
     [providerId, email]
   );
