@@ -187,3 +187,35 @@ CREATE TABLE IF NOT EXISTS humanity_engine_runs (
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   finished_at TIMESTAMPTZ
 );
+
+
+-- Admin controls. These additions are idempotent and preserve existing player data.
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member';
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS selected_avatar TEXT NOT NULL DEFAULT 'mercury';
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS avatar_locked BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS admin_note TEXT;
+
+UPDATE humanity_players SET role = 'member'
+WHERE role IS NULL OR role NOT IN ('member', 'moderator', 'admin', 'owner');
+UPDATE humanity_players SET selected_avatar = 'mercury'
+WHERE selected_avatar IS NULL OR selected_avatar NOT IN ('mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune');
+UPDATE humanity_players SET account_status = 'active'
+WHERE account_status IS NULL OR account_status NOT IN ('active', 'suspended');
+
+CREATE INDEX IF NOT EXISTS humanity_players_role_status_idx
+  ON humanity_players(role, account_status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS humanity_admin_audit (
+  id BIGSERIAL PRIMARY KEY,
+  actor_id TEXT,
+  actor_username TEXT NOT NULL,
+  target_id TEXT,
+  target_username TEXT,
+  action TEXT NOT NULL,
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS humanity_admin_audit_created_idx
+  ON humanity_admin_audit(created_at DESC);
