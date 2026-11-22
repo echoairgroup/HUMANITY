@@ -74,6 +74,10 @@ test('Atlas Daily rotates through distinct question families and exposes visual 
   }
   assert.equal(engine.getQuestion('euro-countries').type, 'currency');
   assert.equal(engine.matchAnswer(engine.getQuestion('euro-countries'), 'Bulgaria').name, 'Bulgaria');
+  for (const country of ['Andorra', 'Monaco', 'San Marino', 'Vatican City']) {
+    assert.equal(engine.matchAnswer(engine.getQuestion('euro-countries'), country).name, country);
+  }
+  assert.equal(engine.matchAnswer(engine.getQuestion('landlocked-capitals'), 'Zagreb'), null);
   assert.equal(engine.getQuestion('flag-colours-blue-white-red').visual.kind, 'flag-colours');
 });
 
