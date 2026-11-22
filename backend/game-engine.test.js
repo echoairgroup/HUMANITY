@@ -54,6 +54,56 @@ test('the party category changes between rounds', () => {
   assert.ok(second.answers.length > 0);
 });
 
+test('Atlas Daily rotates through distinct question families and exposes visual clues', () => {
+  const challenge = engine.generateDailyChallenge('2026-12-15');
+  assert.equal(challenge.questions.length, 7);
+  assert.equal(new Set(challenge.questions.map(question => question.id)).size, 7);
+  assert.ok(challenge.questions.every(question => question.type && question.category));
+  const bank = engine.listQuestionBank();
+  for (const id of [
+    'flag-colours-blue-white-red',
+    'flag-colours-red-white-green',
+    'flag-colours-stars',
+    'euro-countries',
+    'landlocked-capitals',
+    'world-heritage-sites',
+    'national-parks',
+    'olympic-sports'
+  ]) {
+    assert.ok(bank.some(question => question.id === id), 'missing question bank entry: ' + id);
+  }
+  assert.equal(engine.getQuestion('euro-countries').type, 'currency');
+  assert.equal(engine.getQuestion('flag-colours-blue-white-red').visual.kind, 'flag-colours');
+});
+
+test('Globe Rush variants are normalised and Survival pressure increases by round', () => {
+  assert.equal(partyRules.normaliseVariant('team-rush'), 'team-rush');
+  assert.equal(partyRules.normaliseVariant('survival'), 'survival');
+  assert.equal(partyRules.normaliseVariant('unknown'), 'classic');
+  assert.equal(partyRules.survivalFuseSeconds(1), 22);
+  assert.equal(partyRules.survivalFuseSeconds(2), 22);
+  assert.equal(partyRules.survivalFuseSeconds(3), 20);
+  assert.equal(partyRules.survivalFuseSeconds(5), 18);
+  assert.equal(partyRules.survivalFuseSeconds(30), 8);
+  assert.equal(partyRules.survivalDifficulty(1), 'easy');
+  assert.equal(partyRules.survivalDifficulty(3), 'normal');
+  assert.equal(partyRules.survivalDifficulty(6), 'hard');
+});
+
+test('a stalled large queue with six or seven explorers is eligible for a flexible rematch', () => {
+  const now = 100000;
+  const room = {
+    group: 'large', phase: 'lobby', fallbackApplied: false, createdAt: now - 25000,
+    players: Array.from({ length: 6 }, (_, index) => ({ id: String(index) }))
+  };
+  assert.equal(partyRules.shouldDownshiftLargeQueue(room, now), true);
+  assert.equal(partyRules.shouldDownshiftLargeQueue({ ...room, createdAt: now - 24999 }, now), false);
+  assert.equal(partyRules.shouldDownshiftLargeQueue({ ...room, players: room.players.slice(0, 5) }, now), false);
+  assert.equal(partyRules.shouldDownshiftLargeQueue({ ...room, players: [...room.players, { id: '7' }, { id: '8' }] }, now), false);
+  assert.equal(partyRules.shouldDownshiftLargeQueue({ ...room, phase: 'playing' }, now), false);
+  assert.equal(partyRules.shouldDownshiftLargeQueue({ ...room, fallbackApplied: true }, now), false);
+});
+
 test('rarity scores use the six published Discovery Levels', () => {
   assert.deepEqual(engine.POINTS_BY_LEVEL, [10, 20, 40, 60, 80, 100]);
   assert.equal(engine.LEVEL_NAMES.length, 6);
