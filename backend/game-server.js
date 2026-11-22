@@ -9,6 +9,7 @@ const { Pool } = require('pg');
 const engine = require('./geography-engine');
 const practiceEngine = require('./practice-engine');
 const { createPartyServer } = require('./party-server');
+const { createAdminController } = require('./admin');
 
 const scrypt = promisify(crypto.scrypt);
 const PORT = Number(process.env.PORT || 10000);
@@ -1206,77 +1207,10 @@ async function dailyFlightDistribution(response, date) {
 }
 
 
-async function adminOverview(response) {
-  const [players, questions, queue, rooms] = await Promise.all([
-    pool.query('SELECT COUNT(*)::int AS count FROM humanity_players'),
-    pool.query('SELECT COUNT(*)::int AS count FROM humanity_daily_challenges'),
-    pool.query("SELECT COUNT(*)::int AS count FROM humanity_answer_review_queue WHERE status = 'pending'"),
-    pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_matches')
-  ]);
-  sendJSON(response, 200, {
-    ok: true,
-    stats: {
-      players: players.rows[0].count,
-      dailyEditions: questions.rows[0].count,
-      pendingAnswers: queue.rows[0].count,
-      finishedMatches: rooms.rows[0].count
-    }
-  });
-}
-
-async function handleAdmin(request, response, url, user) {
-  if (!await isAdmin(user)) {
-    sendError(response, 403, 'This area is only available to HUMANITY administrators.', 'admin_required');
-    return true;
-  }
-  if (request.method === 'GET' && url.pathname === '/api/admin/overview') {
-    await adminOverview(response);
-    return true;
-  }
-  if (request.method === 'GET' && url.pathname === '/api/admin/review-queue') {
-    const result = await pool.query(
-      "SELECT id, question_id, question_prompt, answer_text, occurrences, confidence, source_url, status, created_at FROM humanity_answer_review_queue WHERE status = 'pending' ORDER BY occurrences DESC, created_at ASC LIMIT 200"
-    );
-    sendJSON(response, 200, { ok: true, entries: result.rows });
-    return true;
-  }
-  const reviewMatch = url.pathname.match(/^\/api\/admin\/review\/(\d+)$/);
-  if (request.method === 'POST' && reviewMatch) {
-    const body = await readJSON(request);
-    const id = Number(reviewMatch[1]);
-    const action = body.action === 'approve' ? 'approve' : 'reject';
-    const result = await pool.query('SELECT * FROM humanity_answer_review_queue WHERE id = $1 AND status = $2 LIMIT 1', [id, 'pending']);
-    const item = result.rows[0];
-    if (!item) {
-      sendError(response, 404, 'That review item is no longer pending.', 'review_item_missing');
-      return true;
-    }
-    if (action === 'approve') {
-      const rawRarity=Number(body.rarity);
-      const rarity=Number.isInteger(rawRarity)?Math.max(0,Math.min(5,rawRarity)):2;
-      const aliases=[];
-      const seenAliases=new Set([item.answer_key]);
-      for(const rawAlias of Array.isArray(body.aliases)?body.aliases:[]){
-        const alias=String(rawAlias||'').trim().slice(0,80);
-        const aliasKey=engine.normaliseAnswer(alias);
-        if(!aliasKey||aliasKey.length<2||seenAliases.has(aliasKey))continue;
-        seenAliases.add(aliasKey);aliases.push(alias);
-        if(aliases.length>=8)break;
-      }
-      await pool.query(
-        'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7) ON CONFLICT (question_id, answer_key) DO UPDATE SET answer_text = EXCLUDED.answer_text, aliases = EXCLUDED.aliases, rarity = EXCLUDED.rarity, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by, approved_at = NOW()',
-        [item.question_id,item.answer_key,item.answer_text,JSON.stringify(aliases),rarity,item.source_url||null,user.username]
-      );
-    }
-    await pool.query(
-      'UPDATE humanity_answer_review_queue SET status = $2, reviewer_note = $3, updated_at = NOW() WHERE id = $1',
-      [id, action === 'approve' ? 'approved_by_admin' : 'rejected', String(body.note || '').slice(0, 300)]
-    );
-    sendJSON(response, 200, { ok: true, action });
-    return true;
-  }
-  return false;
-}
+const handleAdmin = createAdminController({
+  pool, sendJSON, sendError, readJSON, isAdmin, roleFor, engine,
+  adminEmails: ADMIN_EMAILS
+});
 
 async function handleAPI(request, response, url, party) {
   if (request.method === 'OPTIONS') {
