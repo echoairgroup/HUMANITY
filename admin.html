@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071528">
+  <meta name="description" content="Private HUMANITY administration and answer review.">
+  <title>HUMANITY Admin — Private Control Room</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./admin.css?v=1">
+  <script src="./admin.js?v=1" defer></script>
+</head>
+<body class="humanity-admin-page">
+  <div class="admin-shell">
+    <header class="admin-topbar">
+      <a class="admin-brand" href="./" aria-label="Back to HUMANITY">
+        <span class="admin-brand-mark">H</span>
+        <span><strong>HUMANITY</strong><small>PRIVATE CONTROL ROOM</small></span>
+      </a>
+      <a class="admin-back-link" href="./">← Back to HUMANITY</a>
+    </header>
+
+    <main class="admin-main">
+      <section class="admin-heading">
+        <div><span class="admin-eyebrow">SYSTEM ADMINISTRATION</span><h1>Admin <em>dashboard.</em></h1>
+          <p>Review new answer suggestions, manage the approved answer pool and monitor the game database.</p>
+        </div>
+        <button class="admin-refresh-button" id="admin-refresh" type="button" hidden>Refresh data ↻</button>
+      </section>
+
+      <section class="admin-access-panel" id="admin-access" aria-live="polite">
+        <div class="admin-access-mark">⌁</div>
+        <h2>Administrator sign-in required</h2>
+        <p id="admin-access-message">Checking your HUMANITY administrator access…</p>
+        <a class="admin-primary-link" href="./#daily">Return to HUMANITY sign-in</a>
+      </section>
+
+      <section class="admin-dashboard" id="admin-dashboard" hidden>
+        <div class="admin-welcome-row">
+          <div><span class="admin-eyebrow">ACCESS GRANTED</span><h2>Welcome, <strong id="admin-username">Admin</strong></h2></div>
+          <span class="admin-secure-pill"><i></i> SERVER VERIFIED</span>
+        </div>
+        <div class="admin-stat-grid" id="admin-stats">
+          <article class="admin-stat-card"><span>PLAYERS</span><b>—</b></article>
+          <article class="admin-stat-card"><span>DAILY EDITIONS</span><b>—</b></article>
+          <article class="admin-stat-card"><span>PENDING ANSWERS</span><b>—</b></article>
+          <article class="admin-stat-card"><span>FINISHED MATCHES</span><b>—</b></article>
+        </div>
+
+        <section class="admin-section">
+          <div class="admin-section-heading">
+            <div><span class="admin-eyebrow">ANSWER QUALITY</span><h2>Answer review queue</h2>
+              <p>Player suggestions stay unranked until an administrator verifies them.</p>
+            </div>
+            <span class="admin-queue-count" id="admin-queue-count">0 pending</span>
+          </div>
+          <div class="admin-queue" id="admin-queue">
+            <div class="admin-empty-state">Loading answer suggestions…</div>
+          </div>
+        </section>
+        <p class="admin-footnote">Approved entries are added to the answer bank and become available to active and future rounds. Unverified guesses are never automatically accepted.</p>
+      </section>
+    </main>
+    <footer class="admin-footer"><span>HUMANITY · PRIVATE ADMIN</span><span>Access is checked by the API on every request.</span></footer>
+  </div>
+</body>
+</html>
