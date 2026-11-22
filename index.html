@@ -134,6 +134,7 @@
 
               <section class="atlas-question-card" aria-labelledby="daily-question">
                 <div class="question-category" id="question-category">GEOGRAPHY</div>
+                <div class="daily-question-visual" id="daily-question-visual" hidden aria-hidden="true"></div>
                 <h2 class="daily-question" id="daily-question">Name a country in Europe.</h2>
                 <p class="question-note" id="question-note">Every recognised answer counts.</p>
               </section>
@@ -213,6 +214,7 @@
                 <p class="atlas-flight-participants" id="flight-participants">Loading anonymous results from this edition…</p>
               </section>
               <p class="quiet-note">Final Discovery Scores are calculated when the UTC day closes. The flight report uses completed results only.</p>
+              <button class="button button-primary button-wide" type="button" data-open-practice>PLAY MORE IN PRACTICE LAB ↗</button>
               <button class="button button-outline button-wide" id="daily-share" type="button">Share your result ↗</button>
               <button class="button button-outline button-wide" id="daily-return-today" type="button" hidden>Return to today's Atlas</button>
             </div>
@@ -222,6 +224,7 @@
               <div class="eyebrow">OFFICIAL ATTEMPT ALREADY USED</div>
               <h2>Today's Atlas is in the books.</h2>
               <p id="locked-summary">Your official attempt has already started. The daily challenge is one uninterrupted run.</p>
+              <button class="button button-primary button-wide" type="button" data-open-practice>OPEN PRACTICE LAB ↗</button>
               <button class="button button-outline button-wide" id="open-archive-from-lock" type="button">Visit World Archive</button>
             </div>
           </section>
@@ -311,6 +314,12 @@
                     <option value="small" selected>4–6 players</option>
                     <option value="large">8–10 players</option>
                   </select>
+                  <label class="field-label" for="quick-variant">GAME MODE</label>
+                  <select id="quick-variant" class="select-input">
+                    <option value="classic">Classic Orb Relay</option>
+                    <option value="team-rush">Team Rush · 2 teams</option>
+                    <option value="survival">Survival · rising difficulty</option>
+                  </select>
                   <button class="button button-primary button-wide" id="quick-play" type="button">Find a match</button>
                 </article>
                 <article class="mode-card ranked-card">
@@ -331,6 +340,7 @@
                 <form class="room-tool private-room-tool" id="create-room-form">
                   <div class="room-tool-icon">＋</div><div class="private-tool-copy"><strong>Host a room</strong><p>Set the room type now. Change every game rule once you are inside.</p></div>
                   <label class="host-visibility"><span>ROOM TYPE</span><select id="host-visibility" aria-label="Room visibility"><option value="private">Private · code only</option><option value="public">Public · listed</option></select></label>
+                  <label class="host-visibility"><span>MATCH MODE</span><select id="host-variant" aria-label="Match mode"><option value="classic">Classic</option><option value="team-rush">Team Rush</option><option value="survival">Survival</option></select></label>
                   <button class="button button-outline" type="submit">Host a room</button>
                 </form>
                 <form class="room-tool join-tool" id="join-room-form">
@@ -386,6 +396,7 @@
             </div>
             <div class="planet-room-code-pill"><span>ROOM CODE</span><strong id="room-code-display">------</strong></div>
             <div class="planet-room-live-pill"><span id="room-status-label">WAITING FOR EXPLORERS</span><strong id="lobby-seat-count">1 / 10 PLAYERS</strong></div>
+            <span class="party-connection-pill is-live" id="party-connection-status" role="status">LIVE CONNECTION</span>
             <button class="planet-leave-button" id="leave-room" type="button">LEAVE ROOM <span aria-hidden="true">↗</span></button>
           </div>
           <div class="room-lobby-state" id="room-lobby-state">
@@ -456,6 +467,7 @@
                         <label>TURN CLOCK<select class="select-input" id="private-turn-duration"><option value="0">Random · 10–30 sec</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="25">25 seconds</option><option value="30">30 seconds</option></select></label>
                         <label>ROOM VISIBILITY<select class="select-input" id="private-visibility"><option value="private">Private · code only</option><option value="public">Public · listed</option></select></label>
                         <label>GAME MODE<select class="select-input" id="private-game-mode"><option value="classic">Classic · lives</option><option value="sudden-death">Sudden death · one life</option></select></label>
+                        <label>MATCH VARIANT<select class="select-input" id="private-game-variant"><option value="classic">Classic Orb Relay</option><option value="team-rush">Team Rush · 2 teams</option><option value="survival">Survival · rising difficulty</option></select></label>
                         <label>DIFFICULTY<select class="select-input" id="private-difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Expert</option></select></label>
                         <label>CATEGORY THEME<select class="select-input" id="private-category-theme"><option value="all">All world categories</option><option value="countries">Countries</option><option value="cities">Cities & capitals</option><option value="nature">Nature & geography</option><option value="landmarks">Landmarks</option><option value="culture">Food & culture</option></select></label>
                         <label>START COUNTDOWN<select class="select-input" id="private-countdown"><option value="0">Instant start</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></label>
@@ -639,6 +651,7 @@
     <div id="account-signed-in" hidden>
       <div class="profile-summary"><div class="profile-avatar" id="profile-avatar">H</div><div><strong id="profile-name">Explorer</strong><span id="profile-email"></span></div></div>
       <div class="profile-stats" id="profile-stats"><div><span>LEVEL</span><b>1</b></div><div><span>XP</span><b>0</b></div><div><span>RATING</span><b>1000</b></div></div>
+      <section class="profile-avatar-collection" id="profile-avatar-collection" aria-label="Planet avatar collection"></section>
       <section class="profile-achievements" id="profile-achievements"><p class="modal-note">Your Explorer Passport will appear here.</p></section>
       <div class="profile-actions"><button class="button button-outline" id="friends-open" type="button">Friends</button><button class="button button-outline" id="admin-open" type="button" hidden>Admin</button><button class="button button-dark" id="signout" type="button">Sign out</button></div>
     </div>
