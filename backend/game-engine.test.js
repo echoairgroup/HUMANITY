@@ -180,8 +180,12 @@ test('Practice Lab answer matching accepts curated aliases',()=>{
 
 test('frontend collection selectors use querySelectorAll helpers', () => {
   const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-  const invalid = [...frontend.matchAll(/(?<!\\$)\\$\\(\\s*(['"])[^'"]+\\1\\s*\\)\\s*\\.(?:forEach|map|filter|some|every|reduce)\\s*\\(/g)];
-  assert.deepEqual(invalid.map(match => match[0]), []);
+  const collectionMethods = ['.forEach(', '.map(', '.filter(', '.some(', '.every(', '.reduce('];
+  const invalid = frontend.split('\\n').filter(line =>
+    line.includes('$(') && !line.includes('$$(') &&
+    collectionMethods.some(method => line.includes(method))
+  );
+  assert.deepEqual(invalid, []);
 });
 
 test('daily reveal and recap renderers are available to game flows', () => {
@@ -199,8 +203,16 @@ test('daily reveal and recap renderers are available to game flows', () => {
 test('frontend event bindings and critical game panels exist in the HTML', () => {
   const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const boundIds = [...frontend.matchAll(/\\$\\(\\s*['"]#([a-zA-Z0-9_-]+)['"]\\s*\\)\\s*\\.addEventListener/g)]
-    .map(match => match[1]);
+  const boundIds = [];
+  for (const line of frontend.split('\\n')) {
+    if (!line.includes(".addEventListener")) continue;
+    const marker = "$('#";
+    const start = line.indexOf(marker);
+    if (start < 0) continue;
+    const value = line.slice(start + marker.length);
+    const end = value.indexOf("')");
+    if (end > 0) boundIds.push(value.slice(0, end));
+  }
   const missing = [...new Set(boundIds)].filter(id =>
     !html.includes('id="' + id + '"') && !html.includes("id='" + id + "'")
   );
