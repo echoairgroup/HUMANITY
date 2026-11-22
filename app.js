@@ -1478,13 +1478,11 @@
   async function showAccount() {
     if (state.token) {
       await loadProfile();
-      $('#account-signed-out').hidden = true;
-      $('#account-signed-in').hidden = !state.player;
-    } else {
-      $('#account-signed-out').hidden = false;
-      $('#account-signed-in').hidden = true;
-      setAuthMode('login');
     }
+    const signedIn = Boolean(state.token && state.player);
+    $('#account-signed-out').hidden = signedIn;
+    $('#account-signed-in').hidden = !signedIn;
+    if (!signedIn) setAuthMode('login');
     openModal('account-modal');
   }
 
