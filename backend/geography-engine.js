@@ -801,7 +801,6 @@ function matchAnswer(question, rawAnswer) {
   if (!target || target.length > 80) return null;
 
   const entries = Array.isArray(question.answers) ? question.answers : [];
-  const canonicalTargetGroup = COUNTRY_EQUIVALENT_LOOKUP.get(target);
   const matchesEntry = (entry, value) => {
     const names = [entry.name].concat(entry.aliases || []).map(normaliseAnswer);
     if (names.includes(value)) return true;
