@@ -405,6 +405,7 @@ async function practiceGuess(request,response,skip) {
   }
   let match=null;
   if(!skip){
+    await addApprovedAnswers([question]);
     match=engine.matchAnswer(question,body.answer);
     if(!match){
       await recordUnapproved(question,body.answer);
@@ -827,6 +828,7 @@ async function dailyGuess(request, response, skip) {
     skip = true;
   }
   if (!skip) {
+    await addApprovedAnswers([question]);
     const match = engine.matchAnswer(question, body.answer);
     if (!match) {
       await recordUnapproved(question, body.answer);
