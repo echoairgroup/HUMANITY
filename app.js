@@ -665,8 +665,8 @@
     renderDailyQuestionVisual(question);
     $('#daily-archive-exit').hidden = !state.practice && !state.unlimited;
     $('#daily-archive-exit').textContent = state.unlimited ? 'EXIT PRACTICE ×' : 'EXIT ARCHIVE ×';
-    $('#unlimited-actions').hidden = !state.unlimited;
-    $('#unlimited-skip').hidden = !state.unlimited;
+    $('#unlimited-actions').hidden = false;
+    $('#unlimited-skip').hidden = false;
     $('#unlimited-finish').hidden = !state.unlimited;
     $('#daily-answer-reveal').hidden = true;
     $('#daily-flight-summary').hidden = Boolean(state.unlimited);
