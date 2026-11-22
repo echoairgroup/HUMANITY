@@ -843,12 +843,23 @@ for (const [id, continent, category, prompt, note] of [
 function makePartyTopic(id, category, prompt, names, sourceId) {
   const source = Q.find(item => item.id === (sourceId || id)) || null;
   if (source && !sourceId) {
+    const answers = [...source.answers];
+    const seen = new Set(answers.flatMap(entry =>
+      [entry.name].concat(entry.aliases || []).map(normaliseAnswer)
+    ));
+    names.forEach((name, index) => {
+      const key = normaliseAnswer(name);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      answers.push(answer(name, [], index < 6 ? 0 : index < 12 ? 1 : index < 18 ? 2 : 3));
+    });
     return {
       ...source,
       id,
       topicId: id,
       category,
       prompt,
+      answers,
       source: source.source || 'HUMANITY curated geography dataset'
     };
   }
