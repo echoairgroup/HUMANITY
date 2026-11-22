@@ -1,0 +1,396 @@
+/*
+ * HUMANITY Atlas Daily visual polish.
+ * Uses the existing dark-space identity, map textures and readable game controls.
+ */
+body.globe-rush-active #view-daily .daily-panel {
+  position: relative;
+  isolation: isolate;
+}
+body.globe-rush-active #view-daily .daily-panel::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 8% 0%, rgba(87, 200, 226, .11), transparent 35%),
+    radial-gradient(ellipse at 96% 84%, rgba(213, 109, 166, .08), transparent 32%);
+}
+body.globe-rush-active #view-daily .atlas-question-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(110, 182, 218, .32);
+  background:
+    radial-gradient(ellipse at 90% 0%, rgba(77, 164, 218, .13), transparent 48%),
+    linear-gradient(150deg, rgba(13, 31, 59, .98), rgba(7, 20, 41, .98));
+  box-shadow: inset 0 1px rgba(220, 245, 255, .055), 0 14px 36px rgba(0, 0, 0, .18);
+}
+body.globe-rush-active #view-daily .atlas-question-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .4;
+  background: linear-gradient(112deg, transparent 0 43%, rgba(146, 225, 248, .08) 49%, transparent 55%);
+  transform: translateX(-110%);
+  animation: atlas-question-scan 8s ease-in-out infinite;
+}
+body.globe-rush-active #view-daily .daily-question {
+  animation: atlas-question-arrive .5s cubic-bezier(.18,.72,.22,1) both;
+  text-wrap: balance;
+}
+body.globe-rush-active #view-daily .question-category {
+  color: #80deeb;
+  letter-spacing: .16em;
+  text-shadow: 0 0 16px rgba(88, 219, 239, .24);
+}
+body.globe-rush-active #view-daily .question-progress .progress-segment {
+  transition: background .28s ease, box-shadow .28s ease, transform .28s ease;
+}
+body.globe-rush-active #view-daily .question-progress .progress-segment.active {
+  box-shadow: 0 0 13px rgba(98, 218, 237, .46);
+}
+body.globe-rush-active #view-daily .question-progress .progress-segment.done {
+  box-shadow: 0 0 8px rgba(109, 221, 203, .25);
+}
+#daily-question-visual {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 390px);
+  min-height: 62px;
+  margin: 14px auto 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  color: #9bb9d3;
+  text-align: center;
+  animation: atlas-visual-arrive .55s cubic-bezier(.18,.72,.22,1) both;
+}
+#daily-question-visual[hidden] {
+  display: none !important;
+}
+#daily-question-visual small {
+  color: #88b6ce;
+  font: 10px 'DM Mono', monospace;
+  letter-spacing: .16em;
+}
+.question-colour-strip {
+  width: min(100%, 286px);
+  height: 44px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  overflow: hidden;
+  border: 1px solid rgba(191, 224, 245, .45);
+  border-radius: 3px;
+  box-shadow: 0 0 22px rgba(93, 193, 223, .2), 0 8px 22px rgba(0, 0, 0, .18);
+  animation: atlas-flag-hover 4.6s ease-in-out infinite;
+}
+.question-colour-strip i {
+  display: block;
+  background: var(--clue-colour);
+}
+.question-symbol-glyph {
+  min-width: 76px;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 0 18px;
+  border: 1px solid rgba(117, 211, 236, .35);
+  background: linear-gradient(150deg, rgba(73, 152, 203, .2), rgba(19, 43, 76, .5));
+  color: #8ce8f2;
+  font: 42px 'VT323', monospace;
+  text-shadow: 0 0 22px rgba(97, 221, 244, .48);
+  box-shadow: 0 0 30px rgba(65, 164, 209, .12);
+  animation: atlas-symbol-pulse 3.4s ease-in-out infinite;
+}
+body.globe-rush-active #view-daily .daily-idle .idle-orbit-globe,
+body.globe-rush-active #view-daily .idle-orbit-ring {
+  will-change: transform;
+}
+body.globe-rush-active #view-daily .daily-idle .idle-orbit-globe {
+  animation: atlas-orbit-float 6.5s ease-in-out infinite;
+}
+body.globe-rush-active #view-daily .idle-orbit-ring.ring-b {
+  animation: atlas-orbit-spin 38s linear infinite;
+}
+body.globe-rush-active #view-daily .daily-result,
+body.globe-rush-active #view-daily .daily-complete,
+body.globe-rush-active #view-daily .daily-locked {
+  animation: atlas-panel-arrive .6s cubic-bezier(.18,.72,.22,1) both;
+}
+body.globe-rush-active #view-daily .complete-icon {
+  box-shadow: 0 0 0 8px rgba(109, 219, 230, .07), 0 0 32px rgba(109, 219, 230, .18);
+  animation: atlas-complete-pulse 3.8s ease-in-out infinite;
+}
+
+/* Profile: all progress indicators stay readable inside the account dialog. */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.profile-stats > div {
+  min-width: 0;
+}
+.profile-stats .profile-level-progress {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+}
+.profile-level-progress > span {
+  color: #86a6c4;
+  font: 10px 'DM Mono', monospace;
+  letter-spacing: .08em;
+}
+.profile-level-progress > i {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid #315477;
+  background: #081a31;
+}
+.profile-level-progress > i > b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #63d8e9, #d981ad);
+  box-shadow: 0 0 14px rgba(102, 222, 234, .35);
+  transition: width .65s cubic-bezier(.18,.72,.22,1);
+}
+.profile-avatar-collection {
+  margin: 15px 0;
+  padding: 13px;
+  border: 1px solid #294d70;
+  background: linear-gradient(155deg, rgba(12, 33, 59, .94), rgba(7, 20, 39, .94));
+}
+.profile-avatar-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 11px;
+}
+.profile-avatar-heading > strong {
+  color: #e8f5ff;
+  font: 21px 'VT323', monospace;
+  letter-spacing: .06em;
+}
+.profile-avatar-heading > small {
+  color: #8da8c5;
+  font-size: 10px;
+}
+.profile-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.profile-planet-choice {
+  min-width: 0;
+  min-height: 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 3px;
+  border: 1px solid #2e5275;
+  border-radius: 2px;
+  color: #c1d5e9;
+  background: #0b203a;
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.profile-planet-choice:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: #70e1f0;
+  box-shadow: 0 7px 17px rgba(66, 183, 216, .14);
+}
+.profile-planet-choice.selected {
+  border-color: #72e1ed;
+  box-shadow: inset 0 0 17px rgba(93, 220, 235, .1), 0 0 12px rgba(93, 220, 235, .1);
+}
+.profile-planet-choice.locked {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.profile-planet-choice .planet-avatar-visual {
+  width: 28px;
+  height: 28px;
+}
+.profile-planet-choice b {
+  max-width: 100%;
+  overflow: hidden;
+  color: #e5f1fc;
+  font: 13px 'VT323', monospace;
+  text-overflow: ellipsis;
+}
+.profile-planet-choice small {
+  color: #83a3c2;
+  font: 8px 'DM Mono', monospace;
+  letter-spacing: .025em;
+  text-align: center;
+}
+.profile-planet-choice.selected small {
+  color: #83e3ec;
+}
+.profile-achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.profile-achievement {
+  min-width: 0;
+}
+.profile-achievement.is-unlocked .achievement-mark {
+  color: #e8c47f;
+  text-shadow: 0 0 13px rgba(232, 196, 127, .3);
+}
+
+/* Match connection status and team result panels. */
+#party-room .party-room-live-pill {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px 10px;
+}
+.party-connection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid rgba(105, 211, 231, .26);
+  color: #89dfea;
+  background: rgba(13, 49, 70, .7);
+  font: 10px 'DM Mono', monospace;
+  letter-spacing: .045em;
+  white-space: nowrap;
+}
+.party-connection-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+}
+.party-connection-pill.is-reconnecting {
+  color: #f2c779;
+  border-color: rgba(242, 199, 121, .35);
+  animation: party-connection-pulse 1.2s ease-in-out infinite;
+}
+.party-connection-pill.is-offline {
+  color: #f18fa9;
+  border-color: rgba(241, 143, 169, .3);
+}
+.final-team-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 640px;
+  margin: 14px auto;
+}
+.final-team-row {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 11px;
+  border: 1px solid #315579;
+  background: linear-gradient(145deg, #173657, #102440);
+  text-align: left;
+}
+.final-team-row b {
+  color: #d8edff;
+  font: 18px 'VT323', monospace;
+}
+.final-team-row span {
+  color: #8de0e8;
+  font: 16px 'VT323', monospace;
+}
+.final-team-row small {
+  color: #90abc6;
+  font: 10px 'DM Mono', monospace;
+}
+.final-team-row.winner {
+  border-color: #cba15e;
+  box-shadow: inset 0 0 18px rgba(215, 169, 97, .08), 0 0 15px rgba(215, 169, 97, .08);
+}
+
+@keyframes atlas-question-scan {
+  0%, 45% { transform: translateX(-110%); }
+  75%, 100% { transform: translateX(110%); }
+}
+@keyframes atlas-question-arrive {
+  from { opacity: 0; transform: translateY(9px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes atlas-visual-arrive {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes atlas-flag-hover {
+  0%, 100% { transform: translateY(0); box-shadow: 0 0 16px rgba(93,193,223,.14); }
+  50% { transform: translateY(-3px); box-shadow: 0 0 25px rgba(93,193,223,.27); }
+}
+@keyframes atlas-symbol-pulse {
+  0%, 100% { transform: translateY(0) scale(1); filter: brightness(1); }
+  50% { transform: translateY(-3px) scale(1.035); filter: brightness(1.16); }
+}
+@keyframes atlas-orbit-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-7px) rotate(2deg); }
+}
+@keyframes atlas-orbit-spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+@keyframes atlas-panel-arrive {
+  from { opacity: 0; transform: translateY(13px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes atlas-complete-pulse {
+  0%, 100% { box-shadow: 0 0 0 8px rgba(109,219,230,.07), 0 0 22px rgba(109,219,230,.1); }
+  50% { box-shadow: 0 0 0 12px rgba(109,219,230,.04), 0 0 34px rgba(109,219,230,.2); }
+}
+@keyframes party-connection-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .65; }
+}
+
+@media (max-width: 600px) {
+  .profile-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .profile-avatar-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .profile-achievement-grid {
+    grid-template-columns: 1fr;
+  }
+  .final-team-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  #party-room .party-room-live-pill {
+    justify-content: flex-end;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.globe-rush-active #view-daily .daily-question,
+  body.globe-rush-active #view-daily .daily-result,
+  body.globe-rush-active #view-daily .daily-complete,
+  body.globe-rush-active #view-daily .daily-locked,
+  #daily-question-visual,
+  .question-colour-strip,
+  .question-symbol-glyph,
+  body.globe-rush-active #view-daily .daily-idle .idle-orbit-globe,
+  body.globe-rush-active #view-daily .idle-orbit-ring.ring-b,
+  body.globe-rush-active #view-daily .complete-icon,
+  .party-connection-pill.is-reconnecting {
+    animation: none !important;
+    transition: none !important;
+  }
+}
