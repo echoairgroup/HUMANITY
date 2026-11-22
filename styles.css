@@ -3152,7 +3152,7 @@ body.reduce-motion #view-daily .atlas-flight-craft { transition:none !important;
   border:1px solid rgba(124,220,231,.5);border-radius:4px;color:#eaf8ff;
   background:linear-gradient(145deg,rgba(8,31,59,.94),rgba(4,17,36,.9));
   box-shadow:0 9px 26px rgba(0,0,0,.25),0 0 22px rgba(101,211,229,.12);
-  backdrop-filter:blur(12px);opacity:0;transform:translateY(-8px) scale(.97);pointer-events:none;
+  backdrop-filter:blur(12px);opacity:0;transform:translateY(-8px) scale(.97);pointer-events:auto;
 }
 .atlas-answer-reaction[hidden] { display:none !important; }
 .atlas-answer-reaction.visible { animation:atlas-reaction-in .28s ease-out forwards; }
