@@ -76,7 +76,16 @@ async function layoutMetrics(page, viewSelector) {
       intro: rect(intro),
       footerLinks: Array.from(document.querySelectorAll('.footer-links a, .footer-links button'))
         .filter(element => element.getClientRects().length)
-        .map(rect)
+        .map(rect),
+      lobbyPanels: [
+        ['play panel', document.querySelector('#view-party .party-play-panel')],
+        ['orbital scene', document.querySelector('#view-party .party-centre-scene')],
+        ['open rooms', document.querySelector('#view-party .public-rooms-card')]
+      ].filter(([, element]) => element && element.getClientRects().length)
+        .map(([name, element]) => ({ name, ...rect(element) })),
+      sidebarVisible: Boolean(document.querySelector('#view-party .party-sidebar') &&
+        document.querySelector('#view-party .party-sidebar').getClientRects().length),
+      lobbyMainDisplay: getComputedStyle(document.querySelector('#view-party .party-lobby-main')).display
     };
   }, viewSelector);
 }
@@ -102,6 +111,22 @@ async function checkLayout(page, view, width) {
         metrics.lobby.top >= metrics.intro.bottom - 1,
         'Globe Rush intro and lobby must not overlap at ' + width + 'px'
       );
+    }
+    assert.equal(metrics.sidebarVisible, false,
+      'The optional Globe Rush sidebar must stay hidden; the lobby has exactly three main panels.');
+    assert.equal(metrics.lobbyMainDisplay, 'contents',
+      'The play panel and open rooms must participate directly in the three-column lobby grid.');
+    assert.ok(metrics.lobbyPanels.length >= 2,
+      'Globe Rush must show its play panel and open-rooms panel at ' + width + 'px.');
+    for (let i = 0; i < metrics.lobbyPanels.length; i += 1) {
+      for (let j = i + 1; j < metrics.lobbyPanels.length; j += 1) {
+        const a = metrics.lobbyPanels[i];
+        const b = metrics.lobbyPanels[j];
+        const horizontalOverlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const verticalOverlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        assert.ok(!(horizontalOverlap > 1 && verticalOverlap > 1),
+          a.name + ' must not overlap ' + b.name + ' at ' + width + 'px.');
+      }
     }
   }
   for (const link of metrics.footerLinks) {
