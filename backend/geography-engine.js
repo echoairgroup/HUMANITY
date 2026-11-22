@@ -1105,9 +1105,11 @@ function matchAnswer(question, rawAnswer) {
   // Krillion-style autocorrection: compare every accepted name/alias, then
   // accept only a single unambiguous canonical answer. Short names stay exact.
   let bestDistance = Infinity;
+  let bestAllowance = 0;
   let bestEntries = [];
   for (const item of entryForms) {
     let entryDistance = Infinity;
+    let entryAllowance = 0;
     for (const inputForm of targetForms) {
       if (inputForm.length < 5) continue;
       for (const acceptedForm of item.forms) {
@@ -1115,7 +1117,10 @@ function matchAnswer(question, rawAnswer) {
         if (longest < 6) continue;
         const allowance = longest >= 12 ? 2 : 1;
         const distance = boundedDamerauDistance(inputForm, acceptedForm, allowance);
-        if (distance < entryDistance) entryDistance = distance;
+        if (distance < entryDistance) {
+          entryDistance = distance;
+          entryAllowance = allowance;
+        }
         if (entryDistance === 0) break;
       }
       if (entryDistance === 0) break;
@@ -1123,6 +1128,7 @@ function matchAnswer(question, rawAnswer) {
 
     if (entryDistance < bestDistance) {
       bestDistance = entryDistance;
+      bestAllowance = entryAllowance;
       bestEntries = [item.entry];
     } else if (entryDistance === bestDistance && entryDistance !== Infinity) {
       bestEntries.push(item.entry);
@@ -1130,12 +1136,7 @@ function matchAnswer(question, rawAnswer) {
   }
 
   if (bestEntries.length !== 1 || bestDistance === Infinity) return null;
-  const bestName = normaliseAnswer(bestEntries[0].name);
-  const matchedForms = entryForms.find(item => item.entry === bestEntries[0]).forms;
-  const longest = Math.max(...[...targetForms].map(form => form.length).concat(
-    [...matchedForms].map(form => form.length)
-  ));
-  return bestDistance <= (longest >= 12 ? 2 : 1) ? buildMatch(bestEntries[0]) : null;
+  return bestDistance <= bestAllowance ? buildMatch(bestEntries[0]) : null;
 }
 function pointsForUsage(entry, answerCount, totalAnswers) {
   if (!entry) return 0;
