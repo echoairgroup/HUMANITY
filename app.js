@@ -6,6 +6,14 @@
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const number = new Intl.NumberFormat('en-US');
+  const soundBoostMigrationKey = 'humanity-sound-volume-boost-v1';
+  if (localStorage.getItem(soundBoostMigrationKey) !== 'done') {
+    const savedSoundVolume = Number(localStorage.getItem('humanity-sound-volume'));
+    if (!Number.isFinite(savedSoundVolume) || savedSoundVolume <= 68) {
+      localStorage.setItem('humanity-sound-volume', '92');
+    }
+    localStorage.setItem(soundBoostMigrationKey, 'done');
+  }
   const PLANET_AVATARS = [
     { id: 'mercury', name: 'Mercury', streak: 0 },
     { id: 'venus', name: 'Venus', streak: 3 },
@@ -31,7 +39,7 @@
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
     orbOverloadTimer: null, onlineRefreshTimer: null,
     sounds: localStorage.getItem('humanity-sound') !== 'false',
-    soundVolume: Math.max(0, Math.min(100, Number(localStorage.getItem('humanity-sound-volume') || 68))),
+    soundVolume: Math.max(0, Math.min(100, Number(localStorage.getItem('humanity-sound-volume') || 92))),
     audioContext: null, audioMaster: null, audioNoiseBuffer: null,
     dailySoundMarks: [], rushSoundKey: '', rushSoundMarks: [],
     animations: localStorage.getItem('humanity-motion') !== 'false'
@@ -132,7 +140,7 @@
       if (!state.audioContext) {
         const context = new AudioClass();
         const master = context.createGain();
-        master.gain.value = (state.soundVolume / 100) * 0.68;
+        master.gain.value = (state.soundVolume / 100) * 1.2;
         master.connect(context.destination);
         state.audioContext = context;
         state.audioMaster = master;
@@ -1625,9 +1633,8 @@
     $('#planet-starting-lives').textContent = startingLives + (startingLives === 1 ? ' LIFE' : ' LIVES');
     $('#planet-max-lives').textContent = maximumLives + ' LIVES';
     $('#planet-turn-clock').textContent = Number(settings.turnDurationSeconds) > 0
-      ? Number(settings.turnDurationSeconds) + ' SEC' : 'RANDOM 10–30 SEC';
-    $('#planet-category-rule').textContent = Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)) +
-      ' MISSES / ' + Math.max(1, Number(settings.maxTurnsPerCategory || 10)) + ' TURNS';
+      ? 'SHARED · ' + Number(settings.turnDurationSeconds) + ' SEC' : 'SHARED · RANDOM 10–30 SEC';
+    $('#planet-category-rule').textContent = 'NEW CATEGORY AFTER ORB POP';
     const privateSettings = $('#planet-private-settings');
     const canEditPrivateSettings = lobby && hostIsYou && Boolean(room.isHostedRoom);
     privateSettings.hidden = !canEditPrivateSettings;
@@ -1694,22 +1701,23 @@
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
-      const turnDescription = Number(room.settings?.turnDurationSeconds) > 0
-        ? Number(room.settings.turnDurationSeconds) + '-second turns'
-        : 'Random 10–30 second turns';
-      const missLimit = Math.max(1, Number(room.settings?.maxWrongAnswersPerCategory || 2));
-      const ruleTurnLimit = Math.max(1, Number(room.settings?.maxTurnsPerCategory || 10));
-      $('#rush-note').textContent = turnDescription + ' · ' + missLimit + ' misses or ' + ruleTurnLimit +
-        ' accepted turns rotate the category. ' + (room.category.note || 'Answers can only be used once per category.');
-      const wrongCount = Math.max(0, Number(room.wrongAnswersThisCategory || 0));
-      const turnCount = Math.max(0, Number(room.turnsThisCategory || 0));
-      const wrongLimit = Math.max(1, Number(room.maxWrongAnswersPerCategory || 2));
-      const turnLimit = Math.max(1, Number(room.maxTurnsPerCategory || 10));
+      const fuseDescription = Number(room.settings?.turnDurationSeconds) > 0
+        ? 'A shared ' + Number(room.settings.turnDurationSeconds) + '-second fuse'
+        : 'One shared random 10–30 second fuse';
+      const categoryNote = room.category.note ? ' ' + room.category.note : '';
+      $('#rush-note').textContent = fuseDescription +
+        ' keeps running as the Orb is passed. Valid rare answers build your bonus-heart meter.' + categoryNote;
+      const meForMeter = room.players.find(player => player.isYou);
+      const rarityProgress = Math.max(0, Math.min(100,
+        Number(meForMeter?.rarityMeter || 0) / 150 * 100));
+      const rarityPoints = Math.max(0, Math.min(150, Number(meForMeter?.rarityMeter || 0)));
+      const usedCount = Array.isArray(room.usedAnswers) ? room.usedAnswers.length : 0;
       $('#category-cycle').innerHTML =
-        '<div class="category-cycle-stat"><span>WRONG ANSWERS</span><b>' + wrongCount + ' / ' + wrongLimit +
-        '</b><i><span style="width:' + Math.min(100, wrongCount / wrongLimit * 100) + '%"></span></i></div>' +
-        '<div class="category-cycle-stat"><span>ACCEPTED TURNS</span><b>' + turnCount + ' / ' + turnLimit +
-        '</b><i><span style="width:' + Math.min(100, turnCount / turnLimit * 100) + '%"></span></i></div>';
+        '<div class="category-cycle-stat rarity-meter-stat"><span>YOUR NEXT BONUS HEART</span><b>' +
+        rarityPoints + ' / 150</b><i><span style="width:' + rarityProgress + '%"></span></i></div>' +
+        '<div class="category-cycle-stat used-meter-stat"><span>ANSWERS ALREADY USED</span><b>' +
+        usedCount + '</b><i><span style="width:' + Math.min(100, usedCount / 14 * 100) +
+        '%"></span></i></div>';
       $('#used-answer-list').innerHTML = room.usedAnswers.length
         ? room.usedAnswers.map(answer => '<span class="used-answer-chip">' + esc(answer) + '</span>').join('')
         : '<span class="empty-used">No answers yet.</span>';
@@ -1760,6 +1768,8 @@
     }
     const progress = Math.max(0, Math.min(100, (remaining / duration) * 100));
     $('#rush-seconds').textContent = String(seconds);
+    $('#rush-timer-label').textContent = 'SHARED FUSE';
+    $('#rush-timer').setAttribute('aria-label', 'Shared fuse: ' + seconds + ' seconds remaining');
     $('#rush-timer-fill').style.width = progress + '%';
     $('#rush-timer').classList.toggle('urgent', seconds <= 4);
 
@@ -1781,7 +1791,7 @@
 
     const holder = state.room && state.room.players.find(player => player.id === holderId);
     if (holder) {
-      $('#rush-timer-label').textContent = holder.isYou ? 'YOUR TURN' : 'PLAYER TURN';
+      $('#rush-timer-label').textContent = 'SHARED FUSE';
       $('#orb-holder-label').textContent = holder.isYou
         ? 'THE ORB IS WITH YOU'
         : 'THE ORB IS WITH ' + holder.nickname.toUpperCase();
@@ -2209,7 +2219,7 @@
       localStorage.setItem('humanity-sound-volume', String(state.soundVolume));
       $('#setting-sound-volume-label').textContent = state.soundVolume + '%';
       if (state.audioMaster && state.audioContext) {
-        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 0.68, state.audioContext.currentTime, 0.04);
+        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 1.2, state.audioContext.currentTime, 0.04);
       }
     });
     $('#sound-preview').addEventListener('click', () => playSound('preview'));
