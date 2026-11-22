@@ -621,14 +621,37 @@ function getQuestion(id) {
   return QUESTION_BY_ID.get(id) || PARTY_QUESTIONS.find(item => item.id === id) || null;
 }
 
-function getPartyQuestion(excludedIds) {
+function partyThemeMatches(item, theme) {
+  const haystack = (item.topicId + ' ' + item.category + ' ' + item.prompt).toLowerCase();
+  if (!theme || theme === 'all') return true;
+  if (theme === 'countries') return /countr|nation|states/.test(haystack);
+  if (theme === 'cities') return /capital|cit(y|ies)|urban/.test(haystack);
+  if (theme === 'nature') return /river|mountain|island|lake|sea|ocean|desert|waterfall|volcano|forest/.test(haystack);
+  if (theme === 'landmarks') return /landmark|bridge|monument/.test(haystack);
+  if (theme === 'culture') return /dish|snack|food|culture/.test(haystack);
+  return true;
+}
+
+function partyDifficultyMatches(item, difficulty) {
+  const count = Array.isArray(item.answers) ? item.answers.length : 0;
+  if (difficulty === 'easy') return count >= 16;
+  if (difficulty === 'hard') return count > 0 && count <= 12;
+  return true;
+}
+
+function getPartyQuestion(excludedIds, options = {}) {
   const excluded = excludedIds instanceof Set
     ? new Set(excludedIds)
     : new Set(Array.isArray(excludedIds) ? excludedIds : (excludedIds ? [excludedIds] : []));
   const excludedTopics = new Set(
     PARTY_QUESTIONS.filter(item => excluded.has(item.id)).map(item => item.topicId)
   );
-  let eligible = PARTY_QUESTIONS.filter(item =>
+  const themePool = PARTY_QUESTIONS.filter(item => partyThemeMatches(item, options.categoryTheme || 'all'));
+  const difficultyPool = themePool.filter(item => partyDifficultyMatches(item, options.difficulty || 'normal'));
+  // A deliberately narrow theme/difficulty combination should never block a match
+  // when the curated answer bank does not contain enough questions for another rotation.
+  const sourcePool = difficultyPool.length >= 4 ? difficultyPool : themePool.length ? themePool : PARTY_QUESTIONS;
+  let eligible = sourcePool.filter(item =>
     !excluded.has(item.id) && !excludedTopics.has(item.topicId)
   );
   if (!eligible.length) {
@@ -636,9 +659,10 @@ function getPartyQuestion(excludedIds) {
       ? excludedIds[excludedIds.length - 1]
       : (excludedIds instanceof Set ? Array.from(excludedIds).pop() : excludedIds);
     const lastTopic = PARTY_QUESTIONS.find(item => item.id === lastId)?.topicId;
-    eligible = PARTY_QUESTIONS.filter(item => item.topicId !== lastTopic);
+    eligible = sourcePool.filter(item => item.topicId !== lastTopic);
   }
-  return eligible[crypto.randomInt(0, eligible.length)];
+  const pool = eligible.length ? eligible : sourcePool;
+  return pool[crypto.randomInt(0, pool.length)];
 }
 
 function listQuestionBank() {
