@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const engine = require('./geography-engine');
@@ -173,4 +175,37 @@ test('Practice Lab answer matching accepts curated aliases',()=>{
   assert.ok(q);
   const answer=q.answers.find(item=>item.aliases.length);
   assert.equal(engine.matchAnswer(q,answer.aliases[0]).name,answer.name);
+});
+
+
+test('frontend collection selectors use querySelectorAll helpers', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const invalid = [...frontend.matchAll(/(?<!\\$)\\$\\(\\s*(['"])[^'"]+\\1\\s*\\)\\s*\\.(?:forEach|map|filter|some|every|reduce)\\s*\\(/g)];
+  assert.deepEqual(invalid.map(match => match[0]), []);
+});
+
+test('daily reveal and recap renderers are available to game flows', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const reveal = frontend.indexOf('  function renderDailyAnswerReveal(');
+  const recap = frontend.indexOf('  function renderDailyRecap(');
+  const flight = frontend.indexOf('  function renderFlightDistribution(result)');
+  assert.ok(reveal >= 0 && recap >= 0 && flight >= 0);
+  assert.ok(reveal < flight, 'answer renderer must not be nested inside flight renderer');
+  assert.ok(recap < flight, 'recap renderer must not be nested inside flight renderer');
+  assert.ok(frontend.includes('renderDailyAnswerReveal(reveal || [], accepted, answer);'));
+  assert.ok(frontend.includes('renderDailyRecap();'));
+});
+
+test('frontend event bindings and critical game panels exist in the HTML', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const boundIds = [...frontend.matchAll(/\\$\\(\\s*['"]#([a-zA-Z0-9_-]+)['"]\\s*\\)\\s*\\.addEventListener/g)]
+    .map(match => match[1]);
+  const missing = [...new Set(boundIds)].filter(id =>
+    !html.includes('id="' + id + '"') && !html.includes("id='" + id + "'")
+  );
+  assert.deepEqual(missing, []);
+  for (const id of ['daily-start', 'daily-answer-form', 'daily-next', 'practice-modal', 'practice-pack-list', 'settings-modal']) {
+    assert.ok(html.includes('id="' + id + '"') || html.includes("id='" + id + "'"), id + ' must exist');
+  }
 });
