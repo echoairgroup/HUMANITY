@@ -618,9 +618,13 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       return null;
     }
     const streakDays = account ? Math.max(0, Number(account.party_streak_days || 0)) : 0;
-    const requestedAvatar = String(message.avatarKey || 'mercury');
-    const unlockedAvatar = PLANET_AVATARS.filter(item => item.streak <= streakDays).some(item => item.key === requestedAvatar)
-      ? requestedAvatar : 'mercury';
+    const requestedAvatar = account
+      ? String(account.selected_avatar || message.avatarKey || 'mercury')
+      : String(message.avatarKey || 'mercury');
+    const avatarIsValid = PLANET_AVATARS.some(item => item.key === requestedAvatar);
+    const avatarIsUnlocked = Boolean(account && account.avatar_locked) ||
+      PLANET_AVATARS.some(item => item.key === requestedAvatar && item.streak <= streakDays);
+    const unlockedAvatar = avatarIsValid && avatarIsUnlocked ? requestedAvatar : 'mercury';
     const player = {
       id: crypto.randomUUID(),
       resumeToken: crypto.randomBytes(24).toString('base64url'),
