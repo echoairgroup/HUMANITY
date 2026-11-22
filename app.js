@@ -8,8 +8,9 @@
   const number = new Intl.NumberFormat('en-US');
   const soundBoostMigrationKey = 'humanity-sound-volume-boost-v1';
   if (localStorage.getItem(soundBoostMigrationKey) !== 'done') {
-    const savedSoundVolume = Number(localStorage.getItem('humanity-sound-volume'));
-    if (!Number.isFinite(savedSoundVolume) || savedSoundVolume <= 68) {
+    const savedSoundVolumeValue = localStorage.getItem('humanity-sound-volume');
+    const savedSoundVolume = Number(savedSoundVolumeValue);
+    if (savedSoundVolumeValue === null || !Number.isFinite(savedSoundVolume) || savedSoundVolume === 68) {
       localStorage.setItem('humanity-sound-volume', '92');
     }
     localStorage.setItem(soundBoostMigrationKey, 'done');
@@ -1757,7 +1758,7 @@
     if (finished && state.result) renderPartyResults(state.result);
   }
   function updatePartyTimer(remainingMs, holderId, durationMs) {
-    const soundKey = String(state.room && state.room.round || 0) + ':' + String(state.room && state.room.turnNumber || 0) + ':' + String(holderId || '');
+    const soundKey = String(state.room && state.room.round || 0);
     if (soundKey !== state.rushSoundKey) { state.rushSoundKey = soundKey; state.rushSoundMarks = []; }
     const remaining = Math.max(0, Number(remainingMs || 0));
     const duration = Math.max(1, Number(durationMs || state.room?.timerDurationMs || 20000));
