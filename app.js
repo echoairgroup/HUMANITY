@@ -33,6 +33,7 @@
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
     resumeToken: sessionStorage.getItem('humanity-room-resume-token') || '',
     reconnectAttempts: 0, reconnectTimer: null, isLeavingRoom: false, profileStats: null,
+    wsHeartbeatTimer: null, wsHeartbeatSocket: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null, unlimited: null,
     dailyHistory: [], lastPracticeLabel: '', ascentPoints: 0, ascentMaxPoints: 700,
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
@@ -1519,11 +1520,26 @@
     state.wsPending = action;
     const socket = new WebSocket(SOCKET_URL);
     state.ws = socket;
+    socket.addEventListener('open', () => {
+      if (state.ws !== socket) return;
+      if (state.wsHeartbeatTimer) clearInterval(state.wsHeartbeatTimer);
+      state.wsHeartbeatSocket = socket;
+      state.wsHeartbeatTimer = setInterval(() => {
+        if (state.ws === socket && socket.readyState === WebSocket.OPEN) {
+          try { socket.send(JSON.stringify({ type: 'heartbeat' })); } catch (_) { /* close handler retries */ }
+        }
+      }, 5000);
+    });
     socket.addEventListener('message', event => {
       let message; try { message = JSON.parse(event.data); } catch (_) { return; }
       handleSocketMessage(message);
     });
     socket.addEventListener('close', () => {
+      if (state.wsHeartbeatSocket === socket) {
+        if (state.wsHeartbeatTimer) clearInterval(state.wsHeartbeatTimer);
+        state.wsHeartbeatTimer = null;
+        state.wsHeartbeatSocket = null;
+      }
       if (state.ws !== socket) return;
       state.ws = null;
       if (state.roomCode && state.resumeToken && !state.isLeavingRoom) {
@@ -2045,6 +2061,9 @@
     $('#party-lobby').hidden = false;
     if (state.ws) { try { state.ws.close(); } catch (_) {} }
     state.ws = null;
+    if (state.wsHeartbeatTimer) clearInterval(state.wsHeartbeatTimer);
+    state.wsHeartbeatTimer = null;
+    state.wsHeartbeatSocket = null;
     loadOpenRooms();
   }
   function nickname() {

@@ -35,6 +35,7 @@ const HEART_METER = [0, 5, 10, 35, 55, 100];
 const ROOM_IDLE_MS = 5 * 60 * 1000;
 const RECONNECT_GRACE_MS = 45 * 1000;
 const SOCKET_HEARTBEAT_MS = 5 * 1000;
+const APP_HEARTBEAT_TIMEOUT_MS = 15 * 1000;
 const LARGE_QUEUE_FALLBACK_MS = 25 * 1000;
 const ALLOWED_VARIANTS = new Set(['classic', 'team-rush', 'survival']);
 
@@ -724,6 +725,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     if (!message || typeof message !== 'object' || Array.isArray(message)) return;
     const context = sockets.get(socket) || {};
     const now = Date.now();
+    context.lastHeartbeatAt = now;
+    sockets.set(socket, context);
+    if (message.type === 'heartbeat') return;
     if (context.lastActionAt && now - context.lastActionAt < 90) {
       sendError(socket, 'Please slow down and try again.', 'rate_limited');
       return;
@@ -1092,6 +1096,20 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const now = Date.now();
     for (const [code, room] of rooms.entries()) {
       for (const player of [...room.players]) {
+        // Detect application-level heartbeats as well as transport state. Some
+        // reverse proxies can keep an upstream WebSocket looking OPEN after the
+        // visitor's connection has disappeared. A client that stops sending its
+        // 5-second heartbeat is marked offline within the 15-second grace window.
+        const socketContext = player.socket ? (sockets.get(player.socket) || {}) : {};
+        const lastHeartbeatAt = Number(socketContext.lastHeartbeatAt || socketContext.connectedAt || now);
+        if (player.socket && now - lastHeartbeatAt > APP_HEARTBEAT_TIMEOUT_MS && !player.disconnectedAt) {
+          const staleSocket = player.socket;
+          player.socket = null;
+          player.disconnectedAt = now;
+          room.lastActivityAt = now;
+          broadcastState(room);
+          try { staleSocket.terminate(); } catch (_) { /* already closed */ }
+        }
         // A WebSocket can become CLOSING/CLOSED before its close callback is
         // delivered. Detect that state on the room heartbeat as a second path,
         // so the remaining players immediately see the offline indicator.
@@ -1199,7 +1217,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   wss.on('connection', socket => {
     socket.isAlive = true;
     socket.on('pong', () => { socket.isAlive = true; });
-    sockets.set(socket, { connectedAt: Date.now() });
+    const connectedAt = Date.now();
+    sockets.set(socket, { connectedAt, lastHeartbeatAt: connectedAt });
     safeSend(socket, { type: 'connected', activeRooms: rooms.size });
     socket.on('message', raw => {
       let message;

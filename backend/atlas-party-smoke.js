@@ -31,6 +31,12 @@ async function getJson(path, headers = {}) {
 
 function createClient(label) {
   const socket = new WebSocket(WS_URL, { handshakeTimeout: 12000 });
+  let heartbeatTimer = null;
+  socket.on('open', () => {
+    heartbeatTimer = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'heartbeat' }));
+    }, 5000);
+  });
   const queue = [];
   const waiters = [];
 
@@ -91,7 +97,10 @@ function createClient(label) {
     socket.send(JSON.stringify(payload));
   }
 
-  socket.on('close', (code, reason) => console.log('[' + label + '] socket closed: ' + code + ' ' + reason.toString()));
+  socket.on('close', (code, reason) => {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    console.log('[' + label + '] socket closed: ' + code + ' ' + reason.toString());
+  });
   socket.on('error', error => console.log('[' + label + '] socket error: ' + error.message));
   return { socket, waitFor, send };
 }
@@ -444,7 +453,7 @@ async function checkRoomReconnect() {
     const disconnectedStatePromise = pair.host.waitFor(message =>
       message.type === 'room_state' && message.code === pair.roomCode &&
       message.players?.some(player => player.id === playerId && player.isConnected === false),
-      8000, 'host sees the temporarily disconnected seat'
+      20000, 'host sees the temporarily disconnected seat'
     );
     const guestClosePromise = new Promise(resolve => {
       pair.guest.socket.once('close', (code, reason) => resolve({ code, reason: reason.toString() }));
