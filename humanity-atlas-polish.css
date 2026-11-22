@@ -394,3 +394,98 @@ body.globe-rush-active #view-daily .complete-icon {
     transition: none !important;
   }
 }
+
+
+/* Recent player history — score ledger for daily and multiplayer progress. */
+.profile-history {
+  margin: 15px 0;
+  padding: 13px;
+  border: 1px solid #294d70;
+  background: linear-gradient(155deg, rgba(12, 33, 59, .94), rgba(7, 20, 39, .94));
+}
+.profile-history-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+.profile-history-heading > strong {
+  color: #e8f5ff;
+  font: 21px 'VT323', monospace;
+  letter-spacing: .06em;
+}
+.profile-history-heading > small {
+  color: #8da8c5;
+  font-size: 10px;
+}
+.profile-history-list {
+  display: grid;
+  gap: 5px;
+}
+.profile-history-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 9px;
+  border: 1px solid rgba(58, 95, 132, .62);
+  background: rgba(8, 25, 47, .84);
+}
+.profile-history-row.is-win {
+  border-color: rgba(202, 162, 100, .62);
+  background: linear-gradient(90deg, rgba(82, 66, 52, .34), rgba(8, 25, 47, .84));
+}
+.profile-history-main,
+.profile-history-result {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.profile-history-main strong {
+  overflow: hidden;
+  color: #dff0ff;
+  font: 15px 'VT323', monospace;
+  letter-spacing: .04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-history-main small,
+.profile-history-result small {
+  color: #86a5c2;
+  font: 9px 'DM Mono', monospace;
+}
+.profile-history-result {
+  text-align: right;
+}
+.profile-history-result b {
+  color: #88e0eb;
+  font: 17px 'VT323', monospace;
+}
+.profile-history-status {
+  min-width: 64px;
+  padding: 4px 6px;
+  border: 1px solid #315579;
+  color: #9ab7d1;
+  font: 9px 'DM Mono', monospace;
+  text-align: center;
+}
+.profile-history-row.is-win .profile-history-status {
+  border-color: rgba(207, 171, 112, .55);
+  color: #f0cb8c;
+}
+.profile-history-empty {
+  margin: 0;
+  padding: 12px 4px;
+  color: #8da8c5;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .profile-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+  .profile-history-status {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
