@@ -53,8 +53,9 @@
     const entries = Array.isArray(results[1].entries) ? results[1].entries : [];
     $('#admin-queue-count').textContent = number.format(entries.length) + ' pending';
     $('#admin-queue').innerHTML = entries.length ? entries.map(item => {
-      const source = item.source_url
-        ? '<a class="admin-source-link" href="' + escapeHTML(item.source_url) + '" target="_blank" rel="noopener noreferrer">Open verification source ↗</a>'
+      const sourceUrl = String(item.source_url || '');
+      const source = /^https?:\/\//i.test(sourceUrl)
+        ? '<a class="admin-source-link" href="' + escapeHTML(sourceUrl) + '" target="_blank" rel="noopener noreferrer">Open verification source ↗</a>'
         : '';
       const rarityOptions = rarityNames.map((name, index) =>
         '<option value="' + index + '">' + name + ' · ' + rarityPoints[index] + ' pts</option>'
