@@ -840,6 +840,35 @@ for (const [id, continent, category, prompt, note] of [
   });
 }
 
+// Reuse multilingual country aliases wherever a question's own curated answer
+// list already contains that country. This expands spelling support without
+// expanding the category scope (important for flags and currency questions).
+const COUNTRY_LIST_QUESTION_IDS = new Set([
+  'island-countries',
+  'euro-countries',
+  'flag-colours-blue-white-red',
+  'flag-colours-red-white-green',
+  'flag-colours-stars'
+]);
+for (const question of Q) {
+  if (!COUNTRY_LIST_QUESTION_IDS.has(question.id)) continue;
+  for (const entry of question.answers || []) {
+    const keys = new Set([entry.name].concat(entry.aliases || []).map(normaliseAnswer));
+    const country = WORLD_COUNTRY_ANSWERS.find(item =>
+      [item.name].concat(item.aliases || []).some(name => keys.has(normaliseAnswer(name)))
+    );
+    if (!country) continue;
+    const aliases = new Map((entry.aliases || []).map(alias => [normaliseAnswer(alias), alias]));
+    for (const alias of [country.name].concat(country.aliases || [])) {
+      const key = normaliseAnswer(alias);
+      if (key && key !== normaliseAnswer(entry.name)) aliases.set(key, alias);
+    }
+    entry.aliases = [...aliases.values()].slice(0, 100);
+    entry.source = country.source + '; HUMANITY curated question scope';
+  }
+}
+
+
 function makePartyTopic(id, category, prompt, names, sourceId) {
   const source = Q.find(item => item.id === (sourceId || id)) || null;
   if (source && !sourceId) {
