@@ -28,13 +28,20 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+// Neon certificates are publicly trusted. Keep hostname and certificate checks
+// enabled by default instead of relying on the legacy, weaker "require" mode.
+const databaseConnection = new URL(DATABASE_URL);
+databaseConnection.searchParams.set(
+  'sslmode',
+  process.env.DATABASE_SSL === 'false' ? 'disable' : 'verify-full'
+);
+
 const pool = new Pool({
-  connectionString: DATABASE_URL,
+  connectionString: databaseConnection.toString(),
   max: 8,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  keepAlive: true,
-  ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+  keepAlive: true
 });
 
 function sendJSON(response, status, payload) {
