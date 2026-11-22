@@ -53,6 +53,7 @@ function loadWorldCountryAnswers() {
         addName(props[field], field === 'ABBREV');
       }
       for (const field of COUNTRY_LANGUAGE_FIELDS) addName(props[field]);
+      if (code === 'NZL') addName('Aotearoa');
 
       const record = {
         code,
