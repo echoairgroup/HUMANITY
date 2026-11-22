@@ -27,6 +27,7 @@
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
     dailyAdvanceTimer: null,
     partySuggestionTimer: null, partySuggestionSequence: 0, pendingPartySuggestion: null,
+    roomLaunchTimer: null,
     toastTimer: null, categoryAnnouncementTimer: null, categoryAnnouncementDelayTimer: null,
     orbOverloadTimer: null, onlineRefreshTimer: null,
     sounds: localStorage.getItem('humanity-sound') !== 'false',
@@ -1475,7 +1476,21 @@
       showCategoryAnnouncement(message.category, message.reason);
     } else if (message.type === 'match_ready') {
       playSound('match-ready');
-      $('#room-status-note').textContent = 'Match begins automatically in a few seconds…';
+      if (state.roomLaunchTimer) clearInterval(state.roomLaunchTimer);
+      const duration = Math.max(0, Number(message.startsInMs || 0));
+      const deadline = Date.now() + duration;
+      const updateLaunchCountdown = () => {
+        const remaining = Math.max(0, deadline - Date.now());
+        $('#room-status-note').textContent = remaining > 0
+          ? 'Match starts in ' + Math.ceil(remaining / 1000) + ' seconds · players can still join.'
+          : 'Launching Globe Rush now…';
+        if (remaining <= 0 && state.roomLaunchTimer) {
+          clearInterval(state.roomLaunchTimer);
+          state.roomLaunchTimer = null;
+        }
+      };
+      updateLaunchCountdown();
+      if (duration > 0) state.roomLaunchTimer = setInterval(updateLaunchCountdown, 200);
       $('#room-start').hidden = true;
     } else if (message.type === 'game_started') {
       playSound('match-ready');
@@ -1636,6 +1651,10 @@
       $('#private-auto-start').checked = settings.autoStartWhenFull === true;
     }
     const autoStarting = room.autoStartInMs !== null && room.autoStartInMs !== undefined;
+    if (!autoStarting && state.roomLaunchTimer) {
+      clearInterval(state.roomLaunchTimer);
+      state.roomLaunchTimer = null;
+    }
     const nearlyFull = lobby && !room.isHostedRoom && room.visibility === 'private' &&
       room.players.length >= Math.max(2, Number(room.targetMin || 2), capacity - 1);
     $('#room-status-note').textContent = lobby
@@ -1832,6 +1851,8 @@
   }
   function resetRoomUI() {
     playSound('leave');
+    if (state.roomLaunchTimer) clearInterval(state.roomLaunchTimer);
+    state.roomLaunchTimer = null;
     clearGlobeRushEffects();
     clearPartySuggestion();
     state.room = null; state.roomCode = null; state.playerId = null; state.result = null;
