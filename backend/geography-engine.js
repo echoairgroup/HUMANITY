@@ -463,6 +463,7 @@ const Q = [
       answer('Ireland', [], 0), answer('Finland', [], 0), answer('Greece', ['Hellas'], 0),
       answer('Croatia', [], 1), answer('Slovenia', [], 1), answer('Slovakia', [], 1),
       answer('Estonia', [], 1), answer('Latvia', [], 1), answer('Lithuania', [], 1),
+      answer('Bulgaria', ['България'], 0),
       answer('Luxembourg', [], 1), answer('Malta', [], 1), answer('Cyprus', [], 1)
     ]
   },
