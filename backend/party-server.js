@@ -33,6 +33,29 @@ const PLANET_AVATARS = [
 ];
 const HEART_METER = [0, 5, 10, 35, 55, 100];
 const ROOM_IDLE_MS = 5 * 60 * 1000;
+const RECONNECT_GRACE_MS = 45 * 1000;
+const LARGE_QUEUE_FALLBACK_MS = 25 * 1000;
+const ALLOWED_VARIANTS = new Set(['classic', 'team-rush', 'survival']);
+
+function normaliseVariant(value) {
+  const variant = String(value || '').toLowerCase();
+  return ALLOWED_VARIANTS.has(variant) ? variant : 'classic';
+}
+
+function survivalFuseSeconds(round) {
+  return Math.max(8, 22 - Math.floor((Math.max(1, Number(round) || 1) - 1) / 2) * 2);
+}
+
+function survivalDifficulty(round) {
+  const value = Math.max(1, Number(round) || 1);
+  return value <= 2 ? 'easy' : value <= 5 ? 'normal' : 'hard';
+}
+
+function shouldDownshiftLargeQueue(room, now = Date.now()) {
+  return Boolean(room && room.group === 'large' && room.phase === 'lobby' && !room.fallbackApplied &&
+    room.players && room.players.length >= 6 && room.players.length < 8 &&
+    now - Number(room.createdAt || now) >= LARGE_QUEUE_FALLBACK_MS);
+}
 
 const GROUPS = {
   duel: { label: '1v1', min: 2, max: 2 },
@@ -193,6 +216,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       mode: room.mode,
       isHostedRoom: Boolean(room.isHostedRoom),
       group: room.group,
+      variant: room.variant || 'classic',
+      winningTeam: room.winningTeam || null,
       phase: room.phase,
       round: room.round,
       category: room.category ? {
@@ -220,6 +245,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         id: player.id,
         nickname: player.nickname,
         avatarKey: player.avatarKey || 'mercury',
+        team: player.team || null,
         hearts: player.hearts,
         score: player.score,
         rarityMeter: player.rarityMeter,
@@ -258,6 +284,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       visibility: options.visibility || 'private',
       mode: options.mode || 'private',
       group: options.group || 'private',
+      variant: normaliseVariant(options.variant),
       capacity: options.capacity || 10,
       targetMin: options.targetMin || 2,
       settings: normaliseRoomSettings(options.settings),
@@ -282,6 +309,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       timerDurationMs: null,
       lastTimerBroadcastAt: 0,
       fuseBusy: false,
+      fallbackApplied: false,
+      startedAt: null,
+      winningTeam: null,
       results: null
     };
     host.roomCode = code;
@@ -301,7 +331,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       .map(room => ({
         code: room.code,
         mode: room.mode,
-        group: GROUPS[room.group] ? GROUPS[room.group].label : 'Open room',
+        group: room.group === 'flex' ? room.capacity + '-player flexible match' : (GROUPS[room.group] ? GROUPS[room.group].label : 'Open room'),
+        variant: room.variant || 'classic',
         players: room.players.length,
         minimum: room.targetMin,
         capacity: room.capacity,
@@ -323,11 +354,13 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       );
       const matchId = crypto.randomUUID();
       await pool.query(
-        'INSERT INTO humanity_party_matches (id, season_id, mode, category_id, category_label, winner_player_id, player_count) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [matchId, seasonId, room.mode === 'private' ? 'private' : room.mode, room.category?.id || 'globe-rush', room.category?.category || 'Geography', winner?.playerId || null, room.players.length]
+        'INSERT INTO humanity_party_matches (id, season_id, mode, category_id, category_label, winner_player_id, player_count, variant, started_at, finished_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())',
+        [matchId, seasonId, room.mode === 'private' ? 'private' : room.mode, room.category?.id || 'globe-rush', room.category?.category || 'Geography', winner?.playerId || null, room.players.length, room.variant || 'classic', new Date(room.startedAt || now).toISOString()]
       );
 
-      const ranked = rankPlayers(room.players);
+      const ranked = room.variant === 'team-rush' && room.winningTeam
+        ? [...room.players].sort((a, b) => (a.team === room.winningTeam ? 0 : 1) - (b.team === room.winningTeam ? 0 : 1) || b.score - a.score)
+        : rankPlayers(room.players);
       if (room.mode === 'ranked') {
         for (const player of ranked) {
           if (!player.playerId) continue;
@@ -370,25 +403,31 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
           );
           if (activity.rows[0]) player.partyStreakDays = Number(activity.rows[0].party_streak_days || 0);
         }
+        const playerWon = room.variant === 'team-rush' && room.winningTeam
+          ? player.team === room.winningTeam
+          : position === 1;
+        const xpEarned = room.mode === 'ranked' ? (position === 1 ? 120 : 35) : (playerWon ? 100 : 25);
         if (room.mode === 'ranked' && player.playerId) {
           const expected = 1 / (1 + Math.pow(10, (averageRating - player.rating) / 400));
           const actual = position === 1 ? 1 : position === 2 ? 0.5 : 0;
           ratingAfter = Math.max(100, Math.round(player.rating + 32 * (actual - expected)));
           await pool.query(
             'UPDATE humanity_players SET party_rating = $2, xp = xp + $3, level = GREATEST(1, FLOOR((xp + $3) / 500.0) + 1), updated_at = NOW() WHERE id = $1',
-            [player.playerId, ratingAfter, position === 1 ? 120 : 35]
+            [player.playerId, ratingAfter, xpEarned]
           );
         } else if (player.playerId) {
           await pool.query(
             'UPDATE humanity_players SET xp = xp + $2, level = GREATEST(1, FLOOR((xp + $2) / 500.0) + 1), updated_at = NOW() WHERE id = $1',
-            [player.playerId, position === 1 ? 100 : 25]
+            [player.playerId, xpEarned]
           );
         }
         const playerKey = player.playerId || ('guest:' + player.id);
         await pool.query(
-          'INSERT INTO humanity_party_match_players (match_id, player_key, player_id, guest_name, rank, score, hearts_left, rating_before, rating_after, xp_earned) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-          [matchId, playerKey, player.playerId, player.nickname, position, player.score, player.hearts, ratingBefore, ratingAfter, position === 1 ? 120 : 35]
+          'INSERT INTO humanity_party_match_players (match_id, player_key, player_id, guest_name, rank, score, hearts_left, rating_before, rating_after, xp_earned, won) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+          [matchId, playerKey, player.playerId, player.nickname, position, player.score, player.hearts, ratingBefore, ratingAfter, xpEarned, playerWon]
         );
+        player.xpEarned = xpEarned;
+        player.won = playerWon;
         player.ratingAfter = ratingAfter;
         player.rank = position;
       }
@@ -404,20 +443,36 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     room.phase = 'finished';
     room.timerEndsAt = null;
     room.currentHolderId = null;
-    const ranked = rankPlayers(room.players);
-    const winner = ranked[0] && ranked[0].alive ? ranked[0] : ranked[0];
+    const aliveTeams = room.variant === 'team-rush'
+      ? [...new Set(room.players.filter(player => player.alive).map(player => player.team).filter(Boolean))]
+      : [];
+    room.winningTeam = room.variant === 'team-rush' && aliveTeams.length === 1 ? aliveTeams[0] : null;
+    const ranked = room.variant === 'team-rush' && room.winningTeam
+      ? [...room.players].sort((a, b) => (a.team === room.winningTeam ? 0 : 1) - (b.team === room.winningTeam ? 0 : 1) || b.score - a.score)
+      : rankPlayers(room.players);
+    const winner = room.variant === 'team-rush' && room.winningTeam
+      ? ranked.find(player => player.team === room.winningTeam)
+      : ranked[0];
     const saved = await persistResult(room, winner);
+    const teamNames = { nova: 'Team Nova', terra: 'Team Terra' };
     room.results = {
-      winner: winner ? winner.nickname : 'No winner',
+      variant: room.variant || 'classic',
+      winner: room.variant === 'team-rush' ? (teamNames[room.winningTeam] || 'Team') : (winner ? winner.nickname : 'No winner'),
+      winningTeam: room.winningTeam,
+      teams: room.variant === 'team-rush' ? ['nova', 'terra'].map(team => ({
+        id: team, name: teamNames[team], score: room.players.filter(player => player.team === team).reduce((sum, player) => sum + player.score, 0),
+        alive: room.players.filter(player => player.team === team && player.alive).length
+      })) : [],
       matchId: saved?.matchId || null,
       seasonId: saved?.seasonId || null,
       ranking: ranked.map((player, index) => ({
         rank: index + 1,
         nickname: player.nickname,
+        team: player.team || null,
         score: player.score,
         hearts: player.hearts,
         rating: player.ratingAfter ?? player.rating,
-        isWinner: index === 0
+        isWinner: room.variant === 'team-rush' ? player.team === room.winningTeam : index === 0
       }))
     };
     broadcast(room, { type: 'game_over', results: room.results });
@@ -433,8 +488,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       room.timerEndsAt = null;
       room.timerDurationMs = null;
     } else if (options.startNewFuse || !room.timerEndsAt) {
-      const fuseSeconds = room.settings.turnDurationSeconds ||
-        crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1);
+      const fuseSeconds = room.variant === 'survival'
+        ? survivalFuseSeconds(room.round)
+        : (room.settings.turnDurationSeconds || crypto.randomInt(PLAYER_TURN_MIN_SECONDS, PLAYER_TURN_MAX_SECONDS + 1));
       room.timerDurationMs = fuseSeconds * 1000;
       room.timerEndsAt = Date.now() + room.timerDurationMs;
     } else if (options.afterPass) {
@@ -451,11 +507,14 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   }
 
   function newRound(room, afterPlayerId, reason) {
-    const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId, room.settings);
+    room.round += 1;
+    const roundSettings = room.variant === 'survival'
+      ? { ...room.settings, difficulty: survivalDifficulty(room.round) }
+      : room.settings;
+    const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId, roundSettings);
     room.category = category;
     room.lastCategoryId = category.id;
     room.categoryHistory = [...(room.categoryHistory || []), category.id];
-    room.round += 1;
     room.usedAnswers = [];
     room.turnNumber = 0;
     room.wrongAnswersThisCategory = 0;
@@ -496,7 +555,11 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         hearts: holder.hearts,
         eliminated: !holder.alive
       });
-      if (room.players.filter(player => player.alive).length <= 1) {
+      const aliveCount = room.players.filter(player => player.alive).length;
+      const remainingCompetitors = room.variant === 'team-rush'
+        ? new Set(room.players.filter(player => player.alive).map(player => player.team).filter(Boolean)).size
+        : aliveCount;
+      if (remainingCompetitors <= 1) {
         await finishGame(room);
         return;
       }
@@ -509,6 +572,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   function startGame(room) {
     if (room.phase !== 'lobby' || room.players.length < 2) return false;
     room.phase = 'playing';
+    room.startedAt = Date.now();
+    room.winningTeam = null;
+    const shuffledPlayers = [...room.players].sort(() => crypto.randomInt(0, 2) ? 1 : -1);
+    shuffledPlayers.forEach((player, index) => { player.team = room.variant === 'team-rush' ? (index % 2 === 0 ? 'nova' : 'terra') : null; });
     room.players.forEach(player => {
       player.hearts = room.settings.gameMode === 'sudden-death' ? 1 : room.settings.startingLives;
       player.rarityMeter = 0;
@@ -548,6 +615,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       ? requestedAvatar : 'mercury';
     const player = {
       id: crypto.randomUUID(),
+      resumeToken: crypto.randomBytes(24).toString('base64url'),
+      disconnectedAt: null,
+      team: null,
       playerId: account ? account.id : null,
       nickname,
       avatarKey: unlockedAvatar,
@@ -577,7 +647,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     safeSend(socket, {
       type: 'joined',
       roomCode: room.code,
-      playerId: player.id
+      playerId: player.id,
+      resumeToken: player.resumeToken
     });
     const startsAutomatically = room.isHostedRoom && room.phase === 'lobby' &&
       room.settings.autoStartWhenFull && room.players.length >= room.capacity && !room.autoStartAt;
@@ -595,6 +666,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     const groupKey = GROUPS[message.group] ? message.group : 'small';
     const group = GROUPS[groupKey];
     const mode = message.mode === 'ranked' ? 'ranked' : 'quick';
+    const variant = mode === 'ranked' ? 'classic' : normaliseVariant(message.variant);
     const player = await makePlayer(socket, { ...message, mode });
     if (!player) return;
 
@@ -602,6 +674,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       const basicMatch = item.visibility === 'public' &&
         item.phase === 'lobby' &&
         item.mode === mode &&
+        (item.variant || 'classic') === variant &&
         item.group === groupKey &&
         item.players.length < item.capacity;
       if (!basicMatch || mode !== 'ranked') return basicMatch;
@@ -620,14 +693,15 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         visibility: 'public',
         mode,
         group: groupKey,
+        variant,
         capacity: group.max,
-        targetMin: Math.max(group.min, group.max - 1)
+        targetMin: group.min
       });
       const context = sockets.get(socket) || {};
       context.roomCode = created.code;
       context.playerId = player.id;
       sockets.set(socket, context);
-      safeSend(socket, { type: 'joined', roomCode: created.code, playerId: player.id });
+      safeSend(socket, { type: 'joined', roomCode: created.code, playerId: player.id, resumeToken: player.resumeToken });
       broadcastState(created);
     }
 
@@ -647,6 +721,12 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       sendError(socket, 'Please slow down and try again.', 'rate_limited');
       return;
     }
+    context.messageTimes = (context.messageTimes || []).filter(time => now - time < 10000);
+    if (context.messageTimes.length >= 50) {
+      sendError(socket, 'Too many actions at once. Please wait a moment.', 'message_rate_limited');
+      return;
+    }
+    context.messageTimes.push(now);
     context.lastActionAt = now;
     sockets.set(socket, context);
 
@@ -671,13 +751,14 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         capacity,
         targetMin: 2,
         settings: initialSettings,
-        isHostedRoom: true
+        isHostedRoom: true,
+        variant: normaliseVariant(message.variant || message.settings?.variant)
       });
       const ownContext = sockets.get(socket) || {};
       ownContext.roomCode = room.code;
       ownContext.playerId = player.id;
       sockets.set(socket, ownContext);
-      safeSend(socket, { type: 'joined', roomCode: room.code, playerId: player.id });
+      safeSend(socket, { type: 'joined', roomCode: room.code, playerId: player.id, resumeToken: player.resumeToken });
       broadcastState(room);
       return;
     }
@@ -708,11 +789,12 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         return;
       }
       player.socket = socket;
+      player.disconnectedAt = null;
       const ownContext = sockets.get(socket) || {};
       ownContext.roomCode = room.code;
       ownContext.playerId = player.id;
       sockets.set(socket, ownContext);
-      safeSend(socket, { type: 'joined', roomCode: room.code, playerId: player.id });
+      safeSend(socket, { type: 'joined', roomCode: room.code, playerId: player.id, resumeToken: player.resumeToken, reconnected: true });
       broadcastState(room);
       return;
     }
@@ -724,6 +806,16 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
     const { room, player } = membership;
     room.lastActivityAt = now;
+
+    if (message.type === 'submit_answer') {
+      context.answerTimes = (context.answerTimes || []).filter(time => now - time < 5000);
+      if (context.answerTimes.length >= 8) {
+        sendError(socket, 'Too many answers in a short time. Wait a moment and try again.', 'answer_rate_limited');
+        return;
+      }
+      context.answerTimes.push(now);
+      sockets.set(socket, context);
+    }
 
     if (message.type === 'suggest_answer') {
       const typed = String(message.answer || '').trim().slice(0, 80);
@@ -777,13 +869,15 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
 
     if (message.type === 'chat_message') {
-      if (context.lastChatAt && now - context.lastChatAt < 750) {
+      context.chatTimes = (context.chatTimes || []).filter(time => now - time < 10000);
+      if (context.chatTimes.length >= 6 || (context.lastChatAt && now - context.lastChatAt < 750)) {
         sendError(socket, 'Please wait a moment before sending another chat message.', 'chat_rate_limited');
         return;
       }
       const text = String(message.text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
       if (!text) return;
       context.lastChatAt = now;
+      context.chatTimes.push(now);
       sockets.set(socket, context);
       const chatMessage = {
         type: 'room_chat',
@@ -959,9 +1053,44 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     }
   }
 
+  function removeDisconnectedPlayer(room, playerId) {
+    const player = room.players.find(item => item.id === playerId);
+    if (!player || (player.socket && player.socket.readyState === WebSocket.OPEN)) return;
+    room.players = room.players.filter(item => item.id !== playerId);
+    if (!room.players.length) { rooms.delete(room.code); return; }
+    if (room.hostId === playerId) room.hostId = room.players[0].id;
+    if (room.currentHolderId === playerId && room.phase === 'playing') {
+      const next = nextAlive(room, playerId);
+      startPlayerTurn(room, next ? next.id : null);
+    }
+    if (room.phase === 'playing') {
+      const activeCompetitors = room.variant === 'team-rush'
+        ? new Set(room.players.filter(item => item.alive).map(item => item.team).filter(Boolean)).size
+        : room.players.filter(item => item.alive).length;
+      if (activeCompetitors <= 1) { finishGame(room).catch(error => console.error(error.message)); return; }
+    }
+    broadcastState(room);
+  }
+
   function tickRooms() {
     const now = Date.now();
     for (const [code, room] of rooms.entries()) {
+      for (const player of [...room.players]) {
+        if (!player.socket && player.disconnectedAt && now - player.disconnectedAt >= RECONNECT_GRACE_MS) {
+          removeDisconnectedPlayer(room, player.id);
+        }
+      }
+      if (!rooms.has(code)) continue;
+      if (shouldDownshiftLargeQueue(room, now)) {
+        room.group = 'flex';
+        room.capacity = room.players.length;
+        room.targetMin = room.players.length;
+        room.fallbackApplied = true;
+        room.autoStartAt = now + 4500;
+        broadcast(room, { type: 'queue_adjusted', group: 'flex', players: room.players.length, message: 'The large queue was resized to fit the explorers waiting. Your smaller match is starting shortly.' });
+        broadcastState(room);
+        broadcast(room, { type: 'match_ready', startsInMs: 4500, message: 'Flexible match · starting shortly.' });
+      }
       if (now - room.lastActivityAt > ROOM_IDLE_MS && (room.phase === 'lobby' || room.phase === 'finished')) {
         rooms.delete(code);
         broadcast(room, { type: 'room_closed', message: 'This room has expired.' });
@@ -1020,8 +1149,9 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     socket.on('close', () => {
       // A disconnected player stays in their seat briefly so a reconnect can be added later.
       const membership = roomForSocket(socket);
-      if (membership) {
+      if (membership && membership.player.socket === socket) {
         membership.player.socket = null;
+        membership.player.disconnectedAt = Date.now();
         membership.room.lastActivityAt = Date.now();
         broadcastState(membership.room);
       }
@@ -1060,4 +1190,4 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   };
 }
 
-module.exports = { createPartyServer, GROUPS, categoryRotationReason, normaliseRoomSettings, DEFAULT_ROOM_SETTINGS, inheritedFuseDurationMs };
+module.exports = { createPartyServer, GROUPS, categoryRotationReason, normaliseRoomSettings, DEFAULT_ROOM_SETTINGS, inheritedFuseDurationMs, normaliseVariant, survivalFuseSeconds, survivalDifficulty, shouldDownshiftLargeQueue };
