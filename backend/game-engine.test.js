@@ -73,6 +73,7 @@ test('Atlas Daily rotates through distinct question families and exposes visual 
     assert.ok(bank.some(question => question.id === id), 'missing question bank entry: ' + id);
   }
   assert.equal(engine.getQuestion('euro-countries').type, 'currency');
+  assert.equal(engine.matchAnswer(engine.getQuestion('euro-countries'), 'Bulgaria').name, 'Bulgaria');
   assert.equal(engine.getQuestion('flag-colours-blue-white-red').visual.kind, 'flag-colours');
 });
 
