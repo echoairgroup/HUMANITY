@@ -47,10 +47,49 @@ test('unapproved answers are not accepted', () => {
   assert.equal(engine.matchAnswer(snacks, 'invented snack name'), null);
 });
 
-test('answer matching tolerates a unique small typo but still rejects unrelated guesses', () => {
+test('Krillion-style matching accepts a single adjacent-letter swap only', () => {
   const snacks = engine.getQuestion('popular-snacks');
-  assert.equal(engine.matchAnswer(snacks, 'Krokett').name, 'Kroket');
+  assert.equal(engine.matchAnswer(snacks, 'Kroekt').name, 'Kroket');
+  assert.equal(engine.matchAnswer(snacks, 'Krokett'), null);
   assert.equal(engine.matchAnswer(snacks, 'zzzzzzzz'), null);
+});
+
+test('Krillion-style matching ignores articles, accents, punctuation and common plurals', () => {
+  const riverQuestion = {
+    category: 'European rivers',
+    prompt: 'Name a river in Europe.',
+    answers: [{ name: 'Thames', aliases: [], rarity: 2 }]
+  };
+  assert.equal(engine.matchAnswer(riverQuestion, 'The River Thames').name, 'Thames');
+  assert.equal(engine.matchAnswer(riverQuestion, 'Thames River!').name, 'Thames');
+
+  const snackQuestion = {
+    category: 'Popular snacks',
+    prompt: 'Name a popular snack.',
+    answers: [{ name: 'Mushrooms', aliases: [], rarity: 1 }]
+  };
+  assert.equal(engine.matchAnswer(snackQuestion, 'Mushroom').name, 'Mushrooms');
+});
+
+test('Krillion-style matching converts number words into the matching digits', () => {
+  const question = {
+    category: 'Road names',
+    prompt: 'Name a road.',
+    answers: [{ name: 'Route 66', aliases: [], rarity: 2 }]
+  };
+  assert.equal(engine.matchAnswer(question, 'Route sixty six').name, 'Route 66');
+});
+
+test('ambiguous one-letter transpositions are not accepted', () => {
+  const question = {
+    category: 'Letter patterns',
+    prompt: 'Name a letter pattern.',
+    answers: [
+      { name: 'bac', aliases: [], rarity: 1 },
+      { name: 'acb', aliases: [], rarity: 2 }
+    ]
+  };
+  assert.equal(engine.matchAnswer(question, 'abc'), null);
 });
 
 test('country aliases are matched across common international names', () => {
