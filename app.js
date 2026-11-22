@@ -1487,6 +1487,7 @@
       playSound(localPlayer && localPlayer.nickname === message.results.winner ? 'victory' : 'defeat');
       state.result = message.results;
       renderPartyResults(message.results);
+      if (state.token) loadProfile(true);
     } else if (message.type === 'error') {
       playSound('miss');
       if (message.code === 'invalid_capacity' || message.code === 'settings_locked' || message.code === 'not_room_host') {
@@ -1602,6 +1603,10 @@
     const settings = room.settings || {};
     const startingLives = Math.max(1, Number(settings.startingLives || 2));
     const maximumLives = Math.max(startingLives, Number(settings.maxLives || 3));
+    $('#planet-game-mode').textContent = settings.gameMode === 'sudden-death' ? 'SUDDEN DEATH' : 'CLASSIC';
+    $('#planet-difficulty').textContent = String(settings.difficulty || 'normal').toUpperCase();
+    $('#planet-theme').textContent = String(settings.categoryTheme || 'all').replace(/-/g, ' ').toUpperCase();
+    $('#planet-rating').textContent = room.mode === 'ranked' || settings.ratingEnabled ? 'ON · RATED' : 'OFF · CASUAL';
     $('#planet-starting-lives').textContent = startingLives + (startingLives === 1 ? ' LIFE' : ' LIVES');
     $('#planet-max-lives').textContent = maximumLives + ' LIVES';
     $('#planet-turn-clock').textContent = Number(settings.turnDurationSeconds) > 0
@@ -1852,7 +1857,7 @@
     return PLANET_AVATARS.some(planet => planet.id === key) ? key : 'mercury';
   }
   function selectedPlanetAvatar() {
-    const streak = Math.max(0, Number(state.player && state.player.dailyStreak || 0));
+    const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
     const preferred = localStorage.getItem('humanity-globe-avatar') || 'mercury';
     const unlocked = PLANET_AVATARS.find(planet => planet.id === preferred && planet.streak <= streak);
     return unlocked ? unlocked.id : 'mercury';
@@ -1860,9 +1865,9 @@
   function renderPlanetAvatarOptions() {
     const root = $('#planet-avatar-options');
     if (!root) return;
-    const streak = Math.max(0, Number(state.player && state.player.dailyStreak || 0));
+    const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
     const selected = selectedPlanetAvatar();
-    $('#planet-avatar-streak').textContent = streak + (streak === 1 ? ' DAY STREAK' : ' DAY STREAK');
+    $('#planet-avatar-streak').textContent = streak + ' DAY GLOBE RUSH STREAK';
     root.innerHTML = PLANET_AVATARS.map(planet => {
       const locked = streak < planet.streak;
       const active = selected === planet.id;
