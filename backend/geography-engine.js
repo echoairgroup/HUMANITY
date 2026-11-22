@@ -650,7 +650,7 @@ function getPartyQuestion(excludedIds, options = {}) {
   const difficultyPool = themePool.filter(item => partyDifficultyMatches(item, options.difficulty || 'normal'));
   // A deliberately narrow theme/difficulty combination should never block a match
   // when the curated answer bank does not contain enough questions for another rotation.
-  const sourcePool = difficultyPool.length >= 4 ? difficultyPool : themePool.length ? themePool : PARTY_QUESTIONS;
+  const sourcePool = difficultyPool.length ? difficultyPool : themePool.length ? themePool : PARTY_QUESTIONS;
   let eligible = sourcePool.filter(item =>
     !excluded.has(item.id) && !excludedTopics.has(item.topicId)
   );
