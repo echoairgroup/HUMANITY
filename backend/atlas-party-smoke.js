@@ -441,11 +441,18 @@ async function checkRoomReconnect() {
     const resumeToken = pair.guestJoined.resumeToken;
     assert.ok(resumeToken && resumeToken.length >= 24, 'The server should issue an opaque reconnect token');
 
+    const disconnectedStatePromise = pair.host.waitFor(message =>
+      message.type === 'room_state' && message.code === pair.roomCode &&
+      message.players?.some(player => player.id === playerId && player.isConnected === false),
+      8000, 'host sees the temporarily disconnected seat'
+    );
     const guestClosePromise = new Promise(resolve => {
       pair.guest.socket.once('close', (code, reason) => resolve({ code, reason: reason.toString() }));
     });
     pair.guest.socket.terminate();
     await guestClosePromise;
+    const disconnectedState = await disconnectedStatePromise;
+    assert.equal(disconnectedState.phase, 'lobby', 'A short disconnect should preserve the room');
     // Give the server a moment to process the TCP close before restoring the same seat.
     await pause(500);
 
@@ -463,7 +470,8 @@ async function checkRoomReconnect() {
     const [rejoined, restoredState] = await Promise.all([rejoinedPromise, restoredStatePromise]);
     assert.equal(rejoined.playerId, playerId, 'Reconnect should restore the original player identity');
     assert.equal(rejoined.resumeToken, resumeToken, 'Reconnect should keep the same resume token');
-    assert.ok(restoredState.players.some(player => player.id === playerId && player.isYou));
+    assert.ok(restoredState.players.some(player => player.id === playerId && player.isConnected === true && player.isYou === false),
+      'The host view should show the reconnected player as online');
     console.log('PASS: a disconnected player can securely return to the same room and seat.');
   } finally {
     await closeClients([pair?.host, pair?.guest, restored]);
