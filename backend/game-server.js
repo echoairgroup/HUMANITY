@@ -22,6 +22,10 @@ const ALLOWED_ORIGINS = new Set(
 );
 const DAILY_SECONDS = 25;
 const SESSION_DAYS = 30;
+const PLANET_AVATAR_STREAKS = Object.freeze({
+  mercury: 0, venus: 3, earth: 7, mars: 14,
+  jupiter: 30, saturn: 60, uranus: 90, neptune: 150
+});
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -88,9 +92,9 @@ function bearer(request) {
 async function authenticateToken(token) {
   if (!token) return null;
   const result = await pool.query(
-    'SELECT p.id, p.username, p.email, p.avatar_url, p.country_code, p.xp, p.level, p.daily_streak, p.best_streak, p.party_rating, p.party_streak_days ' +
+    'SELECT p.id, p.username, p.email, p.avatar_url, p.country_code, p.xp, p.level, p.daily_streak, p.best_streak, p.party_rating, p.party_streak_days, p.role, p.selected_avatar, p.avatar_locked, p.account_status ' +
     'FROM humanity_sessions s JOIN humanity_players p ON p.id = s.player_id ' +
-    'WHERE s.token_hash = $1 AND s.expires_at > NOW() LIMIT 1',
+    "WHERE s.token_hash = $1 AND s.expires_at > NOW() AND COALESCE(p.account_status, 'active') = 'active' LIMIT 1",
     [hashToken(token)]
   );
   return result.rows[0] || null;
@@ -110,9 +114,16 @@ async function requireUser(request, response) {
   return user;
 }
 
+function roleFor(user) {
+  if (!user) return 'member';
+  const email = String(user.email || '').toLowerCase();
+  if (email && ADMIN_EMAILS.has(email)) return 'owner';
+  const role = String(user.role || 'member').toLowerCase();
+  return role === 'admin' || role === 'moderator' ? role : 'member';
+}
+
 async function isAdmin(user) {
-  if (!user || !user.email) return false;
-  return ADMIN_EMAILS.has(String(user.email).toLowerCase());
+  return ['owner', 'admin', 'moderator'].includes(roleFor(user));
 }
 
 function publicUser(user, admin) {
@@ -121,6 +132,9 @@ function publicUser(user, admin) {
     username: user.username,
     email: user.email,
     avatarUrl: user.avatar_url,
+    selectedAvatar: user.selected_avatar || 'mercury',
+    avatarLocked: Boolean(user.avatar_locked),
+    role: roleFor(user),
     countryCode: user.country_code,
     xp: Number(user.xp || 0),
     level: Number(user.level || 1),
@@ -721,7 +735,7 @@ async function handleRegister(request, response) {
   const id = crypto.randomUUID();
   try {
     const result = await pool.query(
-      'INSERT INTO humanity_players (id, username, email, password_salt, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days',
+      'INSERT INTO humanity_players (id, username, email, password_salt, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days, role, selected_avatar, avatar_locked, account_status',
       [id, username, email || null, salt, Buffer.from(digest).toString('hex')]
     );
     const token = await createSession(id);
@@ -741,7 +755,7 @@ async function handleLogin(request, response) {
     return;
   }
   const result = await pool.query(
-    'SELECT id, username, email, password_salt, password_hash, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days ' +
+    'SELECT id, username, email, password_salt, password_hash, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days, role, selected_avatar, avatar_locked, account_status ' +
     'FROM humanity_players WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1) LIMIT 1',
     [identifier]
   );
@@ -754,6 +768,10 @@ async function handleLogin(request, response) {
   const expected = Buffer.from(player.password_hash, 'hex');
   if (expected.length !== digest.length || !crypto.timingSafeEqual(expected, digest)) {
     sendError(response, 401, 'Those sign-in details were not recognised.', 'invalid_credentials');
+    return;
+  }
+  if (player.account_status !== 'active') {
+    sendError(response, 403, 'This HUMANITY account is currently suspended. Contact the site administrator for help.', 'account_suspended');
     return;
   }
   const token = await createSession(player.id);
@@ -793,7 +811,7 @@ async function upsertOAuthPlayer(provider, profile) {
   const providerColumn = isGoogle ? 'google_sub' : 'discord_id';
 
   let found = await pool.query(
-    'SELECT id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days FROM humanity_players WHERE ' +
+    'SELECT id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days, role, selected_avatar, avatar_locked, account_status FROM humanity_players WHERE ' +
     providerColumn + ' = $1 OR ($2::text IS NOT NULL AND email = $2) LIMIT 1',
     [providerId, email]
   );
@@ -818,7 +836,7 @@ async function upsertOAuthPlayer(provider, profile) {
   const columns = isGoogle ? 'google_sub' : 'discord_id';
   const result = await pool.query(
     'INSERT INTO humanity_players (id, username, email, avatar_url, ' + columns + ') VALUES ($1,$2,$3,$4,$5) ' +
-    'RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days',
+    'RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days, role, selected_avatar, avatar_locked, account_status',
     [id, username, email, avatar, providerId]
   );
   return result.rows[0];
@@ -861,6 +879,10 @@ async function finishOAuth(provider, request, response, url) {
   if (!profileResponse.ok) throw new Error(provider + ' profile request failed.');
   const profile = await profileResponse.json();
   const player = await upsertOAuthPlayer(provider, profile);
+  if (player.account_status !== 'active') {
+    sendError(response, 403, 'This HUMANITY account is currently suspended. Contact the site administrator for help.', 'account_suspended');
+    return;
+  }
   const token = await createSession(player.id);
   response.writeHead(302, { Location: SITE_URL + (SITE_URL.includes('?') ? '&' : '?') + 'session=' + encodeURIComponent(token), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
   response.end();
@@ -1532,6 +1554,32 @@ async function handleAPI(request, response, url, party) {
     const handled = await handleAdmin(request, response, url, user);
     if (handled) return true;
     sendError(response, 404, 'Admin endpoint not found.', 'not_found');
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/profile/avatar') {
+    const user = await requireUser(request, response);
+    if (!user) return true;
+    const body = await readJSON(request);
+    const avatarKey = String(body.avatarKey || '').trim().toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(PLANET_AVATAR_STREAKS, avatarKey)) {
+      sendError(response, 400, 'Choose a valid planet avatar.', 'invalid_avatar');
+      return true;
+    }
+    if (user.avatar_locked && !(await isAdmin(user))) {
+      sendError(response, 403, 'Your planet avatar was assigned by a HUMANITY administrator and is locked.', 'avatar_locked');
+      return true;
+    }
+    const minimumStreak = PLANET_AVATAR_STREAKS[avatarKey];
+    if (Number(user.party_streak_days || 0) < minimumStreak && !(await isAdmin(user))) {
+      sendError(response, 403, 'Reach the required Globe Rush streak to unlock this planet.', 'avatar_locked');
+      return true;
+    }
+    const updated = await pool.query(
+      'UPDATE humanity_players SET selected_avatar = $2, updated_at = NOW() WHERE id = $1 RETURNING id, username, email, avatar_url, country_code, xp, level, daily_streak, best_streak, party_rating, party_streak_days, role, selected_avatar, avatar_locked, account_status',
+      [user.id, avatarKey]
+    );
+    sendJSON(response, 200, { ok: true, player: publicUser(updated.rows[0], await isAdmin(updated.rows[0])) });
     return true;
   }
 
