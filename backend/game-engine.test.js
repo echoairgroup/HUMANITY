@@ -184,7 +184,7 @@ test('frontend collection selectors use querySelectorAll helpers', () => {
   const collectionMethods = ['.forEach(', '.map(', '.filter(', '.some(', '.every(', '.reduce('];
   const invalid = frontend.split('\n').filter(line => {
     const start = line.indexOf('$(');
-    if (start < 0) return false;
+    if (start < 0 || (start > 0 && line[start - 1] === '$')) return false;
     const close = line.indexOf(')', start + 2);
     if (close < 0) return false;
     const suffix = line.slice(close + 1).trimStart();
