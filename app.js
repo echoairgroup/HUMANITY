@@ -1357,15 +1357,21 @@
     if (!root) return;
     const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
     const selected = selectedPlanetAvatar();
+    const adminAssigned = Boolean(state.player && state.player.avatarLocked);
     root.innerHTML = '<div class="profile-avatar-heading"><span class="micro-label">PLANET COLLECTION</span>' +
       '<strong>Choose your orbit avatar</strong><small>' + streak + ' consecutive Globe Rush days · unlock more planets as your streak grows</small></div>' +
+      (adminAssigned ? '<p class="profile-avatar-admin-note">Your planet avatar was assigned by a HUMANITY administrator and is currently locked.</p>' : '') +
       '<div class="profile-avatar-grid">' + PLANET_AVATARS.map(planet => {
-        const locked = streak < planet.streak;
+        const streakLocked = streak < planet.streak;
+        const locked = adminAssigned || streakLocked;
+        const status = adminAssigned
+          ? (selected === planet.id ? 'ADMIN ASSIGNED' : 'ADMIN LOCKED')
+          : (streakLocked ? planet.streak + ' DAY STREAK' : selected === planet.id ? 'SELECTED' : 'UNLOCKED');
         return '<button class="profile-planet-choice' + (selected === planet.id ? ' selected' : '') + (locked ? ' locked' : '') +
           '" type="button" data-profile-avatar="' + planet.id + '"' + (locked ? ' disabled aria-disabled="true"' : '') +
-          ' title="' + (locked ? 'Reach a ' + planet.streak + '-day streak to unlock ' + planet.name : 'Use ' + planet.name) + '">' +
+          ' title="' + (adminAssigned ? 'This avatar collection is locked by a HUMANITY administrator' : (streakLocked ? 'Reach a ' + planet.streak + '-day streak to unlock ' + planet.name : 'Use ' + planet.name)) + '">' +
           '<span class="planet-avatar-visual planet-avatar-' + planet.id + '"></span><b>' + planet.name + '</b>' +
-          '<small>' + (locked ? planet.streak + ' DAY STREAK' : selected === planet.id ? 'SELECTED' : 'UNLOCKED') + '</small></button>';
+          '<small>' + status + '</small></button>';
       }).join('') + '</div>';
   }
   function renderProfileHistory(entries) {
@@ -2081,27 +2087,37 @@
     return PLANET_AVATARS.some(planet => planet.id === key) ? key : 'mercury';
   }
   function selectedPlanetAvatar() {
-    const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
-    const preferred = localStorage.getItem('humanity-globe-avatar') || 'mercury';
-    const unlocked = PLANET_AVATARS.find(planet => planet.id === preferred && planet.streak <= streak);
-    return unlocked ? unlocked.id : 'mercury';
+    const player = state.player;
+    const streak = Math.max(0, Number(player && player.partyStreak || 0));
+    const preferred = player && player.selectedAvatar
+      ? String(player.selectedAvatar)
+      : (localStorage.getItem('humanity-globe-avatar') || 'mercury');
+    const avatar = PLANET_AVATARS.find(planet => planet.id === preferred);
+    if (!avatar) return 'mercury';
+    if (player && player.avatarLocked) return avatar.id;
+    return avatar.streak <= streak ? avatar.id : 'mercury';
   }
   function renderPlanetAvatarOptions() {
     const root = $('#planet-avatar-options');
     if (!root) return;
     const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
     const selected = selectedPlanetAvatar();
+    const adminAssigned = Boolean(state.player && state.player.avatarLocked);
     $('#planet-avatar-streak').textContent = streak + ' DAY GLOBE RUSH STREAK';
-    root.innerHTML = PLANET_AVATARS.map(planet => {
-      const locked = streak < planet.streak;
-      const active = selected === planet.id;
-      const status = locked ? planet.streak + ' DAY STREAK' : planet.streak ? 'UNLOCKED' : 'STARTER';
-      return '<button class="planet-avatar-choice' + (active ? ' selected' : '') + (locked ? ' locked' : '') +
-        '" type="button" data-planet-avatar="' + planet.id + '"' + (locked ? ' disabled aria-disabled="true"' : '') +
-        ' title="' + (locked ? 'Reach a ' + planet.streak + '-day playing streak to unlock ' + planet.name : 'Choose ' + planet.name) + '">' +
-        '<span class="planet-avatar-visual planet-avatar-' + planet.id + '"></span><b>' + planet.name +
-        '</b><small>' + status + '</small></button>';
-    }).join('');
+    root.innerHTML = (adminAssigned ? '<p class="profile-avatar-admin-note">Avatar assigned by HUMANITY administration.</p>' : '') +
+      PLANET_AVATARS.map(planet => {
+        const streakLocked = streak < planet.streak;
+        const locked = adminAssigned || streakLocked;
+        const active = selected === planet.id;
+        const status = adminAssigned
+          ? (active ? 'ADMIN ASSIGNED' : 'ADMIN LOCKED')
+          : (streakLocked ? planet.streak + ' DAY STREAK' : planet.streak ? 'UNLOCKED' : 'STARTER');
+        return '<button class="planet-avatar-choice' + (active ? ' selected' : '') + (locked ? ' locked' : '') +
+          '" type="button" data-planet-avatar="' + planet.id + '"' + (locked ? ' disabled aria-disabled="true"' : '') +
+          ' title="' + (adminAssigned ? 'Your avatar is locked by a HUMANITY administrator' : (streakLocked ? 'Reach a ' + planet.streak + '-day playing streak to unlock ' + planet.name : 'Choose ' + planet.name)) + '">' +
+          '<span class="planet-avatar-visual planet-avatar-' + planet.id + '"></span><b>' + planet.name +
+          '</b><small>' + status + '</small></button>';
+      }).join('');
   }
 
   function queueMatch(mode, group) {
@@ -2458,21 +2474,45 @@
       }
     });
     $('#room-rematch').addEventListener('click', () => sendSocket({ type: 'rematch' }));
-    $('#profile-avatar-collection').addEventListener('click', event => {
+    $('#profile-avatar-collection').addEventListener('click', async event => {
       const button = event.target.closest('[data-profile-avatar]');
       if (!button || button.disabled) return;
-      localStorage.setItem('humanity-globe-avatar', button.dataset.profileAvatar);
-      renderProfileAvatarCollection();
-      renderPlanetAvatarOptions();
-      playSound('toggle');
-      toast(button.dataset.profileAvatar.charAt(0).toUpperCase() + button.dataset.profileAvatar.slice(1) + ' selected as your planet avatar.');
+      const avatarKey = button.dataset.profileAvatar;
+      try {
+        if (state.token) {
+          const result = await api('/profile/avatar', { method: 'POST', body: { avatarKey } });
+          setAccountUI(result.player);
+        }
+        localStorage.setItem('humanity-globe-avatar', avatarKey);
+        renderProfileAvatarCollection();
+        renderPlanetAvatarOptions();
+        playSound('toggle');
+        toast(avatarKey.charAt(0).toUpperCase() + avatarKey.slice(1) + ' selected as your planet avatar.');
+      } catch (error) {
+        renderProfileAvatarCollection();
+        renderPlanetAvatarOptions();
+        toast(error.message);
+      }
     });
-    $('#planet-avatar-options').addEventListener('click', event => {
+    $('#planet-avatar-options').addEventListener('click', async event => {
       const button = event.target.closest('[data-planet-avatar]');
       if (!button || button.disabled) return;
-      localStorage.setItem('humanity-globe-avatar', button.dataset.planetAvatar);
-      renderPlanetAvatarOptions();
-      playSound('toggle');
+      const avatarKey = button.dataset.planetAvatar;
+      try {
+        if (state.token) {
+          const result = await api('/profile/avatar', { method: 'POST', body: { avatarKey } });
+          setAccountUI(result.player);
+        }
+        localStorage.setItem('humanity-globe-avatar', avatarKey);
+        renderProfileAvatarCollection();
+        renderPlanetAvatarOptions();
+        playSound('toggle');
+        toast(avatarKey.charAt(0).toUpperCase() + avatarKey.slice(1) + ' selected as your planet avatar.');
+      } catch (error) {
+        renderProfileAvatarCollection();
+        renderPlanetAvatarOptions();
+        toast(error.message);
+      }
     });
     $('#rush-answer').addEventListener('input', schedulePartySuggestion);
     $('#rush-suggestion').addEventListener('click', event => {
