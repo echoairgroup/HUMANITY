@@ -47,6 +47,23 @@ test('unapproved answers are not accepted', () => {
   assert.equal(engine.matchAnswer(snacks, 'invented snack name'), null);
 });
 
+test('answer matching tolerates a unique small typo but still rejects unrelated guesses', () => {
+  const snacks = engine.getQuestion('popular-snacks');
+  assert.equal(engine.matchAnswer(snacks, 'Krokett').name, 'Kroket');
+  assert.equal(engine.matchAnswer(snacks, 'zzzzzzzz'), null);
+});
+
+test('country aliases are matched across common international names', () => {
+  const countryQuestion = engine.getQuestion('europe-countries');
+  assert.ok(countryQuestion);
+  const netherlands = countryQuestion.answers.find(item =>
+    ['netherlands', 'the netherlands', 'holland'].includes(engine.normaliseAnswer(item.name))
+  );
+  if (netherlands) {
+    assert.equal(engine.matchAnswer(countryQuestion, 'Holland').name, netherlands.name);
+  }
+});
+
 test('the party category changes between rounds', () => {
   const first = engine.getPartyQuestion(null);
   const second = engine.getPartyQuestion(first.id);
