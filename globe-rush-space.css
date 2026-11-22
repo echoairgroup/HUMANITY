@@ -817,3 +817,55 @@
     animation: none !important;
   }
 }
+
+
+/* Keep the planet textures visible on the room's player markers. */
+#party-room .planet-seat-avatar.planet-avatar-mercury,
+#party-room .orb-player-avatar.planet-avatar-mercury,
+#party-room .planet-roster-dot.planet-avatar-mercury { background: radial-gradient(circle at 30% 27%, #e4ddc7, #99958b 48%, #4f5968 100%); }
+#party-room .planet-seat-avatar.planet-avatar-venus,
+#party-room .orb-player-avatar.planet-avatar-venus,
+#party-room .planet-roster-dot.planet-avatar-venus { background: radial-gradient(circle at 32% 28%, #fff0b8, #d79b54 55%, #80543f 100%); }
+#party-room .planet-seat-avatar.planet-avatar-earth,
+#party-room .orb-player-avatar.planet-avatar-earth,
+#party-room .planet-roster-dot.planet-avatar-earth { background: radial-gradient(circle at 35% 27%, #8ee8f1, #2588c8 50%, #123a70 100%); }
+#party-room .planet-seat-avatar.planet-avatar-mars,
+#party-room .orb-player-avatar.planet-avatar-mars,
+#party-room .planet-roster-dot.planet-avatar-mars { background: radial-gradient(circle at 33% 28%, #ffc0a0, #d45e47 53%, #742c3c 100%); }
+#party-room .planet-seat-avatar.planet-avatar-jupiter,
+#party-room .orb-player-avatar.planet-avatar-jupiter,
+#party-room .planet-roster-dot.planet-avatar-jupiter { background: repeating-linear-gradient(0deg, #8c543b 0 4px, #edc38b 4px 8px, #ad7550 8px 12px); }
+#party-room .planet-seat-avatar.planet-avatar-saturn,
+#party-room .orb-player-avatar.planet-avatar-saturn,
+#party-room .planet-roster-dot.planet-avatar-saturn { background: repeating-linear-gradient(0deg, #876a4f 0 4px, #e1c393 4px 8px, #a98660 8px 12px); }
+#party-room .planet-seat-avatar.planet-avatar-saturn::after,
+#party-room .orb-player-avatar.planet-avatar-saturn::after {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 9px;
+  width: 42px;
+  height: 9px;
+  border: 2px solid rgba(232, 207, 151, .88);
+  border-radius: 50%;
+  transform: rotate(-24deg);
+}
+#party-room .planet-seat-avatar.planet-avatar-uranus,
+#party-room .orb-player-avatar.planet-avatar-uranus,
+#party-room .planet-roster-dot.planet-avatar-uranus { background: radial-gradient(circle at 32% 28%, #e1fdff, #7cd6de 55%, #327e9a 100%); }
+#party-room .planet-seat-avatar.planet-avatar-neptune,
+#party-room .orb-player-avatar.planet-avatar-neptune,
+#party-room .planet-roster-dot.planet-avatar-neptune { background: radial-gradient(circle at 32% 28%, #b7ccff, #4568c6 55%, #18265f 100%); }
+#party-room .planet-roster-dot.planet-avatar {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(145, 220, 245, .4);
+}
+#party-room .planet-seat-avatar.planet-avatar {
+  border: 1px solid rgba(145, 220, 245, .4);
+}
+#party-room #invite-room {
+  margin-top: 7px;
+  color: #7ae4f3;
+  background: #102942;
+}
