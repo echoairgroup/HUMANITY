@@ -699,7 +699,6 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       : room.settings;
     room.currentDifficulty = roundSettings.difficulty || room.settings.difficulty || 'normal';
     const category = engine.getPartyQuestion(room.categoryHistory || room.lastCategoryId, roundSettings);
-    await loadApprovedPartyAnswers(category);
     room.category = category;
     room.lastCategoryId = category.id;
     room.categoryHistory = [...(room.categoryHistory || []), category.id];
@@ -707,6 +706,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     room.turnNumber = 0;
     room.wrongAnswersThisCategory = 0;
     room.turnsThisCategory = 0;
+    room.currentHolderId = null;
+    room.timerEndsAt = null;
+    room.timerDurationMs = null;
+    await loadApprovedPartyAnswers(category);
     const next = nextAlive(room, afterPlayerId);
     startPlayerTurn(room, next ? next.id : null, { startNewFuse: true });
     broadcast(room, {
@@ -1132,6 +1135,10 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
           mergePartyAnswer(room.category, verified);
           resolved = engine.matchAnswer(room.category, message.answer);
         }
+      }
+      if (!resolved && room.timerEndsAt && room.timerEndsAt <= Date.now()) {
+        await popOrb(room);
+        return;
       }
       if (!resolved) {
         player.invalidAnswers += 1;
