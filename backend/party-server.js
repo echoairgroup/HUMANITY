@@ -34,6 +34,7 @@ const PLANET_AVATARS = [
 const HEART_METER = [0, 5, 10, 35, 55, 100];
 const ROOM_IDLE_MS = 5 * 60 * 1000;
 const RECONNECT_GRACE_MS = 45 * 1000;
+const SOCKET_HEARTBEAT_MS = 5 * 1000;
 const LARGE_QUEUE_FALLBACK_MS = 25 * 1000;
 const ALLOWED_VARIANTS = new Set(['classic', 'team-rush', 'survival']);
 
@@ -1196,6 +1197,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
   });
 
   wss.on('connection', socket => {
+    socket.isAlive = true;
+    socket.on('pong', () => { socket.isAlive = true; });
     sockets.set(socket, { connectedAt: Date.now() });
     safeSend(socket, { type: 'connected', activeRooms: rooms.size });
     socket.on('message', raw => {
@@ -1220,8 +1223,23 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
     socket.on('error', error => console.warn('Globe Rush socket error:', error.message));
   });
 
+  const heartbeat = setInterval(() => {
+    for (const socket of wss.clients) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      if (socket.isAlive === false) {
+        socket.terminate();
+        continue;
+      }
+      socket.isAlive = false;
+      try { socket.ping(); }
+      catch (_) { socket.terminate(); }
+    }
+  }, SOCKET_HEARTBEAT_MS);
+  heartbeat.unref();
+
   async function close() {
     clearInterval(tick);
+    clearInterval(heartbeat);
     for (const socket of wss.clients) {
       try { socket.close(1001, 'Server restarting'); } catch (_) { /* ignored */ }
     }
