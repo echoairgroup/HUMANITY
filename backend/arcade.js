@@ -161,11 +161,36 @@ function cleanNickname(value) {
 
 function normaliseAnswer(value) {
   return String(value || '').normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+    .replace(/\p{M}+/gu, '')
+    .toLocaleLowerCase('en')
+    .replace(/&/g, ' and ')
+    .replace(/[’']/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function countryNameEditDistance(left, right, limit) {
+  const a = [...left];
+  const b = [...right];
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = new Array(b.length + 1).fill(limit + 1);
+    current[0] = i;
+    let rowMinimum = current[0];
+    for (let j = 1; j <= b.length; j += 1) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+      rowMinimum = Math.min(rowMinimum, current[j]);
+    }
+    if (rowMinimum > limit) return limit + 1;
+    previous = current;
+  }
+  return previous[b.length];
 }
 
 function hashNumber(value) {
@@ -247,28 +272,33 @@ function createArcade({ server, pool, allowedOrigins }) {
           byName.set(normaliseAnswer(item.name), item);
         }
         const aliases = {
-          'united states': 'USA',
-          'united states of america': 'USA',
-          'america': 'USA',
-          'uk': 'GBR',
-          'united kingdom': 'GBR',
-          'great britain': 'GBR',
+          'us': 'USA', 'u s': 'USA', 'u s a': 'USA',
+          'united states': 'USA', 'united states of america': 'USA', 'america': 'USA',
+          'uk': 'GBR', 'u k': 'GBR', 'britain': 'GBR', 'great britain': 'GBR',
+          'united kingdom': 'GBR', 'england': 'GBR', 'scotland': 'GBR', 'wales': 'GBR',
+          'the netherlands': 'NLD', 'holland': 'NLD',
           'russia': 'RUS',
-          'south korea': 'KOR',
-          'north korea': 'PRK',
-          'czech republic': 'CZE',
-          'ivory coast': 'CIV',
-          'dr congo': 'COD',
-          'democratic republic of the congo': 'COD',
-          'congo kinshasa': 'COD',
-          'republic of the congo': 'COG',
-          'congo brazzaville': 'COG',
-          'swaziland': 'SWZ',
-          'burma': 'MMR',
-          'cape verde': 'CPV',
-          'east timor': 'TLS',
-          'turkiye': 'TUR',
-          'vatican city': 'VAT'
+          'south korea': 'KOR', 'republic of korea': 'KOR', 'korea republic': 'KOR',
+          'north korea': 'PRK', 'dpr korea': 'PRK',
+          'czech republic': 'CZE', 'czechia': 'CZE',
+          'ivory coast': 'CIV', 'cote divoire': 'CIV',
+          'dr congo': 'COD', 'drc': 'COD',
+          'democratic republic of the congo': 'COD', 'congo kinshasa': 'COD',
+          'republic of the congo': 'COG', 'congo brazzaville': 'COG',
+          'swaziland': 'SWZ', 'eswatini': 'SWZ',
+          'burma': 'MMR', 'myanmar': 'MMR',
+          'cape verde': 'CPV', 'cabo verde': 'CPV',
+          'east timor': 'TLS', 'timor leste': 'TLS',
+          'turkiye': 'TUR', 'turkey': 'TUR',
+          'vatican': 'VAT', 'vatican city': 'VAT',
+          'uae': 'ARE', 'united arab emirates': 'ARE',
+          'laos': 'LAO', 'the gambia': 'GMB', 'gambia': 'GMB',
+          'north macedonia': 'MKD', 'macedonia': 'MKD',
+          'moldova': 'MDA', 'republic of moldova': 'MDA',
+          'tanzania': 'TZA', 'united republic of tanzania': 'TZA',
+          'bolivia': 'BOL', 'plurinational state of bolivia': 'BOL',
+          'brunei': 'BRN', 'brunei darussalam': 'BRN',
+          'micronesia': 'FSM', 'federated states of micronesia': 'FSM'
         };
         for (const [alias, code] of Object.entries(aliases)) {
           if (byCode.has(code)) byName.set(alias, byCode.get(code));
@@ -727,7 +757,30 @@ function createArcade({ server, pool, allowedOrigins }) {
     const catalog = await countryCatalog();
     let country = null;
     if (message.countryCode) country = catalog.byCode.get(String(message.countryCode).toUpperCase()) || null;
-    if (!country && message.answer) country = catalog.byName.get(normaliseAnswer(message.answer)) || null;
+    if (!country && message.answer) {
+      const target = normaliseAnswer(message.answer);
+      country = catalog.byName.get(target) || null;
+      if (!country && target.length >= 6) {
+        let bestDistance = Infinity;
+        const bestCountries = new Map();
+        for (const [name, candidate] of catalog.byName.entries()) {
+          if (name.length < 6) continue;
+          const limit = Math.max(target.length, name.length) >= 12 ? 2 : 1;
+          const distance = countryNameEditDistance(target, name, limit);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestCountries.clear();
+            bestCountries.set(candidate.code, candidate);
+          } else if (distance === bestDistance && distance !== Infinity) {
+            bestCountries.set(candidate.code, candidate);
+          }
+        }
+        const allowedDistance = Math.max(target.length, [...bestCountries.values()][0]?.name.length || 0) >= 12 ? 2 : 1;
+        if (bestCountries.size === 1 && bestDistance <= allowedDistance) {
+          country = [...bestCountries.values()][0];
+        }
+      }
+    }
     return country;
   }
 
