@@ -1,0 +1,94 @@
+/*
+ * HUMANITY layout guard
+ * Keep the global footer in normal document flow after the active game view.
+ * This prevents the Globe Rush lobby and footer from visually colliding on
+ * short desktop viewports and narrow screens.
+ */
+html {
+  min-height: 100%;
+}
+
+body.globe-rush-active {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+body.globe-rush-active .site-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+body.globe-rush-active #main-content {
+  flex: 1 0 auto;
+  min-width: 0;
+}
+
+body.globe-rush-active #view-party {
+  box-sizing: border-box;
+  padding-bottom: clamp(34px, 5svh, 58px);
+}
+
+body.globe-rush-active #view-party .party-lobby,
+body.globe-rush-active #view-party .party-room {
+  margin-bottom: clamp(18px, 3svh, 30px);
+}
+
+body.globe-rush-active .site-footer {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-height: 74px;
+  margin-top: 12px;
+  padding: 16px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 20px;
+  row-gap: 12px;
+}
+
+body.globe-rush-active .site-footer > * {
+  min-width: 0;
+}
+
+body.globe-rush-active .footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px 16px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  body.globe-rush-active .site-footer {
+    align-items: flex-start;
+  }
+
+  body.globe-rush-active .footer-links {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  body.globe-rush-active .site-footer {
+    margin-top: 8px;
+    padding: 14px 0 18px;
+    row-gap: 9px;
+  }
+
+  body.globe-rush-active .footer-links {
+    gap: 8px 13px;
+  }
+}
+
+/* Respect the site's reduced-motion setting and keep layout unchanged. */
+@media (prefers-reduced-motion: reduce) {
+  body.globe-rush-active .site-footer {
+    scroll-margin-top: 0;
+  }
+}
