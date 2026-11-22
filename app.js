@@ -1630,7 +1630,10 @@
       renderRoomChatMessage(message);
     } else if (message.type === 'game_over') {
       const localPlayer = state.room && state.room.players.find(player => player.isYou);
-      playSound(localPlayer && localPlayer.nickname === message.results.winner ? 'victory' : 'defeat');
+      const didWin = message.results.variant === 'team-rush'
+        ? Boolean(localPlayer && localPlayer.team && localPlayer.team === message.results.winningTeam)
+        : Boolean(localPlayer && localPlayer.nickname === message.results.winner);
+      playSound(didWin ? 'victory' : 'defeat');
       state.result = message.results;
       renderPartyResults(message.results);
       if (state.token) loadProfile(true);
@@ -1755,13 +1758,13 @@
     $('#planet-room-code').textContent = room.code;
     $('#planet-capacity').textContent = 'UP TO ' + capacity;
     const settings = room.settings || {};
+    const variant = room.variant || 'classic';
     const startingLives = Math.max(1, Number(settings.startingLives || 2));
     const maximumLives = Math.max(startingLives, Number(settings.maxLives || 3));
     $('#planet-game-mode').textContent = variant === 'team-rush' ? 'TEAM RUSH' : variant === 'survival' ? 'SURVIVAL' : (settings.gameMode === 'sudden-death' ? 'SUDDEN DEATH' : 'CLASSIC');
     $('#planet-difficulty').textContent = String(room.currentDifficulty || settings.difficulty || 'normal').toUpperCase();
     $('#planet-theme').textContent = String(settings.categoryTheme || 'all').replace(/-/g, ' ').toUpperCase();
     $('#planet-rating').textContent = room.mode === 'ranked' || settings.ratingEnabled ? 'ON · RATED' : 'OFF · CASUAL';
-    const variant = room.variant || 'classic';
     $('#planet-starting-lives').textContent = startingLives + (startingLives === 1 ? ' LIFE' : ' LIVES');
     $('#planet-max-lives').textContent = maximumLives + ' LIVES';
     $('#planet-turn-clock').textContent = Number(settings.turnDurationSeconds) > 0
