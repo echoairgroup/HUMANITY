@@ -31,6 +31,8 @@
     questionIndex: 0, question: null, pendingNextIndex: null,
     provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
+    resumeToken: sessionStorage.getItem('humanity-room-resume-token') || '',
+    reconnectAttempts: 0, reconnectTimer: null, isLeavingRoom: false, profileStats: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null, unlimited: null,
     dailyHistory: [], lastPracticeLabel: '', ascentPoints: 0, ascentMaxPoints: 700,
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
@@ -141,8 +143,15 @@
       if (!state.audioContext) {
         const context = new AudioClass();
         const master = context.createGain();
-        master.gain.value = (state.soundVolume / 100) * 1.8;
-        master.connect(context.destination);
+        const compressor = context.createDynamicsCompressor();
+        master.gain.value = (state.soundVolume / 100) * 2.35;
+        compressor.threshold.value = -9;
+        compressor.knee.value = 14;
+        compressor.ratio.value = 4;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.22;
+        master.connect(compressor);
+        compressor.connect(context.destination);
         state.audioContext = context;
         state.audioMaster = master;
       }
@@ -164,7 +173,7 @@
     oscillator.frequency.setValueAtTime(Math.max(30, frequency), at);
     if (glideTo) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, glideTo), at + duration * 0.82);
     envelope.gain.setValueAtTime(0.0001, at);
-    envelope.gain.exponentialRampToValueAtTime(Math.min(0.08, Math.max(0.0002, amplitude || 0.025) * 1.35), at + Math.min(0.016, duration * 0.2));
+    envelope.gain.exponentialRampToValueAtTime(Math.min(0.105, Math.max(0.0002, amplitude || 0.025) * 1.55), at + Math.min(0.016, duration * 0.2));
     envelope.gain.exponentialRampToValueAtTime(0.0001, at + duration);
     oscillator.connect(envelope);
     envelope.connect(state.audioMaster);
@@ -188,7 +197,7 @@
     filter.frequency.setValueAtTime(Math.max(180, cutoff || 2200), at);
     filter.Q.value = 0.65;
     envelope.gain.setValueAtTime(0.0001, at);
-    envelope.gain.exponentialRampToValueAtTime(Math.min(0.08, Math.max(0.0002, amplitude || 0.018) * 1.35), at + Math.min(0.025, duration * 0.25));
+    envelope.gain.exponentialRampToValueAtTime(Math.min(0.105, Math.max(0.0002, amplitude || 0.018) * 1.55), at + Math.min(0.025, duration * 0.25));
     envelope.gain.exponentialRampToValueAtTime(0.0001, at + duration);
     source.connect(filter);
     filter.connect(envelope);
@@ -621,6 +630,27 @@
       button.innerHTML = 'Start today’s Atlas <span aria-hidden="true">↗</span>';
     }
   }
+  function renderDailyQuestionVisual(question) {
+    const root = $('#daily-question-visual');
+    if (!root) return;
+    const visual = question && question.visual;
+    root.innerHTML = '';
+    root.hidden = !visual || !['flag-colours', 'symbol'].includes(visual.kind);
+    if (root.hidden) return;
+    root.dataset.kind = visual.kind;
+    if (visual.kind === 'flag-colours') {
+      const colors = (Array.isArray(visual.colors) ? visual.colors : []).filter(color => /^#[0-9a-f]{6}$/i.test(String(color)));
+      root.innerHTML = '<div class="question-colour-strip">' + colors.map(color => '<i style="--clue-colour:' + color + '"></i>').join('') + '</div><small>FLAG COLOUR CLUE</small>';
+    } else {
+      const glyph = document.createElement('span');
+      glyph.className = 'question-symbol-glyph';
+      glyph.textContent = String(visual.text || '✦').slice(0, 4);
+      const label = document.createElement('small');
+      label.textContent = String(visual.label || 'WORLD CLUE').slice(0, 32);
+      root.append(glyph, label);
+    }
+  }
+
   function updateQuestion(question, index) {
     if (state.question) playSound('question');
     clearDailySuggestion();
@@ -631,6 +661,7 @@
     $('#question-number').textContent = String(index + 1).padStart(2, '0');
     $('.question-count .muted').textContent = state.unlimited ? ' / ∞' : ' / 07';
     $('#question-category').textContent = question.category || 'GEOGRAPHY';
+    renderDailyQuestionVisual(question);
     $('#daily-archive-exit').hidden = !state.practice && !state.unlimited;
     $('#daily-archive-exit').textContent = state.unlimited ? 'EXIT PRACTICE ×' : 'EXIT ARCHIVE ×';
     $('#unlimited-actions').hidden = !state.unlimited;
@@ -1273,10 +1304,12 @@
     state.player = player || null;
     renderPlanetAvatarOptions();
     if (!player) {
+      state.profileStats = null;
       $('#account-avatar').textContent = '?';
       $('#account-label').textContent = 'Sign in';
       $('#admin-open').hidden = true;
       $('#streak-number').textContent = '— days';
+      if ($('#profile-avatar-collection')) $('#profile-avatar-collection').innerHTML = '';
       return;
     }
     $('#account-avatar').textContent = (player.username || 'E').slice(0,1).toUpperCase();
@@ -1291,7 +1324,45 @@
     $('#streak-number').textContent = number.format(player.dailyStreak || 0) + ' days';
     $('#admin-open').hidden = !player.isAdmin;
   }
-  async function loadProfile(silent) {
+  function formatPlayTime(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    return hours ? hours + 'h ' + minutes + 'm' : minutes + 'm';
+  }
+  function renderProfileStats(stats, player) {
+    const target = $('#profile-stats');
+    if (!target || !player) return;
+    const xp = Math.max(0, Number(player.xp || 0));
+    const level = Math.max(1, Number(player.level || 1));
+    const levelProgress = xp % 500;
+    const pct = levelProgress / 500 * 100;
+    target.innerHTML =
+      '<div><span>LEVEL</span><b>' + number.format(level) + '</b></div>' +
+      '<div><span>TOTAL XP</span><b>' + number.format(xp) + '</b></div>' +
+      '<div><span>RANKED RATING</span><b>' + number.format(player.partyRating || 1000) + '</b></div>' +
+      '<div><span>PLAY TIME</span><b>' + formatPlayTime(stats.totalPlaySeconds) + '</b></div>' +
+      '<div><span>ATLAS DAILIES</span><b>' + number.format(stats.dailyGames || 0) + '</b></div>' +
+      '<div><span>GLOBE RUSH WINS</span><b>' + number.format(stats.partyWins || 0) + '</b></div>' +
+      '<div class="profile-level-progress"><span>NEXT LEVEL · ' + number.format(500 - levelProgress) + ' XP TO GO</span>' +
+      '<i><b style="width:' + pct.toFixed(1) + '%"></b></i></div>';
+  }
+  function renderProfileAvatarCollection() {
+    const root = $('#profile-avatar-collection');
+    if (!root) return;
+    const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
+    const selected = selectedPlanetAvatar();
+    root.innerHTML = '<div class="profile-avatar-heading"><span class="micro-label">PLANET COLLECTION</span>' +
+      '<strong>Choose your orbit avatar</strong><small>' + streak + ' consecutive Globe Rush days · unlock more planets as your streak grows</small></div>' +
+      '<div class="profile-avatar-grid">' + PLANET_AVATARS.map(planet => {
+        const locked = streak < planet.streak;
+        return '<button class="profile-planet-choice' + (selected === planet.id ? ' selected' : '') + (locked ? ' locked' : '') +
+          '" type="button" data-profile-avatar="' + planet.id + '"' + (locked ? ' disabled aria-disabled="true"' : '') +
+          ' title="' + (locked ? 'Reach a ' + planet.streak + '-day streak to unlock ' + planet.name : 'Use ' + planet.name) + '">' +
+          '<span class="planet-avatar-visual planet-avatar-' + planet.id + '"></span><b>' + planet.name + '</b>' +
+          '<small>' + (locked ? planet.streak + ' DAY STREAK' : selected === planet.id ? 'SELECTED' : 'UNLOCKED') + '</small></button>';
+      }).join('') + '</div>';
+  }
   function renderProfileAchievements(achievements,stats) {
     const target=$('#profile-achievements');
     if(!target)return;
@@ -1309,18 +1380,21 @@
           '<em>'+(item.unlocked?'UNLOCKED':number.format(item.progress||0)+' / '+number.format(item.target||1))+'</em></div></article>';
       }).join('')+'</div>';
   }
-
-
-    if (!state.token) { setAccountUI(null); return null; }
+  async function loadProfile(silent) {
+      if (!state.token) { setAccountUI(null); return null; }
     try {
       const result = await api('/profile/me');
       setAccountUI(result.player);
+      state.profileStats = result.stats || {};
+      renderProfileStats(state.profileStats, result.player);
+      renderProfileAvatarCollection();
       renderProfileAchievements(result.achievements||[],result.stats||{});
       return result;
     } catch (_) {
       state.token = '';
       localStorage.removeItem('humanity-session-token');
       setAccountUI(null);
+      state.profileStats = null;
       if (!silent) toast('Your session expired. Please sign in again.');
       return null;
     }
@@ -1385,7 +1459,34 @@
     openModal('account-modal');
   }
 
+  function setPartyConnectionStatus(status, label) {
+    const badge = $('#party-connection-status');
+    if (!badge) return;
+    badge.className = 'party-connection-pill is-' + status;
+    badge.textContent = label;
+  }
+  function schedulePartyReconnect() {
+    if (state.isLeavingRoom || !state.roomCode || !state.resumeToken || state.reconnectTimer) return;
+    if (state.reconnectAttempts >= 8) {
+      setPartyConnectionStatus('offline', 'RECONNECT FAILED');
+      toast('Globe Rush could not reconnect. Your room may still be available for a short time.');
+      return;
+    }
+    const delays = [700, 1200, 1800, 2600, 3600, 4800, 6200, 7800];
+    const delay = delays[state.reconnectAttempts] || 7800;
+    state.reconnectAttempts += 1;
+    setPartyConnectionStatus('reconnecting', 'RECONNECTING · ' + state.reconnectAttempts + '/8');
+    state.reconnectTimer = setTimeout(() => {
+      state.reconnectTimer = null;
+      if (state.isLeavingRoom || !state.roomCode || !state.resumeToken) return;
+      connectSocket({ type: 'reconnect', code: state.roomCode, resumeToken: state.resumeToken });
+    }, delay);
+  }
   function connectSocket(action) {
+    if (action && action.type !== 'reconnect') {
+      state.isLeavingRoom = false;
+      state.reconnectAttempts = 0;
+    }
     if (state.ws && state.ws.readyState === WebSocket.OPEN) { sendSocket(action); return; }
     if (state.ws && state.ws.readyState === WebSocket.CONNECTING) { state.wsPending = action; return; }
     state.wsPending = action;
@@ -1396,35 +1497,60 @@
       handleSocketMessage(message);
     });
     socket.addEventListener('close', () => {
-      state.ws = null;
-      if (state.room && !$('#party-room').hidden) toast('Your live connection closed. Join the room again.');
+      if (state.ws === socket) state.ws = null;
+      if (state.roomCode && state.resumeToken && !state.isLeavingRoom) {
+        setPartyConnectionStatus('reconnecting', 'CONNECTION LOST');
+        schedulePartyReconnect();
+      }
     });
-    socket.addEventListener('error', () => toast('Could not connect to Globe Rush. Please try again.'));
+    socket.addEventListener('error', () => {
+      if (!state.roomCode) toast('Could not connect to Globe Rush. Please try again.');
+      else setPartyConnectionStatus('reconnecting', 'RETRYING CONNECTION');
+    });
   }
   function sendSocket(message) {
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { state.wsPending = message; return; }
     state.ws.send(JSON.stringify(message));
   }
-  function handleSocketMessage(message) {
+
+    function handleSocketMessage(message) {
     if (message.type === 'connected') {
       if (state.wsPending) { const pending = state.wsPending; state.wsPending = null; sendSocket(pending); }
     } else if (message.type === 'joined') {
-      playSound('join');
+      const wasReconnect = Boolean(message.reconnected || message.migrated);
+      if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+      state.reconnectTimer = null;
+      state.reconnectAttempts = 0;
+      state.isLeavingRoom = false;
+      playSound(wasReconnect ? 'toggle' : 'join');
       state.roomCode = message.roomCode;
       state.playerId = message.playerId;
+      state.resumeToken = message.resumeToken || state.resumeToken;
+      sessionStorage.setItem('humanity-room-code', state.roomCode);
+      if (state.resumeToken) sessionStorage.setItem('humanity-room-resume-token', state.resumeToken);
+      setPartyConnectionStatus('live', wasReconnect ? 'CONNECTION RESTORED' : 'LIVE CONNECTION');
       $('#room-code-display').textContent = message.roomCode;
       $('#planet-room-code').textContent = message.roomCode;
       $('#party-lobby').hidden = true;
       $('#party-room').hidden = false;
-      $('#room-lobby-state').hidden = false;
-      $('#room-game-state').hidden = true;
-      $('#room-results-state').hidden = true;
-      clearGlobeRushEffects();
-      $('#party-room').scrollIntoView({ behavior: state.animations ? 'smooth' : 'auto', block: 'start' });
+      if (!wasReconnect) {
+        $('#room-lobby-state').hidden = false;
+        $('#room-game-state').hidden = true;
+        $('#room-results-state').hidden = true;
+        clearGlobeRushEffects();
+        $('#party-room').scrollIntoView({ behavior: state.animations ? 'smooth' : 'auto', block: 'start' });
+      } else if (!state.room) {
+        $('#room-lobby-state').hidden = false;
+        $('#room-game-state').hidden = true;
+        $('#room-results-state').hidden = true;
+      }
+      if (wasReconnect) toast(message.migrated ? 'Your queue moved to a smaller match.' : 'You are back in your Globe Rush room.');
     } else if (message.type === 'room_state') {
       const previousRoom = state.room;
       state.room = message;
       renderRoomState(message, previousRoom);
+    } else if (message.type === 'queue_adjusted') {
+      toast(message.message || 'The waiting group has been resized to start a match.');
     } else if (message.type === 'room_settings_saved') {
       playSound('toggle');
       $('#private-settings-feedback').textContent = 'Settings saved for this room.';
@@ -1508,7 +1634,15 @@
       state.result = message.results;
       renderPartyResults(message.results);
       if (state.token) loadProfile(true);
+    } else if (message.type === 'room_closed') {
+      toast(message.message || 'This Globe Rush room has closed.');
+      resetRoomUI();
     } else if (message.type === 'error') {
+      if (message.code === 'reconnect_failed') {
+        toast(message.message || 'The previous room seat is no longer available.');
+        resetRoomUI();
+        return;
+      }
       playSound('miss');
       if (message.code === 'invalid_capacity' || message.code === 'settings_locked' || message.code === 'not_room_host') {
         $('#private-settings-feedback').textContent = message.message || 'Room settings could not be saved.';
@@ -1623,10 +1757,11 @@
     const settings = room.settings || {};
     const startingLives = Math.max(1, Number(settings.startingLives || 2));
     const maximumLives = Math.max(startingLives, Number(settings.maxLives || 3));
-    $('#planet-game-mode').textContent = settings.gameMode === 'sudden-death' ? 'SUDDEN DEATH' : 'CLASSIC';
-    $('#planet-difficulty').textContent = String(settings.difficulty || 'normal').toUpperCase();
+    $('#planet-game-mode').textContent = variant === 'team-rush' ? 'TEAM RUSH' : variant === 'survival' ? 'SURVIVAL' : (settings.gameMode === 'sudden-death' ? 'SUDDEN DEATH' : 'CLASSIC');
+    $('#planet-difficulty').textContent = String(room.currentDifficulty || settings.difficulty || 'normal').toUpperCase();
     $('#planet-theme').textContent = String(settings.categoryTheme || 'all').replace(/-/g, ' ').toUpperCase();
     $('#planet-rating').textContent = room.mode === 'ranked' || settings.ratingEnabled ? 'ON · RATED' : 'OFF · CASUAL';
+    const variant = room.variant || 'classic';
     $('#planet-starting-lives').textContent = startingLives + (startingLives === 1 ? ' LIFE' : ' LIVES');
     $('#planet-max-lives').textContent = maximumLives + ' LIVES';
     $('#planet-turn-clock').textContent = Number(settings.turnDurationSeconds) > 0
@@ -1651,6 +1786,7 @@
       $('#private-countdown').value = String(Number(settings.countdownSeconds ?? 5));
       $('#private-rated').checked = room.mode === 'ranked' || settings.ratingEnabled === true;
       $('#private-auto-start').checked = settings.autoStartWhenFull === true;
+      $('#private-game-variant').value = room.variant || 'classic';
     }
     const autoStarting = room.autoStartInMs !== null && room.autoStartInMs !== undefined;
     if (!autoStarting && state.roomLaunchTimer) {
@@ -1696,12 +1832,15 @@
       $('#rush-round').textContent = String(room.round).padStart(2, '0');
       $('#rush-turn').textContent = String(room.turnNumber || 1).padStart(2, '0');
       $('#rush-category').textContent = room.category.prompt || room.category.title;
-      const fuseDescription = Number(room.settings?.turnDurationSeconds) > 0
-        ? 'A shared ' + Number(room.settings.turnDurationSeconds) + '-second fuse'
-        : 'One shared random 10–30 second fuse';
+      const fuseDescription = room.variant === 'survival'
+        ? 'SURVIVAL · ' + String(room.currentDifficulty || 'easy').toUpperCase() + ' difficulty · ' + Number(room.timerDurationMs || 22000) / 1000 + ' seconds'
+        : (Number(room.settings?.turnDurationSeconds) > 0
+          ? 'A shared ' + Number(room.settings.turnDurationSeconds) + '-second fuse'
+          : 'One shared random 10–30 second fuse');
       const categoryNote = room.category.note ? ' ' + room.category.note : '';
+      const modeNote = room.variant === 'team-rush' ? ' Team Rush · Team Nova vs Team Terra. Keep your teammates in orbit.' : room.variant === 'survival' ? ' Every two rounds the fuse gets shorter and question difficulty rises.' : '';
       $('#rush-note').textContent = fuseDescription +
-        ' keeps running as the Orb is passed. Valid rare answers build your bonus-heart meter.' + categoryNote;
+        ' keeps running as the Orb is passed. Valid rare answers build your bonus-heart meter.' + modeNote + categoryNote;
       const meForMeter = room.players.find(player => player.isYou);
       const rarityProgress = Math.max(0, Math.min(100,
         Number(meForMeter?.rarityMeter || 0) / 150 * 100));
@@ -1719,7 +1858,7 @@
       $('#rush-player-list').innerHTML = room.players.map(player =>
         '<div class="rush-player-row ' + (player.isHolder ? 'current' : '') + ' ' + (!player.alive ? 'out' : '') + '">' +
         '<span class="rush-player-name"><b>' + (player.isHolder ? '● ' : '') + esc(player.nickname) + (player.isYou ? ' (you)' : '') + '</b>' +
-        '<small>' + number.format(player.turnsTaken || 0) + ' turns · ' + number.format(player.answersGiven || 0) + ' valid answers</small></span>' +
+        '<small>' + (player.team ? (player.team === 'nova' ? 'TEAM NOVA · ' : 'TEAM TERRA · ') : '') + number.format(player.turnsTaken || 0) + ' turns · ' + number.format(player.answersGiven || 0) + ' valid answers</small></span>' +
         '<span class="rush-player-hearts">' + '♥'.repeat(player.hearts) + '♡'.repeat(Math.max(0,maxLives-player.hearts)) + '</span>' +
         '<span class="rush-player-score">' + number.format(player.score) + '</span></div>'
       ).join('');
@@ -1845,7 +1984,10 @@
     $('#room-game-state').hidden = true;
     $('#room-results-state').hidden = false;
     $('#rush-winner').textContent = results.winner + ' wins!';
-    $('#rush-final-ranking').innerHTML = results.ranking.map(row =>
+    const teamSummary = Array.isArray(results.teams) && results.teams.length
+      ? '<div class="final-team-summary">' + results.teams.map(team => '<div class="final-team-row ' + (team.id === results.winningTeam ? 'winner' : '') + '"><b>' + esc(team.name) + '</b><span>' + number.format(team.score) + ' pts</span><small>' + team.alive + ' in orbit</small></div>').join('') + '</div>'
+      : '';
+    $('#rush-final-ranking').innerHTML = teamSummary + results.ranking.map(row =>
       '<div class="final-ranking-row ' + (row.isWinner ? 'winner' : '') + '">' +
       '<span>' + String(row.rank).padStart(2, '0') + '</span><strong>' + esc(row.nickname) +
       '</strong><b>' + number.format(row.score) + ' pts</b><small>' + '♥'.repeat(row.hearts) + '</small></div>'
@@ -1859,7 +2001,14 @@
     state.roomLaunchTimer = null;
     clearGlobeRushEffects();
     clearPartySuggestion();
-    state.room = null; state.roomCode = null; state.playerId = null; state.result = null;
+    state.room = null; state.roomCode = null; state.playerId = null; state.resumeToken = ''; state.result = null;
+    state.isLeavingRoom = true;
+    state.reconnectAttempts = 0;
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+    sessionStorage.removeItem('humanity-room-code');
+    sessionStorage.removeItem('humanity-room-resume-token');
+    setPartyConnectionStatus('offline', 'NOT IN A ROOM');
     if ($('#rush-answer')) $('#rush-answer').value = '';
     $('#party-room').hidden = true;
     $('#party-lobby').hidden = false;
@@ -1912,9 +2061,10 @@
       return;
     }
     playSound('queue');
+    const variant = mode === 'ranked' ? 'classic' : ($('#quick-variant')?.value || 'classic');
     connectSocket({
       type: mode === 'ranked' ? 'ranked_queue' : 'quick_play',
-      mode, group, nickname: nickname(), avatarKey: selectedPlanetAvatar(), token: state.token || undefined
+      mode, group, variant, nickname: nickname(), avatarKey: selectedPlanetAvatar(), token: state.token || undefined
     });
   }
   function loadOpenRooms() {
@@ -1926,7 +2076,7 @@
       }
       list.innerHTML = result.rooms.map(room =>
         '<div class="public-room-row"><div><strong>' + esc(room.code) + '</strong><small>' +
-        esc(room.group) + ' · ' + room.players + '/' + room.capacity + ' explorers · ' +
+        esc(room.group) + ' · ' + room.players + '/' + room.capacity + ' explorers · ' + esc(room.variant || 'classic').toUpperCase() + ' · ' +
         (room.ratingEnabled ? 'RATED' : 'CASUAL') + ' · ' + esc(room.settings?.difficulty || 'normal') + '</small></div>' +
         '<button type="button" data-join-room="' + esc(room.code) + '">Join ↗</button></div>'
       ).join('');
@@ -2119,7 +2269,8 @@
           countdownSeconds: Number($('#private-countdown').value),
           ratingEnabled: $('#private-rated').checked,
           autoStartWhenFull: $('#private-auto-start').checked
-        }
+        },
+        variant: $('#private-game-variant').value
       });
     });
     $('#daily-archive-exit').addEventListener('click', () => {
@@ -2138,6 +2289,7 @@
         type: 'create_room',
         visibility: $('#host-visibility').value,
         mode: 'private',
+        variant: $('#host-variant').value,
         capacity: 10,
         nickname: nickname(),
         avatarKey: selectedPlanetAvatar(),
@@ -2211,7 +2363,7 @@
       localStorage.setItem('humanity-sound-volume', String(state.soundVolume));
       $('#setting-sound-volume-label').textContent = state.soundVolume + '%';
       if (state.audioMaster && state.audioContext) {
-        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 1.8, state.audioContext.currentTime, 0.04);
+        state.audioMaster.gain.setTargetAtTime((state.soundVolume / 100) * 2.35, state.audioContext.currentTime, 0.04);
       }
     });
     $('#sound-preview').addEventListener('click', () => playSound('preview'));
@@ -2220,7 +2372,7 @@
       localStorage.setItem('humanity-motion', String(state.animations));
       setSettings();
     });
-    $('#leave-room').addEventListener('click', () => { sendSocket({ type: 'leave_room' }); resetRoomUI(); });
+    $('#leave-room').addEventListener('click', () => { state.isLeavingRoom = true; sendSocket({ type: 'leave_room' }); resetRoomUI(); });
     $('#room-chat-form').addEventListener('submit', event => {
       event.preventDefault();
       const input = $('#room-chat-input');
@@ -2256,6 +2408,15 @@
       }
     });
     $('#room-rematch').addEventListener('click', () => sendSocket({ type: 'rematch' }));
+    $('#profile-avatar-collection').addEventListener('click', event => {
+      const button = event.target.closest('[data-profile-avatar]');
+      if (!button || button.disabled) return;
+      localStorage.setItem('humanity-globe-avatar', button.dataset.profileAvatar);
+      renderProfileAvatarCollection();
+      renderPlanetAvatarOptions();
+      playSound('toggle');
+      toast(button.dataset.profileAvatar.charAt(0).toUpperCase() + button.dataset.profileAvatar.slice(1) + ' selected as your planet avatar.');
+    });
     $('#planet-avatar-options').addEventListener('click', event => {
       const button = event.target.closest('[data-planet-avatar]');
       if (!button || button.disabled) return;
@@ -2326,7 +2487,15 @@
     }
     await Promise.all([loadAuthProviders(), loadProfile(true)]);
     await loadDaily();
-    if (location.hash === '#party' || inviteRoomCode) setView('party');
+    const storedRoomCode = sessionStorage.getItem('humanity-room-code');
+    const storedResumeToken = sessionStorage.getItem('humanity-room-resume-token');
+    if (storedRoomCode && storedResumeToken && !inviteRoomCode) {
+      state.roomCode = storedRoomCode;
+      state.resumeToken = storedResumeToken;
+      setView('party');
+      setPartyConnectionStatus('reconnecting', 'RESTORING ROOM');
+      connectSocket({ type: 'reconnect', code: storedRoomCode, resumeToken: storedResumeToken });
+    } else if (location.hash === '#party' || inviteRoomCode) setView('party');
     else if (location.hash === '#rankings') setView('rankings');
     else setView('daily');
     if (inviteRoomCode && /^[A-HJ-NP-Z2-9]{6}$/i.test(inviteRoomCode)) {
