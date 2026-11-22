@@ -454,7 +454,7 @@ const Q = [
     id: 'euro-countries', domain: 'geography', type: 'currency', category: 'Currencies · Euro',
     prompt: 'Name a country that uses the euro as its official currency.',
     note: 'Think of countries in the euro area, including smaller European states.',
-    source: 'European Central Bank euro area reference',
+    source: 'European Commission euro agreements and national currency references',
     visual: { kind: 'symbol', text: '€', label: 'EURO' },
     answers: [
       answer('Netherlands', ['The Netherlands', 'Nederland'], 0), answer('Germany', ['Deutschland'], 0),
@@ -464,7 +464,9 @@ const Q = [
       answer('Croatia', [], 1), answer('Slovenia', [], 1), answer('Slovakia', [], 1),
       answer('Estonia', [], 1), answer('Latvia', [], 1), answer('Lithuania', [], 1),
       answer('Bulgaria', ['България'], 0),
-      answer('Luxembourg', [], 1), answer('Malta', [], 1), answer('Cyprus', [], 1)
+      answer('Luxembourg', [], 1), answer('Malta', [], 1), answer('Cyprus', [], 1),
+      answer('Andorra', [], 1), answer('Monaco', [], 1),
+      answer('San Marino', [], 1), answer('Vatican City', ['Vatican'], 1)
     ]
   },
   {
@@ -478,7 +480,9 @@ const Q = [
       answer('Budapest', [], 0), answer('Bratislava', [], 1), answer('Ljubljana', [], 1),
       answer('Luxembourg City', ['Luxembourg'], 1), answer('Andorra la Vella', [], 2),
       answer('Vaduz', [], 2), answer('Skopje', [], 1), answer('Belgrade', [], 0),
-      answer('Sarajevo', [], 1), answer('Zagreb', [], 0), answer('Minsk', [], 1),
+      answer('Sarajevo', [], 1), answer('Minsk', [], 1),
+      answer('Yerevan', [], 1), answer('Bishkek', [], 2),
+      answer('Tashkent', [], 1), answer('Dushanbe', [], 2),
       answer('Chisinau', ['Chișinău'], 2), answer('Kigali', [], 1),
       answer('Kampala', [], 1), answer('Addis Ababa', [], 1),
       answer('Ulaanbaatar', [], 2), answer('Kathmandu', [], 1), answer('Thimphu', [], 2),
