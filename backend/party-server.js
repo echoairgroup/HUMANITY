@@ -476,6 +476,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       settings: normaliseRoomSettings(options.settings),
       isHostedRoom: Boolean(options.isHostedRoom),
       autoStartAt: null,
+      autoStartTimer: null,
       hostId: host.id,
       phase: 'lobby',
       players: [host],
@@ -1109,7 +1110,16 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       if (room.autoStartAt) return;
       const countdownMs = Math.max(0, Number(room.settings.countdownSeconds || 0) * 1000);
       if (countdownMs > 0) {
-        room.autoStartAt = Date.now() + countdownMs;
+        const scheduledStartAt = Date.now() + countdownMs;
+        room.autoStartAt = scheduledStartAt;
+        if (room.autoStartTimer) clearTimeout(room.autoStartTimer);
+        room.autoStartTimer = setTimeout(() => {
+          if (room.phase !== 'lobby' || room.autoStartAt !== scheduledStartAt) return;
+          room.autoStartAt = null;
+          room.autoStartTimer = null;
+          startGame(room).catch(error => console.error('Globe Rush countdown start failed:', error.message));
+        }, countdownMs + 25);
+        if (room.autoStartTimer && typeof room.autoStartTimer.unref === 'function') room.autoStartTimer.unref();
         broadcastState(room);
         broadcast(room, { type: 'match_ready', startsInMs: countdownMs, message: 'The host is launching the match.' });
         return;
@@ -1380,6 +1390,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       }
       if (room.phase === 'lobby' && room.autoStartAt && room.autoStartAt <= now) {
         room.autoStartAt = null;
+        if (room.autoStartTimer) clearTimeout(room.autoStartTimer);
+        room.autoStartTimer = null;
         if (room.players.length >= room.targetMin) {
           startGame(room).catch(error => console.error('Globe Rush auto-start failed:', error.message));
         }
