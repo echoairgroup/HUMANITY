@@ -944,7 +944,13 @@ const PARTY_EXTRA_QUESTIONS = [
 ].filter(Boolean);
 
 function buildPartyQuestionPool() {
-  const topics = Q.concat(PARTY_EXTRA_QUESTIONS);
+  // A party-specific version with a fuller answer set must replace, not duplicate,
+  // the daily source topic. Otherwise players can draw the shorter duplicate.
+  const topicsById = new Map();
+  for (const topic of Q.concat(PARTY_EXTRA_QUESTIONS)) {
+    if (topic) topicsById.set(topic.id, topic);
+  }
+  const topics = [...topicsById.values()];
   const pool = [];
   for (const topic of topics) {
     const subject = topic.prompt.replace(/^Name\s+/i, '').replace(/\.$/, '');
