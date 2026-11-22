@@ -621,7 +621,7 @@
     $('#daily-question').textContent = question.prompt;
     $('#question-note').textContent = question.note || 'Every answer in the approved set counts.';
     const progressIndex = state.unlimited ? index % 7 : index;
-    $('.progress-segment').forEach((el, i) => {
+    $$('.progress-segment').forEach((el, i) => {
       el.classList.toggle('done', i < progressIndex);
       el.classList.toggle('active', i === progressIndex);
     });
@@ -820,8 +820,7 @@
       state.pendingNextIndex >= 7 ? 'FINISH DAILY  →' : 'CONTINUE  →';
     nextButton.focus({ preventScroll: true });
   }
-function renderFlightDistribution(result) {
-  function renderDailyAnswerReveal(reveal,accepted,submittedAnswer) {
+function renderDailyAnswerReveal(reveal,accepted,submittedAnswer) {
     const panel=$('#daily-answer-reveal');
     if(!panel)return;
     const entries=(Array.isArray(reveal)?reveal:[]).slice()
@@ -867,6 +866,7 @@ function renderFlightDistribution(result) {
   }
 
 
+  function renderFlightDistribution(result) {
     const participants = Math.max(0, Number(result.participants) || 0);
     const average = result.averageScore == null ? null : Number(result.averageScore);
     const mode = result.mostCommon || null;
@@ -2173,7 +2173,7 @@ function renderFlightDistribution(result) {
       if (button) loadRankings(button.dataset.period);
     });
     $$('[data-close-modal]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.closeModal)));
-    $('dialog.modal').forEach(dialog => {
+    $$('dialog.modal').forEach(dialog => {
       dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
       dialog.addEventListener('close', () => playSound('modal-close'));
     });
