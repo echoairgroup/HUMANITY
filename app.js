@@ -2381,7 +2381,7 @@
         loadFriends();
       } catch (error) { toast(error.message); }
     });
-    $('#admin-open').addEventListener('click', () => { closeModal('account-modal'); openModal('admin-modal'); loadAdmin(); });
+    $('#admin-open').addEventListener('click', () => { window.location.assign('./admin.html'); });
     $('#admin-refresh').addEventListener('click', loadAdmin);
     $('#admin-queue').addEventListener('click', async event => {
       const button = event.target.closest('[data-review-id]');
