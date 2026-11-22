@@ -3,7 +3,8 @@
 HUMANITY is a geography game platform with two core games:
 
 - **Atlas Daily** — seven shared questions each UTC day, 25 seconds per question, one uninterrupted official attempt, optional hint, approved multilingual answer aliases, Discovery Levels and a global daily ranking.
-- **Globe Rush** — live multiplayer geography rounds. Players pass the Atlas Orb by submitting a valid unused answer before the shared fuse expires. Includes Quick Play, Ranked, private rooms and quarterly seasons.
+- **Globe Rush** — live multiplayer geography rounds. Players pass the Atlas Orb by submitting a valid unused answer before the shared fuse expires. Includes Classic, Team Rush (two teams), Survival (rising difficulty and shorter fuses), Quick Play, Ranked, private rooms and quarterly seasons.
+- **Explorer Profiles** — account XP and levels, playtime, Atlas Daily and Globe Rush results, achievements, daily streaks and unlockable planet avatars.
 
 The website is a static GitHub Pages frontend. The API and live WebSocket rooms run on Render with Neon PostgreSQL.
 
@@ -33,6 +34,7 @@ All globe illustrations use actual country polygon geometry from Natural Earth r
 ### Atlas Daily
 
 - A new edition is keyed to the UTC date and is shared worldwide.
+- Question selection rotates through multiple families, including flags, countries, capitals, currency, nature, landmarks, general geography and world culture. Some questions include visual clues.
 - Seven questions are assembled deterministically for that date: six geography questions and one wider culture/world question.
 - Each question has a server-enforced 25-second answer window.
 - Players can try as many answers as they like while the timer is active. Only an answer already in the approved answer set is accepted.
@@ -45,6 +47,11 @@ All globe illustrations use actual country polygon geometry from Natural Earth r
 ### Globe Rush
 
 - Quick Play and Ranked support 1v1, 3-player, 4–6-player and 8–10-player matchmaking groups.
+- Team Rush splits casual matches into two balanced teams. A team wins when the opposing team has no active explorers left.
+- Survival raises the category difficulty as rounds progress and reduces the shared fuse from 22 seconds towards an 8-second minimum.
+- If an 8–10-player queue remains at six or seven explorers for 25 seconds, the waiting group is moved into a new flexible-size lobby and starts as a smaller match.
+- Room seats use server-issued resume tokens. Brief disconnects can reconnect to the same room for up to 45 seconds, and the server removes abandoned seats after that grace period.
+- Multiplayer actions, answers and chat messages have rate limits to reduce spam.
 - Private rooms support 2–10 players.
 - Every player shares the same category. An answer can only be used once until the Atlas Orb pops and a fresh category begins.
 - The Atlas Orb has one server-controlled hidden fuse. By default it starts at a random **10–30 seconds** and keeps running while the Orb is passed between players.
