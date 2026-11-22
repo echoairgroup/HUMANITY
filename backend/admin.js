@@ -87,7 +87,7 @@ function createAdminController(deps) {
     const clauses = [];
     if (q) {
       args.push('%' + q + '%');
-      clauses.push('(username ILIKE 
+      clauses.push('(username ILIKE $' + args.length + ' OR COALESCE(email,\'\') ILIKE $' + args.length + ')');
     }
     if (status && STATUSES.has(status)) {
       args.push(status);
@@ -396,7 +396,7 @@ function createAdminController(deps) {
       await reviewQueue(response);
       return true;
     }
-    const reviewMatch = url.pathname.match(/^\/api\/admin\/review\/(\\d+)$/);
+    const reviewMatch = url.pathname.match(/^\/api\/admin\/review\/(\d+)$/);
     if (request.method === 'POST' && reviewMatch) {
       await reviewAnswer(request, response, user, reviewMatch);
       return true;
@@ -715,7 +715,7 @@ module.exports = { createAdminController };
       await reviewQueue(response);
       return true;
     }
-    const reviewMatch = url.pathname.match(/^\\/api\\/admin\\/review\\/(\\d+)$/);
+    const reviewMatch = url.pathname.match(/^\\/api\\/admin\\/review\\/(\d+)$/);
     if (request.method === 'POST' && reviewMatch) {
       await reviewAnswer(request, response, user, reviewMatch);
       return true;
@@ -1034,7 +1034,7 @@ module.exports = { createAdminController };
       await reviewQueue(response);
       return true;
     }
-    const reviewMatch = url.pathname.match(/^\\/api\\/admin\\/review\\/(\\d+)$/);
+    const reviewMatch = url.pathname.match(/^\\/api\\/admin\\/review\\/(\d+)$/);
     if (request.method === 'POST' && reviewMatch) {
       await reviewAnswer(request, response, user, reviewMatch);
       return true;
