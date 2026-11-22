@@ -146,14 +146,14 @@ No external cron secret or GitHub Actions schedule is required. The API creates 
 
 The first release ships with a curated, reviewed seed bank that covers countries, capitals, cities, rivers, mountains, islands, lakes, seas, deserts, landmarks, languages and selected global food/culture topics. Each question includes approved names and aliases. Matching is Unicode-aware, so non-Latin scripts can be matched when those aliases are present.
 
-Unknown answers are never accepted during a live attempt. They are added to the review queue. Exact Wikidata entity-label/type matches for supported geography topics can be auto-approved for future editions; uncertain and cultural answers remain in the Admin Dashboard queue.
+Unknown answers are never accepted automatically during a ranked attempt. They are added to the review queue. The matcher accepts curated names and aliases, common international country-name variants, and only unambiguous small spelling errors. Exact Wikidata entity-label/type matches for supported geography topics can be auto-approved; uncertain and cultural answers remain in the private Admin page queue. After an administrator approves an entry, it is loaded for active Atlas Daily and Practice questions as well as future daily editions.
 
-The daily engine automatically assembles a new shared combination from this approved question bank. It is not an unrestricted generative AI system and cannot guarantee every possible place name, local term or snack on Earth is already present. Expand the curated data and review queue over time; never auto-accept an unverified answer inside an active ranked game.
+The daily engine automatically assembles a new shared combination from this approved question bank. No finite answer bank can honestly guarantee every possible language, historical name, local spelling or regional food term. The safe way to keep expanding it is to combine curated aliases, conservative typo matching and the administrator review queue, rather than silently awarding ranked points for an unverified guess.
 
 ## Important release notes
 
 - Configure Render environment variables before switching the Render service to this branch.
 - Configure GitHub Actions secrets before relying on the scheduled publisher.
 - Configure Google/Discord OAuth before advertising those sign-in options as active.
-- Add the owner email to `ADMIN_EMAILS` to enable the admin dashboard.
+- Add the owner email to `ADMIN_EMAILS` to enable the private admin page at `/HUMANITY/admin.html`. The page checks `/api/auth/me`, and every review action is protected again by the API.
 - The first stability-point and rarity-hearts balance should be playtested before a public ranked launch.
