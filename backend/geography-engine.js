@@ -46,27 +46,146 @@ for (const group of COUNTRY_EQUIVALENT_GROUPS) {
   for (const name of group) COUNTRY_EQUIVALENT_LOOKUP.set(name, group);
 }
 
-function boundedEditDistance(left, right, limit) {
-  const a = [...left];
-  const b = [...right];
-  if (Math.abs(a.length - b.length) > limit) return limit + 1;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = new Array(b.length + 1).fill(limit + 1);
-    current[0] = i;
-    let rowMinimum = current[0];
-    for (let j = 1; j <= b.length; j += 1) {
-      current[j] = Math.min(
-        previous[j] + 1,
-        current[j - 1] + 1,
-        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-      rowMinimum = Math.min(rowMinimum, current[j]);
+const LEADING_ARTICLES = new Set(['a', 'an', 'the']);
+const CATEGORY_WORD_GROUPS = [
+  ['country', 'countries'],
+  ['river', 'rivers'],
+  ['mount', 'mounts', 'mountain', 'mountains'],
+  ['island', 'islands'],
+  ['lake', 'lakes'],
+  ['sea', 'seas'],
+  ['ocean', 'oceans'],
+  ['desert', 'deserts'],
+  ['city', 'cities'],
+  ['capital', 'capitals'],
+  ['landmark', 'landmarks'],
+  ['dish', 'dishes'],
+  ['snack', 'snacks'],
+  ['language', 'languages']
+];
+const CATEGORY_WORDS = new Set(CATEGORY_WORD_GROUPS.flat());
+const SMALL_NUMBER_WORDS = new Map([
+  ['zero', 0], ['oh', 0], ['one', 1], ['two', 2], ['three', 3], ['four', 4],
+  ['five', 5], ['six', 6], ['seven', 7], ['eight', 8], ['nine', 9],
+  ['ten', 10], ['eleven', 11], ['twelve', 12], ['thirteen', 13], ['fourteen', 14],
+  ['fifteen', 15], ['sixteen', 16], ['seventeen', 17], ['eighteen', 18], ['nineteen', 19],
+  ['twenty', 20], ['thirty', 30], ['forty', 40], ['fifty', 50],
+  ['sixty', 60], ['seventy', 70], ['eighty', 80], ['ninety', 90]
+]);
+const ORDINAL_WORDS = new Map([
+  ['first', '1st'], ['second', '2nd'], ['third', '3rd'], ['fourth', '4th'],
+  ['fifth', '5th'], ['sixth', '6th'], ['seventh', '7th'], ['eighth', '8th'],
+  ['ninth', '9th'], ['tenth', '10th'], ['eleventh', '11th'], ['twelfth', '12th'],
+  ['thirteenth', '13th'], ['fourteenth', '14th'], ['fifteenth', '15th'],
+  ['sixteenth', '16th'], ['seventeenth', '17th'], ['eighteenth', '18th'],
+  ['nineteenth', '19th'], ['twentieth', '20th'], ['thirtieth', '30th'],
+  ['fortieth', '40th'], ['fiftieth', '50th'], ['sixtieth', '60th'],
+  ['seventieth', '70th'], ['eightieth', '80th'], ['ninetieth', '90th']
+]);
+
+function numberWordForms(tokens) {
+  const output = [];
+  let changed = false;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const word = tokens[index];
+    if (ORDINAL_WORDS.has(word)) {
+      output.push(ORDINAL_WORDS.get(word));
+      changed = true;
+      continue;
     }
-    if (rowMinimum > limit) return limit + 1;
-    previous = current;
+    if (SMALL_NUMBER_WORDS.has(word)) {
+      const value = SMALL_NUMBER_WORDS.get(word);
+      const next = tokens[index + 1];
+      if (value >= 20 && value % 10 === 0 && SMALL_NUMBER_WORDS.has(next)) {
+        const unit = SMALL_NUMBER_WORDS.get(next);
+        if (unit > 0 && unit < 10) {
+          output.push(String(value + unit));
+          index += 1;
+          changed = true;
+          continue;
+        }
+      }
+      output.push(String(value));
+      changed = true;
+      continue;
+    }
+    output.push(word);
   }
-  return previous[b.length];
+  return changed ? output : null;
+}
+
+function singulariseLastWord(tokens) {
+  if (!tokens.length) return null;
+  const output = [...tokens];
+  const word = output[output.length - 1];
+  if (word.length < 4) return null;
+  let singular = word;
+  if (/[^aeiou]ies$/.test(word)) singular = word.slice(0, -3) + 'y';
+  else if (/(ches|shes|sses|xes|zes)$/.test(word)) singular = word.slice(0, -2);
+  else if (/s$/.test(word) && !/(ss|us|is)$/.test(word)) singular = word.slice(0, -1);
+  if (singular === word) return null;
+  output[output.length - 1] = singular;
+  return output;
+}
+
+function answerVariants(value, question) {
+  const initial = normaliseAnswer(value);
+  if (!initial) return new Set();
+  const questionWords = new Set(normaliseAnswer(
+    String(question && question.category || '') + ' ' + String(question && question.prompt || '')
+  ).split(' '));
+  const categoryWords = new Set();
+  for (const group of CATEGORY_WORD_GROUPS) {
+    if (group.some(word => questionWords.has(word))) {
+      for (const word of group) categoryWords.add(word);
+    }
+  }
+
+  const output = new Set();
+  const queue = [initial.split(' ')];
+  while (queue.length && output.size < 32) {
+    const tokens = queue.shift();
+    if (!tokens.length) continue;
+    const form = tokens.join(' ');
+    if (output.has(form)) continue;
+    output.add(form);
+
+    const equivalentNames = COUNTRY_EQUIVALENT_LOOKUP.get(form);
+    if (equivalentNames) {
+      for (const alias of equivalentNames) output.add(alias);
+    }
+
+    if (tokens.length > 1 && LEADING_ARTICLES.has(tokens[0])) {
+      queue.push(tokens.slice(1));
+    }
+    if (tokens.length > 1 && categoryWords.has(tokens[0])) {
+      queue.push(tokens.slice(1));
+    }
+    if (tokens.length > 1 && categoryWords.has(tokens[tokens.length - 1])) {
+      queue.push(tokens.slice(0, -1));
+    }
+    const singular = singulariseLastWord(tokens);
+    if (singular) queue.push(singular);
+    const numbers = numberWordForms(tokens);
+    if (numbers && numbers.join(' ') !== form) queue.push(numbers);
+  }
+  return output;
+}
+
+function adjacentTranspositions(value) {
+  const output = new Set();
+  const words = normaliseAnswer(value).split(' ').filter(Boolean);
+  for (let wordIndex = 0; wordIndex < words.length; wordIndex += 1) {
+    const word = words[wordIndex];
+    for (let index = 0; index < word.length - 1; index += 1) {
+      if (word[index] === word[index + 1]) continue;
+      const swapped = word.slice(0, index) + word[index + 1] + word[index] + word.slice(index + 2);
+      const result = [...words];
+      result[wordIndex] = swapped;
+      output.add(result.join(' '));
+    }
+  }
+  return output;
 }
 
 function answer(name, aliases, rarity, source) {
@@ -800,51 +919,50 @@ function matchAnswer(question, rawAnswer) {
   const target = normaliseAnswer(rawAnswer);
   if (!target || target.length > 80) return null;
 
-  const entries = Array.isArray(question.answers) ? question.answers : [];
-  const matchesEntry = (entry, value) => {
-    const names = [entry.name].concat(entry.aliases || []).map(normaliseAnswer);
-    if (names.includes(value)) return true;
-    const group = COUNTRY_EQUIVALENT_LOOKUP.get(value);
-    return Boolean(group && names.some(name => group.has(name)));
+  const entries = Array.isArray(question && question.answers) ? question.answers : [];
+  const targetForms = answerVariants(target, question);
+  const buildMatch = entry => {
+    const rarity = Math.max(0, Math.min(5, Number(entry.rarity) || 0));
+    return {
+      key: normaliseAnswer(entry.name),
+      name: entry.name,
+      rarity,
+      level: LEVEL_NAMES[rarity],
+      points: POINTS_BY_LEVEL[rarity],
+      source: entry.source || question.source || 'HUMANITY curated dataset'
+    };
   };
-  const buildMatch = entry => ({
-    key: normaliseAnswer(entry.name),
-    name: entry.name,
-    rarity: entry.rarity,
-    level: LEVEL_NAMES[entry.rarity],
-    points: POINTS_BY_LEVEL[entry.rarity],
-    source: entry.source || question.source || 'HUMANITY curated dataset'
-  });
-
-  for (const entry of entries) {
-    if (matchesEntry(entry, target)) return buildMatch(entry);
-  }
-
-  // A tightly bounded typo allowance catches a misspelled answer without
-  // accepting broad or ambiguous guesses. Short names remain exact-match only.
-  if (target.length < 6) return null;
-  const bestByEntry = [];
-  let bestDistance = Infinity;
-  for (const entry of entries) {
-    const names = [entry.name].concat(entry.aliases || []).map(normaliseAnswer);
-    let entryDistance = Infinity;
-    for (const name of names) {
-      if (name.length < 6) continue;
-      const limit = Math.max(target.length, name.length) >= 12 ? 2 : 1;
-      const distance = boundedEditDistance(target, name, limit);
-      if (distance < entryDistance) entryDistance = distance;
+  const collectMatches = forms => {
+    const matches = new Map();
+    for (const entry of entries) {
+      const names = [entry.name].concat(Array.isArray(entry.aliases) ? entry.aliases : []);
+      let found = false;
+      for (const name of names) {
+        const variants = answerVariants(name, question);
+        if ([...variants].some(variant => forms.has(variant))) {
+          found = true;
+          break;
+        }
+      }
+      if (found) matches.set(normaliseAnswer(entry.name), entry);
     }
-    if (entryDistance < bestDistance) {
-      bestDistance = entryDistance;
-      bestByEntry.length = 0;
-      bestByEntry.push(entry);
-    } else if (entryDistance === bestDistance && entryDistance !== Infinity) {
-      bestByEntry.push(entry);
-    }
+    return matches;
+  };
+
+  // First use the curated answer sheet, with Krillion-style spelling variants.
+  const exactMatches = collectMatches(targetForms);
+  if (exactMatches.size === 1) return buildMatch([...exactMatches.values()][0]);
+  if (exactMatches.size > 1) return null;
+
+  // Then allow exactly one neighbouring-letter transposition. A correction
+  // must identify one unique approved answer; ambiguous near-matches are rejected.
+  const typoForms = new Set();
+  for (const form of targetForms) {
+    for (const swapped of adjacentTranspositions(form)) typoForms.add(swapped);
   }
-  if (bestDistance === Infinity || bestByEntry.length !== 1) return null;
-  const allowedDistance = Math.max(target.length, normaliseAnswer(bestByEntry[0].name).length) >= 12 ? 2 : 1;
-  return bestDistance <= allowedDistance ? buildMatch(bestByEntry[0]) : null;
+  const typoMatches = collectMatches(typoForms);
+  if (typoMatches.size !== 1) return null;
+  return buildMatch([...typoMatches.values()][0]);
 }
 
 function pointsForUsage(entry, answerCount, totalAnswers) {
@@ -927,6 +1045,7 @@ module.exports = {
   POINTS_BY_LEVEL,
   LEVEL_NAMES,
   normaliseAnswer,
+  answerVariants,
   generateDailyChallenge,
   publicQuestion,
   matchAnswer,
