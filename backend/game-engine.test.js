@@ -47,10 +47,10 @@ test('unapproved answers are not accepted', () => {
   assert.equal(engine.matchAnswer(snacks, 'invented snack name'), null);
 });
 
-test('Krillion-style matching accepts a single adjacent-letter swap only', () => {
+test('Krillion-style autocorrection accepts a small typo but rejects unrelated answers', () => {
   const snacks = engine.getQuestion('popular-snacks');
   assert.equal(engine.matchAnswer(snacks, 'Kroekt').name, 'Kroket');
-  assert.equal(engine.matchAnswer(snacks, 'Krokett'), null);
+  assert.equal(engine.matchAnswer(snacks, 'Krokett').name, 'Kroket');
   assert.equal(engine.matchAnswer(snacks, 'zzzzzzzz'), null);
 });
 
