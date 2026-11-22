@@ -428,7 +428,7 @@ const Q = [
     visual: { kind: 'flag-colours', colors: ['#e84a5b', '#f7f8fb', '#3c9b68'] },
     answers: [
       answer('Italy', ['Italia'], 0), answer('Mexico', ['México'], 0),
-      answer('Hungary', [], 0), answer('Bulgaria', [], 1), answer('Iran', [], 1),
+      answer('Hungary', [], 0), answer('Bulgaria', [], 0), answer('Iran', [], 1),
       answer('Madagascar', [], 1), answer('Belarus', [], 1), answer('Oman', [], 1),
       answer('Lebanon', [], 1), answer('Algeria', [], 1), answer('Azerbaijan', [], 1),
       answer('Tajikistan', [], 2), answer('Turkmenistan', [], 2), answer('Uzbekistan', [], 2),
