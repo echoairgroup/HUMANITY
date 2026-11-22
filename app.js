@@ -1473,13 +1473,9 @@
       playSound(message.eliminated && message.nickname === nickname() ? 'eliminated' : 'overload');
     } else if (message.type === 'new_round') {
       playSound('category');
-      const reason = message.reason === 'mistakes'
-        ? 'Two incorrect answers · new category'
-        : message.reason === 'turn_limit'
-          ? 'Ten accepted turns · new category'
-          : message.reason === 'overload'
-            ? 'The Orb overloaded · new category'
-            : 'New category';
+      const reason = message.reason === 'overload'
+        ? 'The Orb popped · new category'
+        : 'A new round is ready';
       $('#rush-feedback').textContent = reason + ' · ' + message.category.title;
       $('#rush-feedback').classList.remove('success');
       showCategoryAnnouncement(message.category, message.reason);
@@ -1648,8 +1644,6 @@
       $('#private-starting-lives').value = String(startingLives);
       $('#private-max-lives').value = String(maximumLives);
       $('#private-turn-duration').value = String(Number(settings.turnDurationSeconds || 0));
-      $('#private-category-misses').value = String(Math.max(1, Number(settings.maxWrongAnswersPerCategory || 2)));
-      $('#private-category-turns').value = String(Math.max(5, Number(settings.maxTurnsPerCategory || 10)));
       $('#private-visibility').value = room.visibility === 'public' ? 'public' : 'private';
       $('#private-game-mode').value = settings.gameMode === 'sudden-death' ? 'sudden-death' : 'classic';
       $('#private-difficulty').value = settings.difficulty || 'normal';
@@ -2119,8 +2113,6 @@
           startingLives: Number($('#private-starting-lives').value),
           maxLives: Number($('#private-max-lives').value),
           turnDurationSeconds: Number($('#private-turn-duration').value),
-          maxWrongAnswersPerCategory: Number($('#private-category-misses').value),
-          maxTurnsPerCategory: Number($('#private-category-turns').value),
           gameMode: $('#private-game-mode').value,
           difficulty: $('#private-difficulty').value,
           categoryTheme: $('#private-category-theme').value,
