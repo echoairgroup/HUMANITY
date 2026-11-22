@@ -17,6 +17,58 @@ function normaliseAnswer(value) {
     .replace(/\s+/g, ' ');
 }
 
+const COUNTRY_EQUIVALENT_GROUPS = [
+  ['united states', 'united states of america', 'usa', 'u s a', 'us', 'america'],
+  ['united kingdom', 'great britain', 'britain', 'uk', 'u k', 'england', 'scotland', 'wales'],
+  ['netherlands', 'the netherlands', 'holland'],
+  ['czechia', 'czech republic'],
+  ['cote divoire', 'ivory coast'],
+  ['eswatini', 'swaziland'],
+  ['myanmar', 'burma'],
+  ['cabo verde', 'cape verde'],
+  ['timor leste', 'east timor'],
+  ['turkiye', 'turkey'],
+  ['north macedonia', 'macedonia'],
+  ['republic of korea', 'south korea', 'korea republic'],
+  ['democratic peoples republic of korea', 'north korea', 'dpr korea'],
+  ['democratic republic of the congo', 'dr congo', 'drc', 'congo kinshasa'],
+  ['republic of the congo', 'congo brazzaville'],
+  ['laos', 'lao peoples democratic republic'],
+  ['bolivia', 'plurinational state of bolivia'],
+  ['tanzania', 'united republic of tanzania'],
+  ['moldova', 'republic of moldova'],
+  ['gambia', 'the gambia'],
+  ['uae', 'united arab emirates']
+].map(group => new Set(group.map(normaliseAnswer)));
+
+const COUNTRY_EQUIVALENT_LOOKUP = new Map();
+for (const group of COUNTRY_EQUIVALENT_GROUPS) {
+  for (const name of group) COUNTRY_EQUIVALENT_LOOKUP.set(name, group);
+}
+
+function boundedEditDistance(left, right, limit) {
+  const a = [...left];
+  const b = [...right];
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = new Array(b.length + 1).fill(limit + 1);
+    current[0] = i;
+    let rowMinimum = current[0];
+    for (let j = 1; j <= b.length; j += 1) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+      rowMinimum = Math.min(rowMinimum, current[j]);
+    }
+    if (rowMinimum > limit) return limit + 1;
+    previous = current;
+  }
+  return previous[b.length];
+}
+
 function answer(name, aliases, rarity, source) {
   return {
     name,
@@ -748,20 +800,52 @@ function matchAnswer(question, rawAnswer) {
   const target = normaliseAnswer(rawAnswer);
   if (!target || target.length > 80) return null;
 
-  for (const entry of question.answers || []) {
-    const names = [entry.name].concat(entry.aliases || []);
-    if (names.some(name => normaliseAnswer(name) === target)) {
-      return {
-        key: normaliseAnswer(entry.name),
-        name: entry.name,
-        rarity: entry.rarity,
-        level: LEVEL_NAMES[entry.rarity],
-        points: POINTS_BY_LEVEL[entry.rarity],
-        source: entry.source || question.source || 'HUMANITY curated dataset'
-      };
+  const entries = Array.isArray(question.answers) ? question.answers : [];
+  const canonicalTargetGroup = COUNTRY_EQUIVALENT_LOOKUP.get(target);
+  const matchesEntry = (entry, value) => {
+    const names = [entry.name].concat(entry.aliases || []).map(normaliseAnswer);
+    if (names.includes(value)) return true;
+    const group = COUNTRY_EQUIVALENT_LOOKUP.get(value);
+    return Boolean(group && names.some(name => group.has(name)));
+  };
+  const buildMatch = entry => ({
+    key: normaliseAnswer(entry.name),
+    name: entry.name,
+    rarity: entry.rarity,
+    level: LEVEL_NAMES[entry.rarity],
+    points: POINTS_BY_LEVEL[entry.rarity],
+    source: entry.source || question.source || 'HUMANITY curated dataset'
+  });
+
+  for (const entry of entries) {
+    if (matchesEntry(entry, target)) return buildMatch(entry);
+  }
+
+  // A tightly bounded typo allowance catches a misspelled answer without
+  // accepting broad or ambiguous guesses. Short names remain exact-match only.
+  if (target.length < 6) return null;
+  const bestByEntry = [];
+  let bestDistance = Infinity;
+  for (const entry of entries) {
+    const names = [entry.name].concat(entry.aliases || []).map(normaliseAnswer);
+    let entryDistance = Infinity;
+    for (const name of names) {
+      if (name.length < 6) continue;
+      const limit = Math.max(target.length, name.length) >= 12 ? 2 : 1;
+      const distance = boundedEditDistance(target, name, limit);
+      if (distance < entryDistance) entryDistance = distance;
+    }
+    if (entryDistance < bestDistance) {
+      bestDistance = entryDistance;
+      bestByEntry.length = 0;
+      bestByEntry.push(entry);
+    } else if (entryDistance === bestDistance && entryDistance !== Infinity) {
+      bestByEntry.push(entry);
     }
   }
-  return null;
+  if (bestDistance === Infinity || bestByEntry.length !== 1) return null;
+  const allowedDistance = Math.max(target.length, normaliseAnswer(bestByEntry[0].name).length) >= 12 ? 2 : 1;
+  return bestDistance <= allowedDistance ? buildMatch(bestByEntry[0]) : null;
 }
 
 function pointsForUsage(entry, answerCount, totalAnswers) {
