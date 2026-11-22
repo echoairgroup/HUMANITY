@@ -9,6 +9,9 @@ on:
       - main
     paths:
       - 'index.html'
+      - 'admin.html'
+      - 'admin.css'
+      - 'admin.js'
       - 'styles.css'
       - 'app.js'
       - 'backend/**'
@@ -42,9 +45,8 @@ jobs:
           node --check game-engine.test.js
           node --check ../admin.js
           node --check ../app.js
-      - name: Run geography engine tests
-        run: npm test
-          node --check ../admin.js
           node --check ../globe.js
           node --check arcade.js
           node -e "const fs = require('node:fs'); const w = JSON.parse(fs.readFileSync('../world-countries.geojson', 'utf8')); if (w.type !== 'FeatureCollection' || !Array.isArray(w.features) || w.features.length < 150) process.exit(1); console.log('Validated ' + w.features.length + ' Natural Earth country features.')"
+      - name: Run geography engine tests
+        run: npm test
