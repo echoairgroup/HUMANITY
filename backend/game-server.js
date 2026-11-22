@@ -357,7 +357,8 @@ async function addApprovedAnswers(questions) {
 function publicPracticeQuestion(question,index) {
   return {
     id:question.id,index,category:question.category,prompt:question.prompt,
-    note:question.note,answerCount:question.answers.length,seconds:0,
+    note:question.note,type:question.type||'geography',visual:question.visual||null,
+    answerCount:question.answers.length,seconds:0,
     hints:Array.isArray(question.hints)?question.hints:[]
   };
 }
@@ -470,8 +471,16 @@ async function practiceFinish(request,response) {
   );
   if(!result.rowCount){sendError(response,404,'This practice session has already ended or could not be found.','practice_unavailable');return;}
   const row=result.rows[0],pack=practiceEngine.getPack(row.pack_id);
+  const score=Number(row.score||0),questionsPlayed=Number(row.questions_played||0);
+  const xpEarned=identity.playerId?Math.min(80,Math.floor(score/20)):0;
+  if(identity.playerId&&xpEarned){
+    await pool.query(
+      'UPDATE humanity_players SET xp=xp+$2,level=GREATEST(1,FLOOR((xp+$2)/500.0)+1),updated_at=NOW() WHERE id=$1',
+      [identity.playerId,xpEarned]
+    );
+  }
   sendJSON(response,200,{
-    ok:true,score:Number(row.score||0),questionsPlayed:Number(row.questions_played||0),
+    ok:true,score,questionsPlayed,xpEarned,
     pack:pack?{id:pack.id,title:pack.title}:{id:row.pack_id,title:'Practice Lab'}
   });
 }
@@ -1413,34 +1422,51 @@ async function handleAPI(request, response, url, party) {
   if (request.method === 'GET' && url.pathname === '/api/profile/me') {
     const user = await requireUser(request, response);
     if (!user) return true;
-    const [daily,party,friends,answerStats,partyWins,practiceGames]=await Promise.all([
+    const [daily,party,friends,answerStats,partyWins,practiceGames,playtime,teamRushWins,survivalGames]=await Promise.all([
       pool.query('SELECT COUNT(*)::int AS count, COALESCE(MAX(final_score),MAX(provisional_score),0)::int AS best FROM humanity_daily_runs WHERE player_id = $1 AND status = $2',[user.id,'completed']),
       pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1',[user.id]),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_friendships WHERE (requester_id=$1 OR addressee_id=$1) AND status='accepted'",[user.id]),
       pool.query('SELECT COUNT(*) FILTER (WHERE a.provisional_points>=80)::int AS rare, COUNT(*) FILTER (WHERE a.provisional_points>=100)::int AS exceptional FROM humanity_daily_run_answers a JOIN humanity_daily_runs r ON r.id=a.run_id WHERE r.player_id=$1 AND a.is_correct=TRUE',[user.id]),
-      pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1 AND rank=1',[user.id]),
-      pool.query("SELECT COUNT(*)::int AS count FROM humanity_practice_runs WHERE player_id=$1 AND status='completed'",[user.id])
+      pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1 AND (won=TRUE OR rank=1)',[user.id]),
+      pool.query("SELECT COUNT(*)::int AS count FROM humanity_practice_runs WHERE player_id=$1 AND status='completed'",[user.id]),
+      pool.query(
+        'SELECT COALESCE(SUM(seconds),0)::bigint AS seconds FROM ('+
+        'SELECT GREATEST(0,EXTRACT(EPOCH FROM (completed_at-started_at))) AS seconds FROM humanity_daily_runs WHERE player_id=$1 AND status=\'completed\' AND completed_at IS NOT NULL '+
+        'UNION ALL SELECT GREATEST(0,EXTRACT(EPOCH FROM (m.finished_at-m.started_at))) AS seconds FROM humanity_party_matches m JOIN humanity_party_match_players p ON p.match_id=m.id WHERE p.player_id=$1 '+
+        'UNION ALL SELECT GREATEST(0,EXTRACT(EPOCH FROM (finished_at-created_at))) AS seconds FROM humanity_practice_runs WHERE player_id=$1 AND status=\'completed\' AND finished_at IS NOT NULL'+
+        ') sessions',[user.id]
+      ),
+      pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND p.won=TRUE AND m.variant='team-rush'",[user.id]),
+      pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND m.variant='survival'",[user.id])
     ]);
     const dailyGames=Number(daily.rows[0].count||0),partyGames=Number(party.rows[0].count||0);
     const friendCount=Number(friends.rows[0].count||0),rareAnswers=Number(answerStats.rows[0].rare||0);
     const exceptionalAnswers=Number(answerStats.rows[0].exceptional||0);
     const partyWinsCount=Number(partyWins.rows[0].count||0),practiceCount=Number(practiceGames.rows[0].count||0);
+    const totalPlaySeconds=Number(playtime.rows[0].seconds||0);
+    const teamWins=Number(teamRushWins.rows[0].count||0),survivalMatches=Number(survivalGames.rows[0].count||0);
     const bestStreak=Number(user.best_streak||0);
     const achievements=[
       {id:'first-flight',title:'First Flight',description:'Complete your first Atlas Daily.',unlocked:dailyGames>=1,progress:Math.min(dailyGames,1),target:1},
       {id:'atlas-regular',title:'Atlas Regular',description:'Complete ten official Daily editions.',unlocked:dailyGames>=10,progress:Math.min(dailyGames,10),target:10},
+      {id:'atlas-veteran',title:'Atlas Veteran',description:'Complete 30 official Daily editions.',unlocked:dailyGames>=30,progress:Math.min(dailyGames,30),target:30},
       {id:'week-in-orbit',title:'Week in Orbit',description:'Build a seven-day Atlas streak.',unlocked:bestStreak>=7,progress:Math.min(bestStreak,7),target:7},
       {id:'rare-collector',title:'Rare Collector',description:'Find five Remarkable or Exceptional answers.',unlocked:rareAnswers>=5,progress:Math.min(rareAnswers,5),target:5},
       {id:'exceptional-explorer',title:'Exceptional Explorer',description:'Discover a 100-point answer.',unlocked:exceptionalAnswers>=1,progress:Math.min(exceptionalAnswers,1),target:1},
-      {id:'orb-champion',title:'Orb Champion',description:'Finish first in a Globe Rush match.',unlocked:partyWinsCount>=1,progress:Math.min(partyWinsCount,1),target:1},
+      {id:'orb-champion',title:'Orb Champion',description:'Win a Globe Rush match.',unlocked:partyWinsCount>=1,progress:Math.min(partyWinsCount,1),target:1},
+      {id:'globe-veteran',title:'Globe Veteran',description:'Play 25 Globe Rush matches.',unlocked:partyGames>=25,progress:Math.min(partyGames,25),target:25},
+      {id:'team-player',title:'Team Player',description:'Win five Team Rush matches.',unlocked:teamWins>=5,progress:Math.min(teamWins,5),target:5},
+      {id:'last-in-orbit',title:'Last in Orbit',description:'Complete ten Survival matches.',unlocked:survivalMatches>=10,progress:Math.min(survivalMatches,10),target:10},
       {id:'social-explorer',title:'Social Explorer',description:'Connect with another explorer.',unlocked:friendCount>=1,progress:Math.min(friendCount,1),target:1},
-      {id:'endless-voyager',title:'Endless Voyager',description:'Finish ten Practice Lab sessions.',unlocked:practiceCount>=10,progress:Math.min(practiceCount,10),target:10}
+      {id:'endless-voyager',title:'Endless Voyager',description:'Finish ten Practice Lab sessions.',unlocked:practiceCount>=10,progress:Math.min(practiceCount,10),target:10},
+      {id:'time-explorer',title:'Time Explorer',description:'Spend one hour exploring HUMANITY.',unlocked:totalPlaySeconds>=3600,progress:Math.min(totalPlaySeconds,3600),target:3600}
     ];
     sendJSON(response,200,{
       ok:true,player:publicUser(user,await isAdmin(user)),
       stats:{
         dailyGames,bestDailyScore:Number(daily.rows[0].best||0),partyGames,friends:friendCount,
         rareAnswers,exceptionalAnswers,partyWins:partyWinsCount,practiceGames:practiceCount,
+        teamRushWins:teamWins,survivalGames:survivalMatches,totalPlaySeconds,
         bestStreak,currentStreak:Number(user.daily_streak||0)
       },
       achievements
