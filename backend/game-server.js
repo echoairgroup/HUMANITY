@@ -553,7 +553,9 @@ async function maybeVerifyWithWikidata(question, answerText) {
     seas: ['sea', 'ocean'],
     deserts: ['desert'],
     'capital-cities': ['capital'],
-    'major-cities': ['city', 'town'],
+    'island-countries': ['island country', 'island nation'],
+    'euro-countries': ['eurozone member', 'member of the euro area', 'uses the euro', 'currency is the euro'],
+    'major-cities': ['major city', 'large city', 'metropolis', 'largest city', 'capital city'],
     'landlocked-capitals': ['capital'],
     'world-landmarks': ['landmark', 'monument', 'tower', 'bridge', 'heritage site', 'statue'],
     'world-heritage-sites': ['world heritage site', 'unesco world heritage site'],
@@ -561,7 +563,7 @@ async function maybeVerifyWithWikidata(question, answerText) {
     languages: ['language'],
     'popular-dishes': ['dish', 'cuisine', 'traditional food'],
     'popular-snacks': ['snack', 'food'],
-    'olympic-sports': ['sport']
+    'olympic-sports': ['olympic sport', 'sport at the olympic games', 'sport contested at the olympic games']
   }[question.id];
   if (!expected) return null;
 
