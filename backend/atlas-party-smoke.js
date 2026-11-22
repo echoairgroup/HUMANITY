@@ -384,9 +384,212 @@ async function checkLivePartyRound() {
     if (roomCode) console.log('Globe Rush smoke-test room ' + roomCode + ' cleaned up.');
   }
 }
+
+async function createPair(label, options = {}) {
+  const host = await connect(label + 'Host');
+  const guest = await connect(label + 'Guest');
+  const hostJoinedPromise = host.waitFor(message => message.type === 'joined', 12000, label + ' host joins');
+  const hostLobbyPromise = host.waitFor(message =>
+    message.type === 'room_state' && message.phase === 'lobby' && message.players?.length === 1,
+    12000, label + ' host lobby'
+  );
+  host.send({
+    type: 'create_room',
+    visibility: 'private',
+    mode: 'private',
+    variant: options.variant || 'classic',
+    capacity: 2,
+    nickname: label + 'Host' + suffix,
+    settings: options.settings || {}
+  });
+  const hostJoined = await hostJoinedPromise;
+  const roomCode = hostJoined.roomCode;
+  await hostLobbyPromise;
+
+  const guestJoinedPromise = guest.waitFor(message => message.type === 'joined' && message.roomCode === roomCode,
+    12000, label + ' guest joins');
+  const hostTwoPlayersPromise = host.waitFor(message =>
+    message.type === 'room_state' && message.code === roomCode && message.players?.length === 2,
+    12000, label + ' host sees guest'
+  );
+  guest.send({ type: 'join_room', code: roomCode, nickname: label + 'Guest' + suffix });
+  const guestJoined = await guestJoinedPromise;
+  const hostRoom = await hostTwoPlayersPromise;
+  return { host, guest, roomCode, hostJoined, guestJoined, hostRoom };
+}
+
+async function closeClients(clients) {
+  for (const client of clients) {
+    if (!client?.socket) continue;
+    try {
+      if (client.socket.readyState === WebSocket.OPEN) client.send({ type: 'leave_room' });
+      client.socket.close();
+    } catch (_) {
+      try { client.socket.terminate(); } catch (_) { /* ignored */ }
+    }
+  }
+}
+
+async function checkRoomReconnect() {
+  let pair = null;
+  let restored = null;
+  try {
+    pair = await createPair('Resume');
+    const playerId = pair.guestJoined.playerId;
+    const resumeToken = pair.guestJoined.resumeToken;
+    assert.ok(resumeToken && resumeToken.length >= 24, 'The server should issue an opaque reconnect token');
+
+    const disconnectedStatePromise = pair.host.waitFor(message =>
+      message.type === 'room_state' && message.code === pair.roomCode &&
+      message.players?.some(player => player.id === playerId && player.isConnected === false),
+      8000, 'host sees the temporarily disconnected seat'
+    );
+    pair.guest.socket.terminate();
+    const disconnectedState = await disconnectedStatePromise;
+    assert.equal(disconnectedState.phase, 'lobby', 'A short disconnect should preserve the room');
+
+    restored = await connect('ResumeReturn');
+    const rejoinedPromise = restored.waitFor(message =>
+      message.type === 'joined' && message.roomCode === pair.roomCode && message.reconnected === true,
+      10000, 'player reconnects to the existing room'
+    );
+    const restoredStatePromise = pair.host.waitFor(message =>
+      message.type === 'room_state' && message.code === pair.roomCode &&
+      message.players?.some(player => player.id === playerId && player.isConnected === true),
+      10000, 'host sees the original player reconnect'
+    );
+    restored.send({ type: 'reconnect', code: pair.roomCode, resumeToken });
+    const [rejoined, restoredState] = await Promise.all([rejoinedPromise, restoredStatePromise]);
+    assert.equal(rejoined.playerId, playerId, 'Reconnect should restore the original player identity');
+    assert.equal(rejoined.resumeToken, resumeToken, 'Reconnect should keep the same resume token');
+    assert.ok(restoredState.players.some(player => player.id === playerId && player.isYou));
+    console.log('PASS: a disconnected player can securely return to the same room and seat.');
+  } finally {
+    await closeClients([pair?.host, pair?.guest, restored]);
+  }
+}
+
+async function checkVariantRound(variant, expectedFuseMs, timeoutMs) {
+  let pair = null;
+  try {
+    pair = await createPair(variant === 'team-rush' ? 'Team' : 'Survival', {
+      variant,
+      settings: {
+        startingLives: 1,
+        maxLives: 1,
+        turnDurationSeconds: variant === 'team-rush' ? 10 : 0,
+        difficulty: 'normal',
+        categoryTheme: 'all',
+        gameMode: 'classic',
+        countdownSeconds: 0,
+        ratingEnabled: false,
+        autoStartWhenFull: false
+      }
+    });
+
+    const hostPlayingPromise = pair.host.waitFor(message =>
+      message.type === 'room_state' && message.code === pair.roomCode && message.phase === 'playing' && message.round === 1,
+      12000, variant + ' host starts');
+    const guestPlayingPromise = pair.guest.waitFor(message =>
+      message.type === 'room_state' && message.code === pair.roomCode && message.phase === 'playing' && message.round === 1,
+      12000, variant + ' guest starts');
+    pair.host.send({ type: 'start_game' });
+    const [hostPlaying, guestPlaying] = await Promise.all([hostPlayingPromise, guestPlayingPromise]);
+
+    assert.equal(hostPlaying.variant, variant);
+    assert.equal(guestPlaying.variant, variant);
+    assert.equal(hostPlaying.currentDifficulty, variant === 'survival' ? 'easy' : 'normal');
+    assert.equal(hostPlaying.timerDurationMs, expectedFuseMs);
+    assert.equal(guestPlaying.timerDurationMs, expectedFuseMs);
+
+    if (variant === 'team-rush') {
+      const teams = new Set(hostPlaying.players.map(player => player.team));
+      assert.deepEqual([...teams].sort(), ['nova', 'terra'], 'Team Rush should balance two players across both teams');
+    }
+
+    const hostGameOverPromise = pair.host.waitFor(message => message.type === 'game_over', timeoutMs, variant + ' host receives results');
+    const guestGameOverPromise = pair.guest.waitFor(message => message.type === 'game_over', timeoutMs, variant + ' guest receives results');
+    const [hostOver, guestOver] = await Promise.all([hostGameOverPromise, guestGameOverPromise]);
+    assert.equal(hostOver.results.variant, variant);
+    assert.equal(guestOver.results.variant, variant);
+    assert.ok(hostOver.results.winner && hostOver.results.winner !== 'No winner',
+      variant + ' should resolve a winner');
+    if (variant === 'team-rush') {
+      assert.ok(['nova', 'terra'].includes(hostOver.results.winningTeam));
+      assert.equal(hostOver.results.teams.length, 2);
+      assert.ok(hostOver.results.ranking.filter(player => player.isWinner)
+        .every(player => player.team === hostOver.results.winningTeam));
+    } else {
+      assert.equal(hostOver.results.winningTeam, null);
+      assert.equal(hostOver.results.teams.length, 0);
+    }
+    console.log('PASS: ' + variant + ' starts with its correct fuse and finishes with a consistent winner.');
+  } finally {
+    await closeClients([pair?.host, pair?.guest]);
+  }
+}
+
+async function checkLargeQueueFallback() {
+  const clients = [];
+  try {
+    for (let index = 0; index < 6; index += 1) {
+      clients.push(await connect('LargeQueue' + (index + 1)));
+    }
+
+    const joinedPromises = clients.map((client, index) => client.waitFor(
+      message => message.type === 'joined' && Boolean(message.roomCode),
+      15000,
+      'large queue player ' + (index + 1) + ' joins'
+    ));
+    clients.forEach((client, index) => client.send({
+      type: 'quick_play',
+      mode: 'quick',
+      group: 'large',
+      variant: 'classic',
+      nickname: 'Large' + (index + 1) + suffix
+    }));
+
+    const initialJoins = await Promise.all(joinedPromises);
+    const originalCode = initialJoins[0].roomCode;
+    assert.ok(initialJoins.every(message => message.roomCode === originalCode),
+      'All six players should wait together in one large queue');
+
+    const migratedPromises = clients.map((client, index) => client.waitFor(
+      message => message.type === 'joined' && message.migrated === true,
+      40000,
+      'large queue player ' + (index + 1) + ' is moved to a flexible lobby'
+    ));
+    const migrated = await Promise.all(migratedPromises);
+    const flexibleCode = migrated[0].roomCode;
+    assert.notEqual(flexibleCode, originalCode, 'Migration should create a new flexible lobby');
+    assert.ok(migrated.every(message => message.roomCode === flexibleCode),
+      'All six explorers should be moved into the same new lobby');
+
+    const playingPromises = clients.map((client, index) => client.waitFor(
+      message => message.type === 'room_state' && message.code === flexibleCode && message.phase === 'playing',
+      12000,
+      'flexible lobby player ' + (index + 1) + ' sees the match start'
+    ));
+    const playingStates = await Promise.all(playingPromises);
+    for (const room of playingStates) {
+      assert.equal(room.group, 'flex');
+      assert.equal(room.capacity, 6);
+      assert.equal(room.players.length, 6);
+      assert.equal(room.phase, 'playing');
+    }
+    console.log('PASS: a six-player 8–10 queue is moved into a new six-player room and starts automatically.');
+  } finally {
+    await closeClients(clients);
+  }
+}
+
 async function main() {
   await checkHttpSurface();
   await checkLivePartyRound();
+  await checkRoomReconnect();
+  await checkVariantRound('team-rush', 10000, 18000);
+  await checkVariantRound('survival', 22000, 35000);
+  await checkLargeQueueFallback();
 }
 
 main().catch(error => {
