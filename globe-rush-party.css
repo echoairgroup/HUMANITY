@@ -574,3 +574,8 @@
     transition: none !important;
   }
 }
+
+/* Category counters are intentionally no longer part of the rules. */
+#party-room .used-meter-stat > i { display: none; }
+#party-room label:has(#private-category-misses),
+#party-room label:has(#private-category-turns) { display: none; }
