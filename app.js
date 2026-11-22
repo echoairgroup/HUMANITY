@@ -1310,6 +1310,7 @@
       $('#admin-open').hidden = true;
       $('#streak-number').textContent = '— days';
       if ($('#profile-avatar-collection')) $('#profile-avatar-collection').innerHTML = '';
+      if ($('#profile-history')) $('#profile-history').innerHTML = '';
       return;
     }
     $('#account-avatar').textContent = (player.username || 'E').slice(0,1).toUpperCase();
@@ -1343,7 +1344,10 @@
       '<div><span>RANKED RATING</span><b>' + number.format(player.partyRating || 1000) + '</b></div>' +
       '<div><span>PLAY TIME</span><b>' + formatPlayTime(stats.totalPlaySeconds) + '</b></div>' +
       '<div><span>ATLAS DAILIES</span><b>' + number.format(stats.dailyGames || 0) + '</b></div>' +
+      '<div><span>BEST DAILY SCORE</span><b>' + number.format(stats.bestDailyScore || 0) + '</b></div>' +
       '<div><span>GLOBE RUSH WINS</span><b>' + number.format(stats.partyWins || 0) + '</b></div>' +
+      '<div><span>TEAM RUSH WINS</span><b>' + number.format(stats.teamRushWins || 0) + '</b></div>' +
+      '<div><span>SURVIVAL GAMES</span><b>' + number.format(stats.survivalGames || 0) + '</b></div>' +
       '<div class="profile-level-progress"><span>NEXT LEVEL · ' + number.format(500 - levelProgress) + ' XP TO GO</span>' +
       '<i><b style="width:' + pct.toFixed(1) + '%"></b></i></div>';
   }
@@ -1362,6 +1366,30 @@
           '<span class="planet-avatar-visual planet-avatar-' + planet.id + '"></span><b>' + planet.name + '</b>' +
           '<small>' + (locked ? planet.streak + ' DAY STREAK' : selected === planet.id ? 'SELECTED' : 'UNLOCKED') + '</small></button>';
       }).join('') + '</div>';
+  }
+  function renderProfileHistory(entries) {
+    const target = $('#profile-history');
+    if (!target) return;
+    const items = Array.isArray(entries) ? entries.slice(0, 12) : [];
+    target.innerHTML = '<div class="profile-history-heading"><span class="micro-label">EXPLORER LOGBOOK</span>' +
+      '<strong>Recent activity</strong><small>Your latest official Atlas Daily and Globe Rush results.</small></div>' +
+      (items.length ? '<div class="profile-history-list">' + items.map(item => {
+        const date = new Date(String(item.date || '') + 'T00:00:00Z');
+        const dateLabel = Number.isFinite(date.getTime())
+          ? date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
+          : String(item.date || '—');
+        const daily = item.kind === 'atlas-daily';
+        const variant = String(item.variant || 'classic').replace(/-/g, ' ').toUpperCase();
+        const mode = String(item.gameMode || 'quick').toUpperCase();
+        const label = daily ? 'ATLAS DAILY' : variant + ' · ' + mode;
+        const result = daily ? 'COMPLETED' : String(item.result || 'PLAYED');
+        const scoreLabel = daily ? 'DISCOVERY POINTS' : 'MATCH POINTS';
+        const rankLabel = !daily && item.rank ? ' · #' + number.format(item.rank) : '';
+        return '<article class="profile-history-row ' + (result === 'WON' ? 'is-win' : '') + '">' +
+          '<div class="profile-history-main"><strong>' + esc(label) + '</strong><small>' + esc(dateLabel) + rankLabel + '</small></div>' +
+          '<div class="profile-history-result"><b>' + number.format(item.score || 0) + '</b><small>' + scoreLabel + '</small></div>' +
+          '<span class="profile-history-status">' + esc(result) + '</span></article>';
+      }).join('') + '</div>' : '<p class="profile-history-empty">Your completed runs will appear here.</p>');
   }
   function renderProfileAchievements(achievements,stats) {
     const target=$('#profile-achievements');
@@ -1388,6 +1416,7 @@
       state.profileStats = result.stats || {};
       renderProfileStats(state.profileStats, result.player);
       renderProfileAvatarCollection();
+      renderProfileHistory(result.recentActivity || []);
       renderProfileAchievements(result.achievements||[],result.stats||{});
       return result;
     } catch (_) {
