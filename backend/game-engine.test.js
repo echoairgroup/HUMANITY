@@ -58,6 +58,17 @@ test('rarity scores use the six published Discovery Levels', () => {
   assert.deepEqual(engine.POINTS_BY_LEVEL, [10, 20, 40, 60, 80, 100]);
   assert.equal(engine.LEVEL_NAMES.length, 6);
 });
+test('Globe Rush carries a shared fuse forward when more than eight seconds remain', () => {
+  assert.equal(partyRules.inheritedFuseDurationMs(24000), 24000);
+  assert.equal(partyRules.inheritedFuseDurationMs(8000), 8000);
+});
+
+test('Globe Rush restores a shared fuse to eight seconds when less than eight remain', () => {
+  assert.equal(partyRules.inheritedFuseDurationMs(7999), 8000);
+  assert.equal(partyRules.inheritedFuseDurationMs(1), 8000);
+  assert.equal(partyRules.inheritedFuseDurationMs(0), 8000);
+});
+
 
 
 test('Globe Rush changes category after two incorrect answers', () => {
