@@ -232,28 +232,45 @@ function createArcade({ server, pool, allowedOrigins }) {
       countryCatalogPromise = pool.query(
         "SELECT payload FROM humanity_cache WHERE cache_key = 'countries' LIMIT 1"
       ).then(result => {
-        const rows = result.rows[0] && Array.isArray(result.rows[0].payload)
-          ? result.rows[0].payload : [];
         const byCode = new Map();
         const byName = new Map();
-        for (const country of rows) {
-          if (!country || !/^[A-Z]{3}$/.test(String(country.code || '').toUpperCase())) continue;
-          const item = {
-            code: String(country.code).toUpperCase(),
-            name: String(country.name || country.code),
-            aliases: []
-          };
-          byCode.set(item.code, item);
-          byName.set(normaliseAnswer(item.name), item);
-          for (const alias of Array.isArray(country.aliases) ? country.aliases : []) {
-            const cleanAlias = String(alias || '').trim().slice(0, 80);
-            const aliasKey = normaliseAnswer(cleanAlias);
-            if (aliasKey && aliasKey !== normaliseAnswer(item.name) && !item.aliases.some(value => normaliseAnswer(value) === aliasKey)) {
-              item.aliases.push(cleanAlias);
-              byName.set(aliasKey, item);
-            }
+
+        const addCountry = (codeValue, nameValue, aliasesValue) => {
+          const code = String(codeValue || '').toUpperCase();
+          const name = String(nameValue || '').trim();
+          if (!/^[A-Z]{3}$/.test(code) || !name) return null;
+          let item = byCode.get(code);
+          if (!item) {
+            item = { code, name, aliases: [] };
+            byCode.set(code, item);
+          } else if (normaliseAnswer(item.name) !== normaliseAnswer(name)) {
+            item.aliases.push(name);
           }
+          const aliases = [name].concat(Array.isArray(aliasesValue) ? aliasesValue : []);
+          for (const rawAlias of aliases) {
+            const alias = String(rawAlias || '').trim().slice(0, 80);
+            const key = normaliseAnswer(alias);
+            if (!key || key === normaliseAnswer(item.name) ||
+                item.aliases.some(value => normaliseAnswer(value) === key)) continue;
+            item.aliases.push(alias);
+          }
+          byName.set(normaliseAnswer(item.name), item);
+          for (const alias of item.aliases) byName.set(normaliseAnswer(alias), item);
+          return item;
+        };
+
+        // Natural Earth provides country names plus multilingual labels and
+        // official/formal variants; the cache adds any extra provider aliases.
+        for (const country of geographyEngine.listWorldCountryAnswers()) {
+          addCountry(country.code, country.name, country.aliases);
         }
+        const rows = result.rows[0] && Array.isArray(result.rows[0].payload)
+          ? result.rows[0].payload : [];
+        for (const country of rows) {
+          if (!country) continue;
+          addCountry(country.code, country.name, country.aliases);
+        }
+
         const aliases = {
           'us': 'USA', 'u s': 'USA', 'u s a': 'USA',
           'united states': 'USA', 'united states of america': 'USA', 'america': 'USA',
@@ -285,13 +302,13 @@ function createArcade({ server, pool, allowedOrigins }) {
         };
         for (const [alias, code] of Object.entries(aliases)) {
           const country = byCode.get(code);
-          if (country) {
-            if (!country.aliases.some(value => normaliseAnswer(value) === normaliseAnswer(alias))) {
-              country.aliases.push(alias);
-            }
-            byName.set(normaliseAnswer(alias), country);
+          if (!country) continue;
+          if (!country.aliases.some(value => normaliseAnswer(value) === normaliseAnswer(alias))) {
+            country.aliases.push(alias);
           }
+          byName.set(normaliseAnswer(alias), country);
         }
+
         const matchingQuestion = {
           id: 'globe-rush-country-names',
           category: 'Countries',
