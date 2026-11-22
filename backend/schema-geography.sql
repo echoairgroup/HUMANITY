@@ -18,10 +18,14 @@ CREATE TABLE IF NOT EXISTS humanity_players (
   last_daily_date DATE,
   party_rating INTEGER NOT NULL DEFAULT 1000,
   party_season_id TEXT,
+  party_streak_days INTEGER NOT NULL DEFAULT 0,
+  party_streak_date DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS party_season_id TEXT;
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS party_streak_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE humanity_players ADD COLUMN IF NOT EXISTS party_streak_date DATE;
 
 CREATE TABLE IF NOT EXISTS humanity_sessions (
   token_hash TEXT PRIMARY KEY,
