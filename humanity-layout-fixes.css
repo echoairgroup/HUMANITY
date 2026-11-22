@@ -151,3 +151,111 @@ body.globe-rush-active #view-party .party-lobby * {
     font-size: clamp(34px, 10vw, 44px);
   }
 }
+
+
+/* The live room has its own two-panel grid, separate from the public lobby. */
+body.globe-rush-active #view-party #party-room .planet-room-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, .95fr) !important;
+  align-items: stretch !important;
+  gap: clamp(12px, 1.4vw, 18px) !important;
+  width: 100%;
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+}
+body.globe-rush-active #view-party #party-room .planet-arena {
+  position: relative !important;
+  width: 100%;
+  min-width: 0;
+  min-height: 340px;
+  height: clamp(340px, 37vw, 500px) !important;
+  max-height: none !important;
+}
+body.globe-rush-active #view-party #party-room .planet-console {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "code roster"
+    "rules chat"
+    "start start";
+  align-content: start;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100% !important;
+  max-height: none !important;
+}
+body.globe-rush-active #view-party #party-room .planet-console-card,
+body.globe-rush-active #view-party #party-room .planet-start-button {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+body.globe-rush-active #view-party #party-room .planet-console-card {
+  overflow: hidden;
+}
+body.globe-rush-active #view-party #party-room .planet-chat-log,
+body.globe-rush-active #view-party #party-room .planet-player-roster {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+body.globe-rush-active #view-party #party-room .planet-chat-card {
+  grid-area: chat;
+}
+body.globe-rush-active #view-party #party-room .planet-start-button {
+  grid-area: start;
+}
+@media (max-width: 1080px) {
+  body.globe-rush-active #view-party #party-room .planet-room-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  body.globe-rush-active #view-party #party-room .planet-arena {
+    height: clamp(260px, 42vw, 380px) !important;
+    min-height: 260px;
+  }
+  body.globe-rush-active #view-party #party-room .planet-console {
+    height: auto !important;
+    grid-template-rows: auto auto auto;
+    align-content: start;
+  }
+}
+@media (max-width: 480px) {
+  body.globe-rush-active #view-party #party-room .planet-console {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "code"
+      "roster"
+      "rules"
+      "chat"
+      "start";
+    height: auto !important;
+  }
+  body.globe-rush-active #view-party #party-room .planet-arena {
+    height: 250px !important;
+    min-height: 250px;
+  }
+}
+
+/* The skip control is available in official Daily, archive and Practice modes. */
+#view-daily .unlimited-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+#view-daily .unlimited-actions[hidden] {
+  display: none !important;
+}
+#view-daily .unlimited-actions .text-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
