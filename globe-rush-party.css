@@ -579,3 +579,315 @@
 #party-room .used-meter-stat > i { display: none; }
 #party-room label:has(#private-category-misses),
 #party-room label:has(#private-category-turns) { display: none; }
+
+
+/* Globe Rush room lobby — fit the full crew console beside the world hub. */
+#party-room {
+  padding: 8px;
+}
+#party-room .planet-room-topbar {
+  min-height: 38px;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+#party-room .planet-brand-mark {
+  width: 28px;
+  height: 28px;
+}
+#party-room .planet-room-layout {
+  grid-template-columns: minmax(0, 1.42fr) minmax(350px, 1fr);
+  gap: 9px;
+  align-items: stretch;
+}
+#party-room .planet-arena {
+  height: clamp(340px, calc(100svh - 265px), 455px);
+  min-height: 340px;
+}
+#party-room .planet-console {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "code roster"
+    "rules chat"
+    "start start";
+  align-content: stretch;
+  align-items: stretch;
+  gap: 7px;
+  min-height: 0;
+  height: 100%;
+}
+#party-room .planet-room-code-card { grid-area: code; }
+#party-room .planet-console > .planet-console-card:nth-child(2) { grid-area: roster; }
+#party-room .planet-rules-card {
+  grid-area: rules;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 3px 7px;
+}
+#party-room .planet-rules-card > .planet-console-heading {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+}
+#party-room .planet-rules-card .planet-rule-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 5px;
+  border: 1px solid rgba(92, 145, 182, .16);
+  border-radius: 3px;
+  background: rgba(18, 43, 70, .42);
+}
+#party-room .planet-rules-card .planet-rule-line span {
+  font-size: 8px;
+  line-height: 1.1;
+}
+#party-room .planet-rules-card .planet-rule-line b {
+  max-width: 100%;
+  overflow: hidden;
+  color: #d9edf9;
+  font-size: 10px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#party-room .planet-chat-card {
+  grid-area: chat;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#party-room .planet-start-button {
+  grid-area: start;
+  min-height: 34px;
+  margin: 0;
+}
+#party-room .planet-console-card {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+  border-radius: 4px;
+}
+#party-room .planet-console-heading {
+  min-height: 18px;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+  font-size: 12px;
+}
+#party-room .planet-room-code-value {
+  display: block;
+  margin: 0;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1;
+  letter-spacing: .14em;
+}
+#party-room .planet-room-code-card p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 3px 0 5px;
+  font-size: 10px;
+  line-height: 1.25;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+#party-room .planet-room-code-card .planet-copy-button {
+  display: inline-flex;
+  width: calc(50% - 3px);
+  min-height: 26px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+#party-room .planet-player-roster {
+  display: grid;
+  gap: 3px;
+  max-height: 100px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+#party-room .planet-roster-row {
+  min-width: 0;
+  min-height: 27px;
+  gap: 5px;
+  padding: 2px 4px;
+}
+#party-room .planet-roster-row small {
+  font-size: 8px;
+}
+#party-room .planet-roster-name {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#party-room .planet-roster-dot.planet-avatar {
+  flex-basis: 19px;
+  width: 19px;
+  height: 19px;
+}
+#party-room .planet-chat-log {
+  flex: 1 1 auto;
+  min-height: 48px;
+  max-height: 94px;
+  overflow-y: auto;
+  padding: 4px 5px;
+  scrollbar-width: thin;
+}
+#party-room .planet-chat-entry {
+  margin-bottom: 4px;
+  padding: 4px 5px;
+}
+#party-room .planet-chat-entry p {
+  margin: 1px 0 0;
+  font-size: 10px;
+  line-height: 1.25;
+}
+#party-room .planet-chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  margin-top: 5px;
+}
+#party-room .planet-chat-form input {
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 7px;
+  font-size: 10px;
+}
+#party-room .planet-chat-form button {
+  min-width: 45px;
+  min-height: 28px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+#party-room .planet-private-settings {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+#party-room .planet-private-settings summary {
+  padding: 4px 6px;
+  font-size: 9px;
+}
+#party-room .planet-private-settings[open] {
+  max-height: 180px;
+  overflow-y: auto;
+}
+#party-room .planet-private-settings-grid {
+  gap: 5px;
+}
+#party-room .planet-private-settings-grid label {
+  font-size: 8px;
+}
+#party-room .planet-private-settings-grid .select-input {
+  min-height: 25px;
+  margin-top: 2px;
+  font-size: 9px;
+}
+#party-room .planet-private-settings-actions {
+  padding-top: 5px;
+}
+#party-room .planet-private-settings-actions .planet-copy-button {
+  min-height: 26px;
+  font-size: 9px;
+}
+
+@media (max-width: 1080px) {
+  #party-room .planet-room-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #party-room .planet-arena {
+    height: 265px;
+    min-height: 265px;
+  }
+  #party-room .planet-console {
+    height: auto;
+    grid-template-rows: auto auto auto;
+  }
+}
+@media (max-width: 700px) {
+  #party-room { padding: 6px; }
+  #party-room .planet-room-topbar {
+    min-height: 34px;
+    margin-bottom: 6px;
+    gap: 5px;
+  }
+  #party-room .planet-room-layout { gap: 7px; }
+  #party-room .planet-arena {
+    height: 225px;
+    min-height: 225px;
+  }
+  #party-room .planet-arena-heading { top: 8px; gap: 2px; }
+  #party-room .planet-arena-heading strong { font-size: 16px; }
+  #party-room .planet-arena-heading b { font-size: 12px; }
+  #party-room .planet-arena-heading small { font-size: 9px; }
+  #party-room .planet-earth-wrap {
+    top: 24%;
+    width: min(31%, 128px);
+  }
+  #party-room .planet-seat { transform: scale(.78); }
+  #party-room .planet-console {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "code roster"
+      "rules chat"
+      "start start";
+    gap: 6px;
+  }
+  #party-room .planet-console-card { padding: 6px; }
+  #party-room .planet-room-code-card p { font-size: 9px; }
+  #party-room .planet-rules-card .planet-rule-line {
+    min-height: 26px;
+    padding: 2px 4px;
+  }
+  #party-room .planet-rules-card .planet-rule-line span { font-size: 7px; }
+  #party-room .planet-rules-card .planet-rule-line b { font-size: 9px; }
+  #party-room .planet-chat-log { min-height: 42px; max-height: 70px; }
+  #party-room .planet-room-code-card .planet-copy-button {
+    width: 100%;
+    margin-top: 3px;
+  }
+}
+@media (max-width: 430px) {
+  #party-room .planet-room-topbar {
+    flex-wrap: wrap;
+  }
+  #party-room .planet-room-code-pill { display: none; }
+  #party-room .planet-room-live-pill { margin-left: auto; }
+  #party-room .planet-arena { height: 190px; min-height: 190px; }
+  #party-room .planet-console {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "code"
+      "roster"
+      "rules"
+      "chat"
+      "start";
+  }
+  #party-room .planet-player-roster { max-height: 75px; }
+  #party-room .planet-chat-log { max-height: 58px; }
+  #party-room .planet-rules-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* The pre-game Globe Rush menu has a shorter header and uses the available height. */
+@media (min-width: 900px) {
+  #view-party { padding-top: 14px; padding-bottom: 26px; }
+  #view-party .party-intro { padding-top: 3px; padding-bottom: 7px; }
+  #view-party .party-lobby { gap: 8px; }
+  #view-party .party-play-panel,
+  #view-party .public-rooms-card { padding-top: 8px; padding-bottom: 8px; }
+}
+@media (max-height: 760px) and (min-width: 900px) {
+  #view-party { padding-top: 8px; padding-bottom: 14px; }
+  #view-party .party-intro h1 { font-size: 38px; }
+  #view-party .party-intro p { font-size: 10px; }
+  #view-party .party-intro-stats { margin-top: 4px; font-size: 9px; }
+  #view-party .party-play-panel,
+  #view-party .public-rooms-card { max-height: 420px; }
+  #view-party .public-rooms-card { max-height: 420px; }
+  .party-centre-scene { min-height: 420px; }
+}
