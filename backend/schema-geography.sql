@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS humanity_party_matches (
 );
 CREATE INDEX IF NOT EXISTS humanity_party_matches_finished_idx
   ON humanity_party_matches(finished_at DESC);
+ALTER TABLE humanity_party_matches ADD COLUMN IF NOT EXISTS variant TEXT NOT NULL DEFAULT 'classic';
 
 CREATE TABLE IF NOT EXISTS humanity_party_match_players (
   match_id TEXT NOT NULL REFERENCES humanity_party_matches(id) ON DELETE CASCADE,
@@ -148,6 +149,7 @@ CREATE TABLE IF NOT EXISTS humanity_party_match_players (
   xp_earned INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (match_id, player_key)
 );
+ALTER TABLE humanity_party_match_players ADD COLUMN IF NOT EXISTS won BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS humanity_friendships (
   requester_id TEXT NOT NULL REFERENCES humanity_players(id) ON DELETE CASCADE,
