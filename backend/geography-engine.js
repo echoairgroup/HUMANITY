@@ -622,13 +622,13 @@ function getQuestion(id) {
 }
 
 function partyThemeMatches(item, theme) {
-  const haystack = (item.topicId + ' ' + item.category + ' ' + item.prompt).toLowerCase();
+  const topicId = String(item.topicId || '').toLowerCase();
   if (!theme || theme === 'all') return true;
-  if (theme === 'countries') return /countr|nation|states/.test(haystack);
-  if (theme === 'cities') return /capital|cit(y|ies)|urban/.test(haystack);
-  if (theme === 'nature') return /river|mountain|island|lake|sea|ocean|desert|waterfall|volcano|forest/.test(haystack);
-  if (theme === 'landmarks') return /landmark|bridge|monument/.test(haystack);
-  if (theme === 'culture') return /dish|snack|food|culture/.test(haystack);
+  if (theme === 'countries') return /countries/.test(topicId);
+  if (theme === 'cities') return /capital-cities|major-cities/.test(topicId);
+  if (theme === 'nature') return /world-rivers|mountains|islands|lakes|seas|deserts/.test(topicId);
+  if (theme === 'landmarks') return /world-landmarks/.test(topicId);
+  if (theme === 'culture') return /popular-dishes|popular-snacks|languages/.test(topicId);
   return true;
 }
 
