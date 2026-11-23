@@ -199,3 +199,75 @@ body.humanity-admin-page{
   .admin-panel{padding:13px}
   .admin-pagination{align-items:flex-start;flex-direction:column}
 }
+
+/* Analytics dashboard extensions — preserve the existing HUMANITY admin palette. */
+.admin-insights-controls{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.admin-insights-controls label{color:#7698b7;font:9px 'DM Mono',monospace;letter-spacing:.1em}
+.admin-insights-controls select{min-height:36px;padding:7px 9px;border:1px solid #315579;color:#e3f2ff;background:#071a30;font:11px 'DM Mono',monospace}
+.admin-insights-status{display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin:-4px 0 12px;color:#7898b7;font:9px 'DM Mono',monospace;letter-spacing:.04em}
+.admin-insights-status>span:first-child{color:#9be4c6}
+.admin-insights-status i{display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#74dfbf;box-shadow:0 0 10px rgba(116,223,191,.6)}
+.admin-insight-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:13px}
+.admin-insight-kpis .admin-stat-card{padding:12px 13px}
+.admin-insight-kpis .admin-stat-card b{font-size:25px}
+.admin-insight-kpis .admin-stat-card small{line-height:1.35}
+.admin-insights-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.admin-insights-grid>.admin-panel{min-width:0}
+.admin-insights-grid .admin-insights-wide{grid-column:1/-1}
+.admin-chart-legend{display:flex;align-items:center;gap:7px;color:#8ba9c4;font:9px 'DM Mono',monospace}
+.admin-chart-legend i{display:inline-block;width:7px;height:7px;border-radius:50%}
+.admin-chart-legend i.page{background:#66d3e4}
+.admin-chart-legend i.signup{background:#bb8ae8}
+.admin-chart-scroll{width:100%;overflow-x:auto;padding:5px 0 0;scrollbar-width:thin}
+.admin-analytics-chart{--admin-chart-columns:30;display:flex;align-items:stretch;gap:3px;min-width:max(100%,calc(var(--admin-chart-columns)*5px));height:165px;padding:8px 2px 0;border-bottom:1px solid rgba(111,163,197,.18)}
+.admin-chart-column{display:flex;flex:1 0 4px;min-width:4px;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:5px}
+.admin-chart-bars{display:flex;align-items:flex-end;justify-content:center;gap:1px;width:100%;height:130px}
+.admin-chart-bars i{display:block;min-width:2px;width:42%;border-radius:2px 2px 0 0}
+.admin-chart-bars i.page{background:linear-gradient(180deg,#7fe5ee,#338da9)}
+.admin-chart-bars i.signup{background:linear-gradient(180deg,#d2a4f3,#7654a8)}
+.admin-chart-column small{height:13px;color:#7898b7;font:8px 'DM Mono',monospace;white-space:nowrap}
+.admin-live-counters{display:grid;gap:0}
+.admin-live-counters>div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid rgba(111,163,197,.13);font-size:11px}
+.admin-live-counters span{color:#8ca9c4}
+.admin-live-counters b{color:#dff8ff;font:15px 'VT323',monospace}
+.admin-insight-list{display:grid;gap:8px;min-height:60px}
+.admin-insight-bars{display:grid;gap:10px}
+.admin-insight-bar-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(50px,1.2fr) 42px;align-items:center;gap:9px;min-width:0}
+.admin-insight-bar-row>span{overflow:hidden;color:#a8bfd5;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.admin-insight-bar-row>i{display:block;height:6px;overflow:hidden;border-radius:10px;background:rgba(105,165,204,.13)}
+.admin-insight-bar-row>i>b{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#388eac,#7ce0e9)}
+.admin-insight-bar-row>strong{color:#ddf5ff;font:11px 'DM Mono',monospace;text-align:right}
+.admin-activity-feed{display:grid;max-height:420px;overflow-y:auto}
+.admin-feed-row{display:grid;grid-template-columns:100px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid rgba(111,163,197,.12)}
+.admin-feed-kind{color:#8fdae4;font:9px 'DM Mono',monospace;text-transform:uppercase}
+.admin-feed-row strong{color:#dceefa;font-size:11px}
+.admin-feed-row p{margin:3px 0 0;color:#7898b7;font-size:10px}
+.admin-feed-row time{color:#718da9;font:9px 'DM Mono',monospace;white-space:nowrap}
+.admin-avatar-live-preview{display:flex;align-items:center;gap:9px;margin-bottom:8px;padding:7px 9px;border:1px solid rgba(104,165,201,.16);background:rgba(8,30,52,.55)}
+.admin-avatar-live-preview strong{color:#dff5ff;font-size:11px}
+.admin-avatar-orb{display:inline-block;flex:0 0 auto;width:25px;height:25px;border:1px solid rgba(206,235,255,.35);border-radius:50%;box-shadow:inset -5px -4px 9px rgba(0,0,0,.45),0 0 12px rgba(72,189,216,.13);background:radial-gradient(circle at 35% 30%,#d9e7f1,#71889c 45%,#29394b 78%)}
+.admin-editor-avatar.admin-avatar-orb{width:42px;height:42px}
+.admin-player-avatar.admin-avatar-orb{width:29px;height:29px}
+.admin-avatar-mercury{background:radial-gradient(circle at 32% 28%,#d8d6d0,#88867e 42%,#3e4348 78%)}
+.admin-avatar-venus{background:radial-gradient(circle at 32% 28%,#fff0b5,#d69d56 44%,#66432b 79%)}
+.admin-avatar-earth{background:radial-gradient(circle at 32% 28%,#9ce5f0,#357fc1 42%,#174a42 67%,#10253b 82%)}
+.admin-avatar-mars{background:radial-gradient(circle at 32% 28%,#ffc2a1,#d85e37 43%,#682b23 78%)}
+.admin-avatar-jupiter{background:repeating-linear-gradient(0deg,#9d684a 0 4px,#e9c5a1 5px 8px,#704535 9px 12px)}
+.admin-avatar-saturn{background:radial-gradient(ellipse at 50% 50%,#f0d59a 0 34%,#ad8754 56%,#6b583f 80%)}
+.admin-avatar-uranus{background:radial-gradient(circle at 32% 28%,#c1fbf7,#5abfc2 47%,#225a70 80%)}
+.admin-avatar-neptune{background:radial-gradient(circle at 32% 28%,#9cc9ff,#315fd0 45%,#152b70 80%)}
+@media(max-width:1050px){.admin-insight-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){
+  .admin-insight-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-insights-grid{grid-template-columns:1fr}
+  .admin-insights-grid .admin-insights-wide{grid-column:auto}
+  .admin-insights-controls{justify-content:flex-start;width:100%}
+  .admin-feed-row{grid-template-columns:80px minmax(0,1fr);gap:8px}
+  .admin-feed-row time{grid-column:2}
+}
+@media(max-width:430px){
+  .admin-insights-controls select{flex:1;min-width:120px}
+  .admin-insight-kpis .admin-stat-card{padding:10px}
+  .admin-insight-kpis .admin-stat-card b{font-size:22px}
+  .admin-insight-bar-row{grid-template-columns:minmax(72px,1fr) minmax(30px,.9fr) 35px;gap:6px}
+}

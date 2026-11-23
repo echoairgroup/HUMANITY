@@ -8,8 +8,8 @@
   <title>HUMANITY Admin — Private Control Room</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./admin.css?v=2">
-  <script src="./admin.js?v=2" defer></script>
+  <link rel="stylesheet" href="./admin.css?v=3">
+  <script src="./admin.js?v=3" defer></script>
 </head>
 <body class="humanity-admin-page">
   <div class="admin-shell">
@@ -35,6 +35,7 @@
         <div class="admin-stat-grid" id="admin-stats" aria-live="polite"><article class="admin-stat-card"><span>PLAYERS</span><b>—</b></article></div>
         <nav class="admin-tabs" aria-label="Admin sections">
           <button type="button" class="admin-tab active" data-admin-tab="overview">Overview</button>
+          <button type="button" class="admin-tab" data-admin-tab="insights">Insights</button>
           <button type="button" class="admin-tab" data-admin-tab="players">Players <span id="admin-player-tab-count">—</span></button>
           <button type="button" class="admin-tab" data-admin-tab="answers">Answer review <span id="admin-answer-tab-count">—</span></button>
           <button type="button" class="admin-tab" data-admin-tab="audit">Audit log</button>
@@ -54,6 +55,7 @@
               <div class="admin-panel-heading"><div><span class="admin-eyebrow">QUICK ACTIONS</span><h3>Control shortcuts</h3></div></div>
               <div class="admin-quick-actions">
                 <button type="button" data-go-tab="players"><span>♙</span><div><b>Manage players</b><small>Roles, avatars and account access</small></div><i>↗</i></button>
+                <button type="button" data-go-tab="insights"><span>◫</span><div><b>Analytics & insights</b><small>Traffic, gameplay, growth and live activity</small></div><i>↗</i></button>
                 <button type="button" data-go-tab="answers"><span>✧</span><div><b>Review answers</b><small>Approve or reject suggestions</small></div><i>↗</i></button>
                 <button type="button" data-go-tab="audit"><span>◷</span><div><b>View admin history</b><small>See who changed what</small></div><i>↗</i></button>
               </div>
@@ -67,6 +69,61 @@
               <div><b>Moderator</b><p>Review player-submitted answers and inspect player profiles. Cannot edit accounts or assign roles.</p></div>
             </div>
           </article>
+        </section>
+        <section class="admin-view" id="admin-view-insights" data-admin-view="insights" hidden>
+          <div class="admin-view-heading">
+            <div><span class="admin-eyebrow">HUMANITY TELEMETRY</span><h2>Analytics & insights</h2><p>Website traffic is counted only for visitors who opt in. Gameplay metrics come from existing game records.</p></div>
+            <div class="admin-insights-controls"><label for="admin-analytics-range">PERIOD</label><select id="admin-analytics-range"><option value="7d">Last 7 days</option><option value="30d" selected>Last 30 days</option><option value="90d">Last 90 days</option><option value="365d">Last 365 days</option></select><button type="button" class="admin-secondary-button" id="admin-analytics-refresh">Refresh ↻</button><button type="button" class="admin-secondary-button" id="admin-analytics-export">Export CSV ↓</button></div>
+          </div>
+          <div class="admin-insights-status"><span><i></i> LIVE SERVICE SNAPSHOT</span><span id="admin-analytics-updated">Loading data…</span><span id="admin-analytics-retention">Visitor analytics: 365-day retention</span></div>
+          <div class="admin-insight-kpis" id="admin-insight-kpis"><div class="admin-panel admin-empty-state">Loading insights…</div></div>
+          <div class="admin-insights-grid">
+            <article class="admin-panel admin-insights-wide">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">ACTIVITY OVER TIME</span><h3>Traffic & community growth</h3></div><span class="admin-chart-legend"><i class="page"></i> Page views <i class="signup"></i> Sign-ups</span></div>
+              <div class="admin-chart-scroll"><div class="admin-analytics-chart" id="admin-analytics-chart"><div class="admin-empty-state">Preparing timeline…</div></div></div>
+              <p class="admin-muted-note">Daily totals. Page views exclude visitors who have not enabled optional analytics.</p>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">LIVE RIGHT NOW</span><h3>Live activity</h3></div><span class="admin-status-pill is-online" id="admin-live-status">CHECKING</span></div>
+              <div class="admin-live-counters">
+                <div><span>Online Globe Rush players</span><b id="admin-live-players">—</b></div>
+                <div><span>Active rooms</span><b id="admin-live-rooms">—</b></div>
+                <div><span>Signed-in sessions</span><b id="admin-live-sessions">—</b></div>
+                <div><span>Pending answer reviews</span><b id="admin-live-pending">—</b></div>
+              </div>
+              <p class="admin-muted-note">Online players and rooms are live WebSocket counts. Sessions are valid sign-ins, not a claim that every account is currently online.</p>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">VISITOR BEHAVIOUR</span><h3>Popular pages</h3></div></div>
+              <div id="admin-popular-pages" class="admin-insight-list"><div class="admin-empty-state">Loading page data…</div></div>
+              <p class="admin-muted-note" id="admin-consent-note">Only optional, consented page visits appear here.</p>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">GLOBE RUSH</span><h3>Multiplayer breakdown</h3></div></div>
+              <div id="admin-party-insights" class="admin-insight-list"><div class="admin-empty-state">Loading match data…</div></div>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">ATLAS DAILY</span><h3>Question performance</h3></div></div>
+              <div id="admin-question-insights" class="admin-insight-list"><div class="admin-empty-state">Loading question data…</div></div>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">PRACTICE LAB</span><h3>Popular question packs</h3></div></div>
+              <div id="admin-practice-insights" class="admin-insight-list"><div class="admin-empty-state">Loading practice data…</div></div>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">PLAYER PROFILES</span><h3>Avatar popularity</h3></div></div>
+              <div id="admin-avatar-insights" class="admin-insight-list"><div class="admin-empty-state">Loading avatar data…</div></div>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">COMMUNITY</span><h3>Most active players</h3></div></div>
+              <div id="admin-top-players" class="admin-insight-list"><div class="admin-empty-state">Loading player data…</div></div>
+            </article>
+            <article class="admin-panel admin-insights-wide">
+              <div class="admin-panel-heading"><div><span class="admin-eyebrow">RECENT EVENTS</span><h3>Activity feed</h3></div><span class="admin-updated">Automatically refreshes every minute while open</span></div>
+              <div class="admin-activity-feed" id="admin-analytics-feed"><div class="admin-empty-state">Loading activity…</div></div>
+            </article>
+          </div>
+          <p class="admin-footnote">Analytics are aggregate and first-party. HUMANITY does not store IP addresses, account IDs, raw answer text, private room messages or cross-site identifiers in the optional visitor analytics table. Visitors who choose essential-only are not counted in page-traffic charts.</p>
         </section>
         <section class="admin-view" id="admin-view-players" data-admin-view="players" hidden>
           <div class="admin-view-heading"><div><span class="admin-eyebrow">COMMUNITY MANAGEMENT</span><h2>Player directory</h2><p>Find an account and manage its role, planet avatar, progress or access.</p></div><span class="admin-result-count" id="admin-users-count">Loading players…</span></div>

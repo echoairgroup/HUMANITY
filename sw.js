@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'humanity-universe-v23';
+const CACHE_NAME = 'humanity-universe-v24';
 const SHELL = [
   './',
   './index.html',
@@ -16,7 +16,10 @@ const SHELL = [
   './globe.js',
   './world-countries.geojson',
   './favicon.svg',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './admin.html',
+  './admin.css?v=3',
+  './admin.js?v=3'
 ];
 
 self.addEventListener('install', event => {

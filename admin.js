@@ -15,7 +15,7 @@
     actor: null, actorRole: 'member', tab: 'overview',
     query: '', roleFilter: '', statusFilter: '', offset: 0, limit: 15, total: 0,
     selectedId: null, selectedDetails: null, toastTimer: null, searchTimer: null,
-    busy: false
+    busy: false, analyticsRange: '30d', analyticsData: null, analyticsTimer: null
   };
 
   function escapeHTML(value) {
@@ -81,7 +81,8 @@
   }
 
   function setTab(tab) {
-    if (!['overview','players','answers','audit'].includes(tab)) return;
+    if (!['overview','insights','players','answers','audit'].includes(tab)) return;
+    if (state.analyticsTimer) { clearInterval(state.analyticsTimer); state.analyticsTimer = null; }
     state.tab = tab;
     document.querySelectorAll('[data-admin-tab]').forEach(button => {
       button.classList.toggle('active', button.dataset.adminTab === tab);
@@ -91,6 +92,10 @@
       view.hidden = !active;
       view.classList.toggle('active', active);
     });
+    if (tab === 'insights') {
+      loadAnalytics();
+      state.analyticsTimer = setInterval(() => { if (state.tab === 'insights' && !document.hidden) loadAnalytics(); }, 60000);
+    }
     if (tab === 'players') loadUsers();
     if (tab === 'answers') loadReviewQueue();
     if (tab === 'audit') loadAudit();
@@ -118,6 +123,134 @@
     $('#admin-last-updated').textContent = 'Updated ' + formatDate(new Date(), true);
   }
 
+
+  function compact(value) {
+    return new Intl.NumberFormat('en-US', { notation:'compact', maximumFractionDigits:1 }).format(Number(value || 0));
+  }
+
+  function insightList(target, rows, labelOf, valueOf, empty) {
+    const root = $(target);
+    if (!rows || !rows.length) {
+      root.innerHTML = '<div class="admin-empty-state">' + escapeHTML(empty || 'No data for this period yet.') + '</div>';
+      return;
+    }
+    const max = Math.max(1, ...rows.map(valueOf));
+    root.innerHTML = '<div class="admin-insight-bars">' + rows.map(row => {
+      const value = Number(valueOf(row) || 0);
+      const pct = Math.max(2, Math.round(value / max * 100));
+      return '<div class="admin-insight-bar-row"><span title="' + escapeHTML(labelOf(row)) + '">' + escapeHTML(labelOf(row)) +
+        '</span><i><b style="width:' + pct + '%"></b></i><strong>' + compact(value) + '</strong></div>';
+    }).join('') + '</div>';
+  }
+
+  function renderTimeline(rows) {
+    const root = $('#admin-analytics-chart');
+    if (!rows || !rows.length) {
+      root.innerHTML = '<div class="admin-empty-state">No activity is available for this period yet.</div>';
+      return;
+    }
+    const max = Math.max(1, ...rows.map(row => Math.max(Number(row.page_views || 0), Number(row.signups || 0))));
+    const showEvery = rows.length > 120 ? 30 : rows.length > 45 ? 7 : rows.length > 14 ? 3 : 1;
+    root.innerHTML = rows.map((row,index) => {
+      const views = Number(row.page_views || 0);
+      const signups = Number(row.signups || 0);
+      const vh = Math.max(1, Math.round(views / max * 100));
+      const sh = Math.max(1, Math.round(signups / max * 100));
+      const label = index % showEvery === 0 ? escapeHTML(String(row.date || '').slice(5)) : '';
+      return '<div class="admin-chart-column" title="' + escapeHTML(row.date) + ' · ' + compact(views) + ' page views · ' + compact(signups) + ' sign-ups">' +
+        '<div class="admin-chart-bars"><i class="page" style="height:' + vh + '%"></i><i class="signup" style="height:' + sh + '%"></i></div><small>' + label + '</small></div>';
+    }).join('');
+    root.style.setProperty('--admin-chart-columns', String(rows.length));
+  }
+
+  function renderFeed(rows) {
+    const root = $('#admin-analytics-feed');
+    if (!rows || !rows.length) {
+      root.innerHTML = '<div class="admin-empty-state">No recent events have been recorded in this period.</div>';
+      return;
+    }
+    const names = { signup:'New account', atlas:'Atlas Daily', 'globe-rush':'Globe Rush', practice:'Practice Lab', 'page-view':'Page view' };
+    root.innerHTML = rows.map(item =>
+      '<article class="admin-feed-row"><span class="admin-feed-kind">' + escapeHTML(names[item.kind] || 'Activity') + '</span>' +
+      '<div><strong>' + escapeHTML(item.label || 'HUMANITY visitor') + '</strong><p>' + escapeHTML(item.detail || '') + '</p></div>' +
+      '<time>' + escapeHTML(formatDate(item.occurred_at,true)) + '</time></article>'
+    ).join('');
+  }
+
+  function renderAnalytics(data, live) {
+    const s = data.summary || {};
+    const values = [
+      ['UNIQUE VISITORS',s.unique_visitors,'Optional analytics consent'],
+      ['PAGE VIEWS',s.page_views,'Consented page loads'],
+      ['NEW ACCOUNTS',s.new_players,'Registrations in selected period'],
+      ['DAILY RUNS STARTED',s.daily_started,'Atlas Daily attempts'],
+      ['DAILY RUNS COMPLETED',s.daily_completed,'Completed official runs'],
+      ['ANSWER ATTEMPTS',s.answer_attempts,'Submitted answer attempts'],
+      ['GLOBE RUSH MATCHES',s.party_matches,'Finished multiplayer matches'],
+      ['MATCH PLAYER SLOTS',s.match_player_slots,'Total seats in recorded matches'],
+      ['PRACTICE SESSIONS',s.practice_started,'Sessions created'],
+      ['PRACTICE COMPLETED',s.practice_completed,'Finished practice sessions'],
+      ['ACTIVE SESSIONS',s.active_sessions,'Valid sign-in sessions'],
+      ['PENDING ANSWERS',s.pending_answers,'Waiting for moderation']
+    ];
+    $('#admin-insight-kpis').innerHTML = values.map(item =>
+      '<article class="admin-stat-card"><span>' + item[0] + '</span><b>' + compact(item[1]) + '</b><small>' + item[2] + '</small></article>'
+    ).join('');
+    $('#admin-live-players').textContent = live ? compact(live.players) : '—';
+    $('#admin-live-rooms').textContent = live ? compact(live.rooms) : '—';
+    $('#admin-live-sessions').textContent = compact(s.active_sessions);
+    $('#admin-live-pending').textContent = compact(s.pending_answers);
+    $('#admin-live-status').textContent = live ? 'CONNECTED' : 'PARTIAL';
+    $('#admin-live-status').className = 'admin-status-pill ' + (live ? 'is-online' : 'is-offline');
+    $('#admin-consent-note').textContent = Number(s.page_views || 0)
+      ? 'Counts include only visitors who explicitly allowed optional analytics.'
+      : 'No consented page views in this period yet. Gameplay records are still shown separately.';
+    $('#admin-analytics-retention').textContent = 'Optional visitor analytics · ' + Number(data.retentionDays || 365) + '-day retention';
+    renderTimeline(data.timeline || []);
+    insightList('#admin-popular-pages', data.popularPages || [], row => String(row.page || 'Unknown page').toUpperCase(), row => row.views, 'No opt-in page views for this period yet.');
+    insightList('#admin-party-insights', data.partyModes || [], row => String(row.mode || 'Mode') + ' · ' + String(row.variant || 'classic'), row => row.matches, 'No Globe Rush matches in this period yet.');
+    insightList('#admin-question-insights', data.topQuestions || [], row => String(row.prompt || row.question_id || 'Question').slice(0,72), row => row.attempts, 'No Atlas Daily answers in this period yet.');
+    insightList('#admin-practice-insights', data.practicePacks || [], row => String(row.pack_id || 'Practice pack').replace(/[-_]/g,' '), row => row.sessions, 'No Practice Lab sessions in this period yet.');
+    insightList('#admin-avatar-insights', data.avatars || [], row => String(row.avatar || 'mercury').toUpperCase(), row => row.players, 'No player avatar data available yet.');
+    insightList('#admin-top-players', data.topPlayers || [], row => String(row.username || 'Explorer') + ' · L' + Number(row.level || 1), row => row.games, 'No player gameplay in this period yet.');
+    renderFeed(data.activity || []);
+    $('#admin-analytics-updated').textContent = 'Updated ' + formatDate(new Date(),true);
+  }
+
+  async function loadAnalytics() {
+    try {
+      const params = new URLSearchParams({range:state.analyticsRange});
+      const results = await Promise.all([
+        api('/admin/analytics?' + params.toString()),
+        api('/party/online').catch(() => null)
+      ]);
+      state.analyticsData = results[0];
+      renderAnalytics(results[0], results[1]);
+    } catch (error) {
+      $('#admin-insight-kpis').innerHTML = '<div class="admin-empty-state">Insights could not be loaded: ' + escapeHTML(error.message) + '</div>';
+      toast(error.message);
+    }
+  }
+
+  function exportAnalyticsCSV() {
+    const data = state.analyticsData;
+    if (!data) { toast('Load analytics before exporting.'); return; }
+    const lines = [['date','signups','page_views','daily_runs','globe_rush_matches','practice_runs']];
+    for (const row of data.timeline || []) lines.push([row.date,row.signups,row.page_views,row.daily_runs,row.matches,row.practice_runs]);
+    const quote = value => '"' + String(value == null ? '' : value).replace(/"/g,'""') + '"';
+    const csv = lines.map(row => row.map(quote).join(',')).join('\r\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'humanity-insights-' + state.analyticsRange + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast('Aggregate analytics CSV exported.');
+  }
+
   async function loadHealth() {
     const pill = $('#admin-api-status');
     try {
@@ -140,13 +273,18 @@
     }
   }
 
+  function avatarClass(value) {
+    const key = String(value || 'mercury').toLowerCase();
+    return AVATARS.some(item => item[0] === key) ? 'admin-avatar-' + key : 'admin-avatar-mercury';
+  }
+
   function buildUserRow(player) {
     const selected = String(state.selectedId || '') === String(player.id);
     const role = String(player.role || 'member').toLowerCase();
     const status = String(player.status || 'active').toLowerCase();
     const initial = escapeHTML((player.username || '?').slice(0,1).toUpperCase());
     return '<tr data-user-id="' + escapeHTML(player.id) + '" class="' + (selected ? 'is-selected' : '') + '">' +
-      '<td><div class="admin-player-identity"><span class="admin-player-avatar">' + initial + '</span><span>' +
+      '<td><div class="admin-player-identity"><span class="admin-player-avatar admin-avatar-orb ' + avatarClass(player.selectedAvatar) + '"></span><span>' +
       '<span class="admin-player-name">' + escapeHTML(player.username) + '</span><span class="admin-player-email">' +
       escapeHTML(player.email || 'No email address') + '</span></span></div></td>' +
       '<td><span class="admin-tag role-' + escapeHTML(role) + '">' + escapeHTML(role.toUpperCase()) + '</span></td>' +
@@ -217,7 +355,7 @@
       : '<div class="admin-form-field"><span>ACCOUNT ROLE</span><input value="' + role.toUpperCase() + '" disabled></div>';
     const fieldsDisabled = canManage ? '' : ' disabled';
     $('#admin-user-editor').innerHTML =
-      '<div class="admin-editor-head"><span class="admin-editor-avatar">' + escapeHTML((player.username || '?').slice(0,1).toUpperCase()) + '</span>' +
+      '<div class="admin-editor-head"><span class="admin-editor-avatar admin-avatar-orb ' + avatarClass(player.selectedAvatar) + '" title="' + escapeHTML(avatar ? avatar[1] : 'Mercury') + '"></span>' +
       '<div><h3>' + name + '</h3><p>' + escapeHTML(player.email || 'No email linked') + '</p></div>' +
       '<span class="admin-tag status-' + status + ' admin-editor-status">' + status.toUpperCase() + '</span></div>' +
       '<div class="admin-editor-stats">' +
@@ -227,13 +365,13 @@
       '<form id="admin-user-form" data-user-id="' + escapeHTML(player.id) + '">' +
       '<div class="admin-editor-section"><h4>IDENTITY & PERMISSIONS</h4><div class="admin-form-grid">' +
       roleField +
-      '<label class="admin-form-field"><span>PLANET AVATAR</span><select name="selectedAvatar"' + fieldsDisabled + '>' + avatarOptions(player.selectedAvatar) + '</select></label>' +
+      '<label class="admin-form-field"><span>PLANET AVATAR</span><div class="admin-avatar-live-preview" id="admin-avatar-live-preview"><span class="admin-avatar-orb ' + avatarClass(player.selectedAvatar) + '" id="admin-avatar-preview-orb"></span><strong id="admin-avatar-preview-name">' + escapeHTML(avatar ? avatar[1] : 'Mercury') + '</strong></div><select name="selectedAvatar" data-original-avatar="' + escapeHTML(player.selectedAvatar || 'mercury') + '"' + fieldsDisabled + '>' + avatarOptions(player.selectedAvatar) + '</select></label>' +
       '<label class="admin-form-field"><span>ACCOUNT STATUS</span><select name="status"' + fieldsDisabled + '><option value="active"' + (player.status === 'active' ? ' selected' : '') + '>Active</option><option value="suspended"' + (player.status === 'suspended' ? ' selected' : '') + '>Suspended</option></select></label>' +
       '<label class="admin-form-field"><span>XP</span><input name="xp" type="number" min="0" max="1000000000" step="1" value="' + Number(player.xp || 0) + '"' + fieldsDisabled + '></label>' +
       '<label class="admin-form-field"><span>LEVEL</span><input name="level" type="number" min="1" max="10000" step="1" value="' + Number(player.level || 1) + '"' + fieldsDisabled + '></label>' +
       '<label class="admin-form-field"><span>GLOBE RUSH RATING</span><input name="partyRating" type="number" min="100" max="100000" step="1" value="' + Number(player.partyRating || 1000) + '"' + fieldsDisabled + '></label>' +
       '</div>' +
-      '<label class="admin-checkbox-row"><input name="avatarLocked" type="checkbox"' + (player.avatarLocked ? ' checked' : '') + fieldsDisabled + '><span>Lock this planet avatar as an administrator-assigned avatar. The player cannot change it until unlocked.</span></label>' +
+      '<label class="admin-checkbox-row"><input name="avatarLocked" type="checkbox"' + (player.avatarLocked ? ' checked' : '') + fieldsDisabled + '><span>Lock this assigned planet for the player. Changing the selected planet will enable this automatically; leave it unlocked only when the player has earned its streak requirement.</span></label>' +
       '<p class="admin-muted-note">' + escapeHTML(lockNote) + (avatar ? ' Current avatar: ' + escapeHTML(avatar[1]) + '.' : '') + '</p></div>' +
       '<div class="admin-editor-section"><h4>ACCOUNT NOTES & MODERATION</h4><div class="admin-form-grid">' +
       '<label class="admin-form-field full"><span>SUSPENSION REASON</span><textarea name="suspensionReason" maxlength="300" placeholder="Shown to the player if their account is suspended"' + fieldsDisabled + '>' + escapeHTML(player.suspensionReason || '') + '</textarea></label>' +
@@ -248,6 +386,25 @@
       number.format(stats.activeSessions || 0) + ' active session(s) · best Atlas Daily score ' + number.format(stats.bestDailyScore || 0) + ' · Globe Rush wins ' + number.format(stats.globeRushWins || 0) + '</p></div>';
 
     const form = $('#admin-user-form');
+    const avatarSelect = form.elements.selectedAvatar;
+    const avatarLock = form.elements.avatarLocked;
+    avatarSelect.addEventListener('change', () => {
+      const changed = avatarSelect.value !== avatarSelect.dataset.originalAvatar;
+      if (changed) avatarLock.checked = true;
+      const selected = AVATARS.find(item => item[0] === avatarSelect.value);
+      const orb = $('#admin-avatar-preview-orb');
+      if (orb) orb.className = 'admin-avatar-orb ' + avatarClass(avatarSelect.value);
+      const label = $('#admin-avatar-preview-name');
+      if (label) label.textContent = selected ? selected[1] : 'Mercury';
+      $('#admin-editor-feedback').textContent = changed
+        ? 'New planet selected. It will be assigned and locked when you save.'
+        : 'Original avatar restored. You can keep the current lock setting.';
+    });
+    avatarLock.addEventListener('change', () => {
+      $('#admin-editor-feedback').textContent = avatarLock.checked
+        ? 'This avatar will be locked to the account after saving.'
+        : 'Unlocked avatars still require the player to meet the planet streak requirement.';
+    });
     form.addEventListener('submit', saveUser);
     $('#admin-revoke-sessions').addEventListener('click', revokeSessions);
   }
@@ -409,6 +566,7 @@
         if (state.selectedId) await openUser(state.selectedId);
       }
       if (state.tab === 'audit') await loadAudit();
+      if (state.tab === 'insights') await loadAnalytics();
       toast('Admin data refreshed.');
     } catch (error) {
       toast(error.message);
@@ -426,6 +584,12 @@
     );
     $('#admin-refresh').addEventListener('click', refreshDashboard);
     $('#admin-audit-refresh').addEventListener('click', loadAudit);
+    $('#admin-analytics-refresh').addEventListener('click', loadAnalytics);
+    $('#admin-analytics-range').addEventListener('change', () => {
+      state.analyticsRange = $('#admin-analytics-range').value;
+      loadAnalytics();
+    });
+    $('#admin-analytics-export').addEventListener('click', exportAnalyticsCSV);
     $('#admin-queue').addEventListener('click', reviewAction);
     $('#admin-users-list').addEventListener('click', event => {
       const row = event.target.closest('tr[data-user-id]');

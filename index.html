@@ -585,18 +585,19 @@
     <footer class="site-footer">
       <a class="footer-brand" href="#daily">HUMANITY<span>.</span></a>
       <span>Curiosity looks good on everyone.</span>
-      <div class="footer-links"><button type="button" id="settings-open">Settings</button><button type="button" id="archive-open">World Archive</button><button type="button" id="footer-cookie-policy">Cookie policy</button><button type="button" id="footer-privacy-policy">Privacy</button><a href="https://github.com/echoairgroup/HUMANITY/issues/new" target="_blank" rel="noopener noreferrer" aria-label="Contact HUMANITY or report a bug">Contact / report a bug ↗</a><a href="https://www.wikidata.org/" target="_blank" rel="noreferrer">Data sources ↗</a></div>
+      <div class="footer-links"><button type="button" id="settings-open">Settings</button><button type="button" id="archive-open">World Archive</button><button type="button" id="footer-cookie-policy">Cookie policy</button><button type="button" id="footer-cookie-preferences">Privacy preferences</button><button type="button" id="footer-privacy-policy">Privacy</button><a href="https://github.com/echoairgroup/HUMANITY/issues/new" target="_blank" rel="noopener noreferrer" aria-label="Contact HUMANITY or report a bug">Contact / report a bug ↗</a><a href="https://www.wikidata.org/" target="_blank" rel="noreferrer">Data sources ↗</a></div>
     </footer>
   </div>
 
-  <aside class="cookie-banner" id="cookie-banner" hidden aria-label="Cookie notice">
+  <aside class="cookie-banner" id="cookie-banner" hidden aria-label="Privacy and analytics choices">
     <div class="cookie-banner-copy">
-      <span class="micro-label">A QUICK NOTE ABOUT STORAGE</span>
-      <p>HUMANITY uses one essential cookie to remember that you have seen this notice. Sign-in and game preferences are saved in your browser storage. We do not currently use advertising or analytics cookies.</p>
+      <span class="micro-label">YOUR PRIVACY CHOICES</span>
+      <p>HUMANITY uses essential browser storage for sign-in and gameplay. Optional first-party, anonymous usage analytics help improve the site. They are off unless you allow them; no advertising or cross-site tracking is used.</p>
     </div>
     <div class="cookie-banner-actions">
-      <button class="button button-outline" id="cookie-notice-details" type="button">Cookie details</button>
-      <button class="button button-primary" id="cookie-notice-close" type="button">Got it</button>
+      <button class="button button-outline" id="cookie-notice-details" type="button">Details</button>
+      <button class="button button-outline" id="cookie-notice-essential" type="button">Essential only</button>
+      <button class="button button-primary" id="cookie-notice-accept" type="button">Allow analytics</button>
     </div>
   </aside>
 
@@ -609,10 +610,10 @@
       <h3>Browser storage</h3>
       <p>The site also uses local browser storage for essential game operation: a guest identifier, your sign-in session token, and your sound, sound-volume and motion preferences. These items stay in this browser until they are cleared or your session expires. They are not advertising cookies.</p>
       <h3>Analytics and advertising</h3>
-      <p>HUMANITY does not currently install analytics, advertising, or cross-site tracking cookies. If optional tracking is added in the future, this policy and the consent controls will be updated before it is enabled.</p>
+      <p>Optional first-party usage analytics are off by default and run only after you choose “Allow analytics”. When enabled, HUMANITY records page names and aggregate usage events using a random browser token that is hashed by the API. The analytics table does not store IP addresses, user-agent strings, account IDs, submitted answers or private room messages. Optional analytics records are retained for up to 365 days. You can change your choice at any time using Privacy preferences in the footer.</p>
       <h3>Third-party services</h3>
       <p>The interactive globe library is loaded from jsDelivr. When your browser requests that library, the CDN receives normal connection information. Google or Discord only receive information when you choose one of those sign-in options.</p>
-      <p>You can clear cookies and local storage in your browser settings. Clearing the HUMANITY session token signs you out on this device.</p>
+      <p>You can clear cookies and local storage in your browser settings. Clearing the HUMANITY session token signs you out on this device. <button class="text-button" id="cookie-preferences-open" type="button">Update privacy preferences</button></p>
     </div>
   </dialog>
 
@@ -628,7 +629,7 @@
       <h3>Why and where information is used</h3>
       <p>This information is used to provide sign-in, save progress, operate multiplayer rooms, calculate rankings, prevent duplicate daily attempts, and maintain the service. The website's API and database are hosted using Render and Neon PostgreSQL.</p>
       <h3>Sharing and tracking</h3>
-      <p>HUMANITY does not currently display advertising or use third-party analytics trackers, and it does not sell account information. Google, Discord, and the CDN described in the Cookie Policy are separate services with their own privacy terms.</p>
+      <p>HUMANITY does not display advertising or use third-party analytics trackers. Optional first-party usage analytics require your explicit choice and are used only to understand aggregate page usage. The random visitor token is hashed server-side, is not linked to your HUMANITY account, and is automatically removed after 365 days. You can opt out at any time through Privacy preferences in the footer. HUMANITY does not sell account information.</p>
       <h3>Account controls</h3>
       <p>You can sign out from your account menu. Signing out revokes the active server session. A self-service account deletion control and a dedicated privacy contact are not yet published on this version of HUMANITY.</p>
       <p class="policy-disclaimer">This is a plain-language product notice based on the features currently implemented. Before opening the service to the public, the site owner should add a privacy contact and have the notice reviewed for the countries where HUMANITY will be offered.</p>

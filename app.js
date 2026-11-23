@@ -47,7 +47,8 @@
     soundVolume: Math.max(0, Math.min(100, Number(localStorage.getItem('humanity-sound-volume') || 92))),
     audioContext: null, audioMaster: null, audioNoiseBuffer: null,
     dailySoundMarks: [], rushSoundKey: '', rushSoundMarks: [],
-    animations: localStorage.getItem('humanity-motion') !== 'false'
+    animations: localStorage.getItem('humanity-motion') !== 'false',
+    currentView: 'daily', analyticsInitialView: false
   };
 
   function getGuestId() {
@@ -106,8 +107,51 @@
     indicator.classList.add('ready');
   }
 
+  function analyticsConsentGranted() {
+    try { return localStorage.getItem('humanity-analytics-consent') === 'granted'; }
+    catch (_) { return false; }
+  }
+  function analyticsVisitorId() {
+    try {
+      let id = localStorage.getItem('humanity-analytics-id');
+      if (!id) {
+        id = crypto.randomUUID ? crypto.randomUUID() : 'humanity-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem('humanity-analytics-id', id);
+      }
+      return id;
+    } catch (_) { return ''; }
+  }
+  function trackAnalytics(eventName, data = {}) {
+    if (!analyticsConsentGranted()) return;
+    const visitorId = analyticsVisitorId();
+    if (!visitorId) return;
+    const payload = {
+      visitorId,
+      eventName,
+      page: String(data.view || state.currentView || 'daily')
+    };
+    ['game','mode','variant','pack','resumed','durationSeconds','success'].forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(data,key)) payload.data = Object.assign({},payload.data,{[key]:data[key]});
+    });
+    fetch('https://humanity-api-jyk5.onrender.com/api/analytics/event', {
+      method:'POST',
+      mode:'cors',
+      keepalive:true,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).catch(() => {});
+  }
+
   function setView(view) {
     if (!['daily', 'party', 'rankings'].includes(view)) view = 'daily';
+    const changedView = state.currentView !== view;
+    state.currentView = view;
+    if (!state.analyticsInitialView) {
+      state.analyticsInitialView = true;
+      trackAnalytics('page_view',{view});
+    } else if (changedView) {
+      trackAnalytics('view_change',{view});
+    }
     $$('[data-view-panel]').forEach(panel => {
       const active = panel.dataset.viewPanel === view;
       panel.hidden = !active;
@@ -631,6 +675,7 @@
     button.textContent = state.dailyResumeAvailable ? 'Resuming your Atlas…' : 'Preparing today’s Atlas…';
     try {
       const result = await api('/daily/start', { method: 'POST', body: { guestId: state.guestId } });
+      trackAnalytics('game_start',{game:'atlas_daily',resumed:Boolean(result.resumed)});
       state.practice = null;
       state.unlimited = null;
       state.dailyHistory = Array.isArray(state.dailyHistory) ? state.dailyHistory : [];
@@ -1160,6 +1205,7 @@
     buttons.forEach(button=>button.disabled=true);
     try {
       const result=await api('/practice/start',{method:'POST',body:{guestId:state.guestId,packId}});
+      trackAnalytics('practice_start',{game:'practice_lab',pack:packId});
       closeModal('practice-modal');
       stopDailyTimer();
       state.practice=null;
@@ -2257,19 +2303,33 @@
   function cookieNoticeAcknowledged() {
     return document.cookie.split(';').some(item => item.trim().startsWith('humanity_cookie_notice='));
   }
-  function acknowledgeCookieNotice() {
+  function saveAnalyticsChoice(choice) {
+    const granted = choice === 'granted';
+    try { localStorage.setItem('humanity-analytics-consent',granted ? 'granted' : 'denied'); } catch (_) {}
     const secure = location.protocol === 'https:' ? '; Secure' : '';
     document.cookie = 'humanity_cookie_notice=1; Max-Age=15552000; Path=/; SameSite=Lax' + secure;
     const banner = $('#cookie-banner');
     if (banner) banner.hidden = true;
+    if (granted) trackAnalytics('page_view',{view:state.currentView || 'daily'});
+    toast(granted ? 'Optional anonymous analytics enabled on this browser.' : 'Essential-only privacy choice saved.');
+  }
+  function openCookiePreferences() {
+    const banner = $('#cookie-banner');
+    if (banner) banner.hidden = false;
+    closeModal('cookie-policy-modal');
   }
   function initCookieNotice() {
     const banner = $('#cookie-banner');
-    if (banner) banner.hidden = cookieNoticeAcknowledged();
-    $('#cookie-notice-close').addEventListener('click', acknowledgeCookieNotice);
-    $('#cookie-notice-details').addEventListener('click', () => openModal('cookie-policy-modal'));
-    $('#footer-cookie-policy').addEventListener('click', () => openModal('cookie-policy-modal'));
-    $('#footer-privacy-policy').addEventListener('click', () => openModal('privacy-policy-modal'));
+    let savedChoice = '';
+    try { savedChoice = localStorage.getItem('humanity-analytics-consent') || ''; } catch (_) {}
+    if (banner) banner.hidden = cookieNoticeAcknowledged() && Boolean(savedChoice);
+    $('#cookie-notice-essential').addEventListener('click',() => saveAnalyticsChoice('denied'));
+    $('#cookie-notice-accept').addEventListener('click',() => saveAnalyticsChoice('granted'));
+    $('#cookie-notice-details').addEventListener('click',() => openModal('cookie-policy-modal'));
+    $('#footer-cookie-policy').addEventListener('click',() => openModal('cookie-policy-modal'));
+    $('#footer-privacy-policy').addEventListener('click',() => openModal('privacy-policy-modal'));
+    $('#footer-cookie-preferences').addEventListener('click',openCookiePreferences);
+    $('#cookie-preferences-open').addEventListener('click',openCookiePreferences);
   }
 
   function initEvents() {
