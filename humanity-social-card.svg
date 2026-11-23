@@ -1,0 +1,41 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">HUMANITY — Geography, every day</title>
+  <desc id="desc">A dark space-inspired social preview featuring Earth and the Atlas Daily and Globe Rush games.</desc>
+  <defs>
+    <radialGradient id="bg" cx="70%" cy="20%" r="90%"><stop offset="0" stop-color="#143e5e"/><stop offset=".58" stop-color="#0a203b"/><stop offset="1" stop-color="#061326"/></radialGradient>
+    <radialGradient id="earth" cx="28%" cy="25%" r="80%"><stop offset="0" stop-color="#b6f0ef"/><stop offset=".23" stop-color="#56b5cb"/><stop offset=".62" stop-color="#1d638e"/><stop offset="1" stop-color="#092447"/></radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a3edf0"/><stop offset="1" stop-color="#52b9df"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="20"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g fill="#d5f2fa" opacity=".55">
+    <circle cx="95" cy="95" r="2"/><circle cx="245" cy="180" r="1.5"/><circle cx="400" cy="90" r="1.2"/>
+    <circle cx="560" cy="220" r="1.5"/><circle cx="770" cy="72" r="1.4"/><circle cx="1030" cy="110" r="2"/>
+    <circle cx="1110" cy="310" r="1.5"/><circle cx="900" cy="520" r="1.5"/><circle cx="180" cy="480" r="1.5"/>
+    <circle cx="430" cy="560" r="1.2"/><circle cx="650" cy="475" r="1.2"/>
+  </g>
+  <circle cx="900" cy="315" r="225" fill="#3cadd0" opacity=".15" filter="url(#glow)"/>
+  <g transform="translate(900 315)">
+    <circle r="176" fill="none" stroke="#8bd9ee" stroke-opacity=".32" stroke-width="1.5"/>
+    <ellipse rx="214" ry="90" fill="none" stroke="#a8e5f2" stroke-opacity=".4" stroke-width="1.4" transform="rotate(-23)"/>
+    <ellipse rx="196" ry="124" fill="none" stroke="#a8e5f2" stroke-opacity=".24" stroke-width="1.2" transform="rotate(42)"/>
+    <circle r="126" fill="url(#earth)"/>
+    <path d="M-86 -57l41 -30 38 14 15 31 -17 21 -11 30 -39 15 -15 34 -39 -17 -23 -43 7 -31z" fill="#83c9a4" opacity=".8"/>
+    <path d="M31 -88l27 8 28 32 -4 29 -27 13 -10 32 -30 -7 -12 -35 10 -24 -18 -23z" fill="#86c7a1" opacity=".78"/>
+    <path d="M-16 49l42 -10 31 25 -8 47 -26 25 -35 -24 -20 -38z" fill="#73b995" opacity=".8"/>
+    <circle r="126" fill="none" stroke="#d3f7f5" stroke-opacity=".44" stroke-width="2"/>
+  </g>
+  <g transform="translate(92 130)">
+    <circle cx="20" cy="20" r="18" fill="none" stroke="url(#accent)" stroke-width="2"/>
+    <path d="M2 20h36M20 2c7 7 10 13 10 18S27 31 20 38C13 31 10 25 10 20S13 9 20 2Z" fill="none" stroke="url(#accent)" stroke-width="1.2"/>
+    <text x="57" y="27" fill="#f1f8fc" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" letter-spacing="-1">HUMANITY<tspan fill="#87d9eb">.</tspan></text>
+    <text x="0" y="126" fill="#8ee0ef" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" letter-spacing="4">GEOGRAPHY, EVERY DAY</text>
+    <text x="0" y="211" fill="#f3f8fc" font-family="Arial,Helvetica,sans-serif" font-size="73" font-weight="700" letter-spacing="-4">One world.</text>
+    <text x="0" y="291" fill="#f3f8fc" font-family="Arial,Helvetica,sans-serif" font-size="73" font-weight="700" letter-spacing="-4">Two ways</text>
+    <text x="0" y="371" fill="#f3f8fc" font-family="Arial,Helvetica,sans-serif" font-size="73" font-weight="700" letter-spacing="-4">to explore.</text>
+    <rect x="0" y="425" width="334" height="52" rx="12" fill="url(#accent)"/>
+    <text x="23" y="458" fill="#07182b" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="700">ATLAS DAILY  ·  GLOBE RUSH</text>
+  </g>
+  <text x="93" y="584" fill="#9ab8ca" font-family="Arial,Helvetica,sans-serif" font-size="15" letter-spacing="2">PLAY FREE IN YOUR BROWSER</text>
+</svg>
