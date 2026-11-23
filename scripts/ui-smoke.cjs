@@ -421,7 +421,15 @@ async function checkAtlasResumeAndCompletedLock(browser, pageErrors) {
       'A completed official attempt must not show the resume prompt.');
     assert.equal(await page.locator('#open-archive-from-lock').isVisible(), true,
       'The World Archive remains available after the official attempt is completed.');
-    console.log('PASS: Completed Atlas Daily remains locked while the World Archive stays accessible.');
+
+    // The Practice Lab must remain reachable from the locked state after the official run is complete.
+    await page.locator('#daily-locked [data-open-practice]').click();
+    await page.locator('#practice-modal[open]').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('#practice-modal [data-practice-pack]').first().waitFor({ state: 'visible', timeout: 20000 });
+    assert.ok(await page.locator('#practice-modal [data-practice-pack]').count() >= 1,
+      'Practice Lab should remain playable from the completed-attempt screen.');
+    await page.locator('#practice-modal .modal-close').click();
+    console.log('PASS: Completed Atlas Daily remains locked while Practice Lab and World Archive stay accessible.');
   } finally {
     await context.close();
   }
