@@ -204,9 +204,9 @@ test('resuming from a paused result screen starts the next question with a fresh
 test('daily resume persists paused-next-question state and restores the saved answer recap', () => {
   const backend = fs.readFileSync(path.join(__dirname, 'game-server.js'), 'utf8');
   const schema = fs.readFileSync(path.join(__dirname, 'schema-geography.sql'), 'utf8');
-  assert.match(backend, /awaiting_next = \\$6/);
+  assert.match(backend, /awaiting_next = \$6/);
   assert.match(backend, /awaiting_next = FALSE/);
-  assert.match(backend, /FROM humanity_daily_run_answers WHERE run_id = \\$1 ORDER BY question_slot/);
+  assert.match(backend, /FROM humanity_daily_run_answers WHERE run_id = \$1 ORDER BY question_slot/);
   assert.match(schema, /ADD COLUMN IF NOT EXISTS awaiting_next BOOLEAN NOT NULL DEFAULT FALSE/);
 });
 

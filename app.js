@@ -591,7 +591,7 @@
       if (resumeNote) {
         resumeNote.hidden = !canResume;
         resumeNote.textContent = canResume
-          ? 'Your official run is saved at question ' + (Math.min(6, Math.max(0, Number(result.played.current_question) || 0) + 1)) + ' of 7. Continue with the remaining time.'
+          ? 'Your official run is saved at question ' + (Math.min(6, Math.max(0, Number(result.played.current_question) || 0)) + 1) + ' of 7. Continue with the remaining time.'
           : '';
       }
 
