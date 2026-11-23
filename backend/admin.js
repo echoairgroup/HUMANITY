@@ -99,8 +99,8 @@ function createAdminController(deps) {
         "(SELECT COUNT(*)::int FROM humanity_practice_runs WHERE finished_at >= NOW() - $1::interval AND status='completed') AS practice_completed, " +
         "(SELECT COUNT(*)::int FROM humanity_friendships WHERE created_at >= NOW() - $1::interval) AS friendship_requests, " +
         "(SELECT COUNT(*)::int FROM humanity_answer_review_queue WHERE status='pending') AS pending_answers, " +
-        "(SELECT COUNT(*)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view') AS page_views, " +
-        "(SELECT COUNT(DISTINCT visitor_hash)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view') AS unique_visitors",
+        "(SELECT COUNT(*)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change')) AS page_views, " +
+        "(SELECT COUNT(DISTINCT visitor_hash)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change')) AS unique_visitors",
         [interval]
       ),
       pool.query(
@@ -110,7 +110,7 @@ function createAdminController(deps) {
         "COALESCE(d.value,0)::int AS daily_runs, COALESCE(m.value,0)::int AS matches, COALESCE(p.value,0)::int AS practice_runs " +
         "FROM days " +
         "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_players WHERE created_at >= NOW() - $1::interval GROUP BY 1) s ON s.day=days.day " +
-        "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view' GROUP BY 1) v ON v.day=days.day " +
+        "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change') GROUP BY 1) v ON v.day=days.day " +
         "LEFT JOIN (SELECT date_trunc('day',started_at) AS day, COUNT(*) AS value FROM humanity_daily_runs WHERE started_at >= NOW() - $1::interval GROUP BY 1) d ON d.day=days.day " +
         "LEFT JOIN (SELECT date_trunc('day',finished_at) AS day, COUNT(*) AS value FROM humanity_party_matches WHERE finished_at >= NOW() - $1::interval GROUP BY 1) m ON m.day=days.day " +
         "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_practice_runs WHERE created_at >= NOW() - $1::interval GROUP BY 1) p ON p.day=days.day " +
@@ -119,7 +119,7 @@ function createAdminController(deps) {
       ),
       pool.query(
         "SELECT page, COUNT(*)::int AS views, COUNT(DISTINCT visitor_hash)::int AS visitors " +
-        "FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view' " +
+        "FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change') " +
         "GROUP BY page ORDER BY views DESC, page ASC LIMIT 10",
         [interval]
       ),
@@ -166,9 +166,9 @@ function createAdminController(deps) {
         "UNION ALL " +
         "SELECT finished_at,'globe-rush'::text,COALESCE(p.username,'Guest room'),'Globe Rush · '||mode||' / '||variant FROM humanity_party_matches m LEFT JOIN humanity_players p ON p.id=m.winner_player_id WHERE m.finished_at >= NOW() - $1::interval " +
         "UNION ALL " +
-        "SELECT COALESCE(finished_at,created_at),'practice'::text,COALESCE(p.username,'Guest explorer'),'Practice Lab · '||pack_id FROM humanity_practice_runs r LEFT JOIN humanity_players p ON p.id=r.player_id WHERE COALESCE(finished_at,created_at) >= NOW() - $1::interval " +
+        "SELECT COALESCE(r.finished_at,r.created_at),'practice'::text,COALESCE(p.username,'Guest explorer'),'Practice Lab · '||r.pack_id FROM humanity_practice_runs r LEFT JOIN humanity_players p ON p.id=r.player_id WHERE COALESCE(r.finished_at,r.created_at) >= NOW() - $1::interval " +
         "UNION ALL " +
-        "SELECT created_at,'page-view'::text,page,'Page viewed with analytics consent' FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view' " +
+        "SELECT created_at,'page-view'::text,page,'Page viewed with analytics consent' FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change') " +
         ") feed ORDER BY occurred_at DESC LIMIT 40",
         [interval]
       )

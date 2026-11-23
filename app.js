@@ -2311,7 +2311,8 @@
     const banner = $('#cookie-banner');
     if (banner) banner.hidden = true;
     if (granted) trackAnalytics('page_view',{view:state.currentView || 'daily'});
-    toast(granted ? 'Optional anonymous analytics enabled on this browser.' : 'Essential-only privacy choice saved.');
+    else { try { localStorage.removeItem('humanity-analytics-id'); } catch (_) {} }
+    toast(granted ? 'Optional first-party analytics enabled on this browser.' : 'Essential-only privacy choice saved.');
   }
   function openCookiePreferences() {
     const banner = $('#cookie-banner');
