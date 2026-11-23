@@ -1,7 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /backend/
-Disallow: /admin.js
-Disallow: /admin.css
+Disallow: /HUMANITY/backend/
 
 Sitemap: https://echoairgroup.github.io/HUMANITY/sitemap.xml
