@@ -1,0 +1,13 @@
+{
+  "name": "HUMANITY — Geography, every day",
+  "short_name": "HUMANITY",
+  "description": "Play Atlas Daily and Globe Rush, two geography games for curious people everywhere.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#071528",
+  "theme_color": "#071528",
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

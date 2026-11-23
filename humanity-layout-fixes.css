@@ -1,0 +1,178 @@
+/*
+ * HUMANITY Globe Rush layout repair.
+ * Keep the original three-panel grid: play console, orbital scene and open rooms.
+ * The optional sidebar is intentionally hidden; it is not a fourth column.
+ */
+body.globe-rush-active #view-party:not([hidden]) {
+  display: flow-root !important;
+  position: relative !important;
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.globe-rush-active #view-party .party-intro {
+  display: flex !important;
+  position: relative !important;
+  justify-content: center !important;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto !important;
+  max-height: none !important;
+}
+body.globe-rush-active #view-party .party-lobby {
+  display: grid !important;
+  grid-template-columns: minmax(290px, 1.08fr) minmax(255px, .9fr) minmax(270px, .95fr) !important;
+  grid-template-rows: auto;
+  align-items: stretch !important;
+  gap: clamp(10px, 1.2vw, 16px) !important;
+  width: 100%;
+  max-width: 1500px;
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+  margin: 12px auto clamp(30px, 5vw, 58px) !important;
+  overflow: visible !important;
+}
+body.globe-rush-active #view-party .party-lobby-main {
+  display: contents !important;
+}
+body.globe-rush-active #view-party .party-play-panel {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  width: 100%;
+  height: auto !important;
+  max-height: none !important;
+  box-sizing: border-box;
+}
+body.globe-rush-active #view-party .party-centre-scene {
+  display: grid !important;
+  grid-column: 2;
+  grid-row: 1;
+  position: relative !important;
+  inset: auto !important;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(340px, 38vw, 470px) !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+body.globe-rush-active #view-party .public-rooms-card {
+  display: flex !important;
+  grid-column: 3;
+  grid-row: 1;
+  position: relative !important;
+  inset: auto !important;
+  align-self: stretch;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  height: auto !important;
+  max-height: 670px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+body.globe-rush-active #view-party .open-rooms-list {
+  min-height: 0;
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+body.globe-rush-active #view-party .party-sidebar {
+  display: none !important;
+}
+body.globe-rush-active #view-party .party-mode-grid,
+body.globe-rush-active #view-party .party-tools-grid,
+body.globe-rush-active #view-party .room-tool,
+body.globe-rush-active #view-party .mode-card {
+  min-width: 0;
+}
+body.globe-rush-active #view-party .party-room:not([hidden]) {
+  position: relative !important;
+  inset: auto !important;
+  width: 100%;
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+  margin: 14px 0 44px !important;
+  overflow: visible !important;
+}
+.atlas-answer-reaction {
+  pointer-events: auto !important;
+}
+.atlas-answer-reaction .atlas-continue-button {
+  position: relative;
+  z-index: 12;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+#view-daily .unlimited-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+#view-daily .unlimited-actions[hidden] {
+  display: none !important;
+}
+#view-daily .unlimited-actions .text-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+@media (max-width: 1080px) {
+  body.globe-rush-active #view-party .party-lobby {
+    grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr) !important;
+    gap: 12px !important;
+  }
+  body.globe-rush-active #view-party .party-play-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  body.globe-rush-active #view-party .party-centre-scene {
+    display: none !important;
+  }
+  body.globe-rush-active #view-party .public-rooms-card {
+    grid-column: 2;
+    grid-row: 1;
+    max-height: 520px !important;
+  }
+}
+@media (max-width: 720px) {
+  body.globe-rush-active #view-party .party-lobby {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto;
+    gap: 12px !important;
+    margin-bottom: 36px !important;
+  }
+  body.globe-rush-active #view-party .party-play-panel,
+  body.globe-rush-active #view-party .public-rooms-card {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+  }
+  body.globe-rush-active #view-party .public-rooms-card {
+    max-height: 330px !important;
+  }
+  body.globe-rush-active #view-party .party-centre-scene,
+  body.globe-rush-active #view-party .party-sidebar {
+    display: none !important;
+  }
+}
+@media (max-width: 420px) {
+  body.globe-rush-active #view-party .party-tools-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  body.globe-rush-active #view-party .party-mode-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
