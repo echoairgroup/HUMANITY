@@ -11,6 +11,7 @@ const dailyRunState = require('./daily-run-state');
 const practiceEngine = require('./practice-engine');
 const { createPartyServer } = require('./party-server');
 const { createAdminController } = require('./admin');
+const { createAnalyticsCollector } = require('./analytics');
 
 const scrypt = promisify(crypto.scrypt);
 const PORT = Number(process.env.PORT || 10000);
@@ -81,6 +82,8 @@ async function readJSON(request) {
     throw new Error('Request body must be valid JSON.');
   }
 }
+
+const analyticsCollector = createAnalyticsCollector({ pool, sendJSON, sendError, readJSON });
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
@@ -1273,6 +1276,11 @@ async function handleAPI(request, response, url, party) {
     return true;
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/analytics/event') {
+    await analyticsCollector.handle(request, response);
+    return true;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/config') {
     sendJSON(response, 200, {
       ok: true,
@@ -1769,10 +1777,16 @@ async function start() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema-geography.sql'), 'utf8');
   await pool.query(schema);
   await pool.query('DELETE FROM humanity_sessions WHERE expires_at < NOW()');
+  await pool.query("DELETE FROM humanity_analytics_events WHERE created_at < NOW() - INTERVAL '365 days'");
   await currentChallenge();
   server.listen(PORT, () => {
     console.log('HUMANITY Geography API listening on port ' + PORT);
   });
+  const analyticsRetentionTimer = setInterval(() => {
+    pool.query("DELETE FROM humanity_analytics_events WHERE created_at < NOW() - INTERVAL '365 days'")
+      .catch(error => console.warn('Analytics retention cleanup failed:', error.message));
+  }, 24 * 60 * 60 * 1000);
+  analyticsRetentionTimer.unref();
   const dailyTimer = setInterval(() => {
     currentChallenge().catch(error => console.error('Daily engine tick failed:', error.message));
   }, 60 * 1000);

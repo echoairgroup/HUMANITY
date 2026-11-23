@@ -77,6 +77,120 @@ function createAdminController(deps) {
     });
   }
 
+  async function analytics(response, url) {
+    const ranges = { '7d': '7 days', '30d': '30 days', '90d': '90 days', '365d': '365 days' };
+    const rangeKey = ranges[url.searchParams.get('range')] ? url.searchParams.get('range') : '30d';
+    const interval = ranges[rangeKey];
+
+    const [summary, timeline, pages, partyModes, practicePacks, topQuestions, avatars, topPlayers, activity] = await Promise.all([
+      pool.query(
+        "SELECT " +
+        "(SELECT COUNT(*)::int FROM humanity_players) AS total_players, " +
+        "(SELECT COUNT(*)::int FROM humanity_players WHERE COALESCE(account_status,'active')='active') AS active_players, " +
+        "(SELECT COUNT(*)::int FROM humanity_sessions WHERE expires_at > NOW()) AS active_sessions, " +
+        "(SELECT COUNT(*)::int FROM humanity_players WHERE created_at >= NOW() - $1::interval) AS new_players, " +
+        "(SELECT COUNT(*)::int FROM humanity_daily_runs WHERE started_at >= NOW() - $1::interval) AS daily_started, " +
+        "(SELECT COUNT(*)::int FROM humanity_daily_runs WHERE completed_at >= NOW() - $1::interval AND status='completed') AS daily_completed, " +
+        "(SELECT COUNT(*)::int FROM humanity_daily_run_answers WHERE created_at >= NOW() - $1::interval) AS answer_attempts, " +
+        "(SELECT COUNT(*)::int FROM humanity_daily_run_answers WHERE created_at >= NOW() - $1::interval AND is_correct=TRUE) AS correct_answers, " +
+        "(SELECT COUNT(*)::int FROM humanity_party_matches WHERE finished_at >= NOW() - $1::interval) AS party_matches, " +
+        "(SELECT COALESCE(SUM(player_count),0)::int FROM humanity_party_matches WHERE finished_at >= NOW() - $1::interval) AS match_player_slots, " +
+        "(SELECT COUNT(*)::int FROM humanity_practice_runs WHERE created_at >= NOW() - $1::interval) AS practice_started, " +
+        "(SELECT COUNT(*)::int FROM humanity_practice_runs WHERE finished_at >= NOW() - $1::interval AND status='completed') AS practice_completed, " +
+        "(SELECT COUNT(*)::int FROM humanity_friendships WHERE created_at >= NOW() - $1::interval) AS friendship_requests, " +
+        "(SELECT COUNT(*)::int FROM humanity_answer_review_queue WHERE status='pending') AS pending_answers, " +
+        "(SELECT COUNT(*)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view') AS page_views, " +
+        "(SELECT COUNT(DISTINCT visitor_hash)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view') AS unique_visitors",
+        [interval]
+      ),
+      pool.query(
+        "WITH days AS (SELECT generate_series(date_trunc('day', NOW() - $1::interval), date_trunc('day', NOW()), INTERVAL '1 day') AS day) " +
+        "SELECT to_char(days.day,'YYYY-MM-DD') AS date, " +
+        "COALESCE(s.value,0)::int AS signups, COALESCE(v.value,0)::int AS page_views, " +
+        "COALESCE(d.value,0)::int AS daily_runs, COALESCE(m.value,0)::int AS matches, COALESCE(p.value,0)::int AS practice_runs " +
+        "FROM days " +
+        "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_players WHERE created_at >= NOW() - $1::interval GROUP BY 1) s ON s.day=days.day " +
+        "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view' GROUP BY 1) v ON v.day=days.day " +
+        "LEFT JOIN (SELECT date_trunc('day',started_at) AS day, COUNT(*) AS value FROM humanity_daily_runs WHERE started_at >= NOW() - $1::interval GROUP BY 1) d ON d.day=days.day " +
+        "LEFT JOIN (SELECT date_trunc('day',finished_at) AS day, COUNT(*) AS value FROM humanity_party_matches WHERE finished_at >= NOW() - $1::interval GROUP BY 1) m ON m.day=days.day " +
+        "LEFT JOIN (SELECT date_trunc('day',created_at) AS day, COUNT(*) AS value FROM humanity_practice_runs WHERE created_at >= NOW() - $1::interval GROUP BY 1) p ON p.day=days.day " +
+        "ORDER BY days.day",
+        [interval]
+      ),
+      pool.query(
+        "SELECT page, COUNT(*)::int AS views, COUNT(DISTINCT visitor_hash)::int AS visitors " +
+        "FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view' " +
+        "GROUP BY page ORDER BY views DESC, page ASC LIMIT 10",
+        [interval]
+      ),
+      pool.query(
+        "SELECT mode, variant, COUNT(*)::int AS matches, COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (finished_at-started_at))))::int,0) AS avg_duration_seconds, " +
+        "COALESCE(ROUND(AVG(player_count))::int,0) AS avg_players " +
+        "FROM humanity_party_matches WHERE finished_at >= NOW() - $1::interval GROUP BY mode,variant ORDER BY matches DESC LIMIT 12",
+        [interval]
+      ),
+      pool.query(
+        "SELECT pack_id, COUNT(*)::int AS sessions, COUNT(*) FILTER (WHERE status='completed')::int AS completed, " +
+        "COALESCE(ROUND(AVG(score))::int,0) AS avg_score, COALESCE(SUM(questions_played),0)::int AS questions " +
+        "FROM humanity_practice_runs WHERE created_at >= NOW() - $1::interval GROUP BY pack_id ORDER BY sessions DESC LIMIT 10",
+        [interval]
+      ),
+      pool.query(
+        "SELECT a.question_id, COALESCE(q.question->>'prompt', MAX(a.question_id)) AS prompt, " +
+        "COUNT(*)::int AS attempts, COUNT(*) FILTER (WHERE a.is_correct=TRUE)::int AS accepted " +
+        "FROM humanity_daily_run_answers a JOIN humanity_daily_challenges c ON c.id=a.challenge_id " +
+        "LEFT JOIN LATERAL jsonb_array_elements(c.payload->'questions') AS q(question) ON q.question->>'id'=a.question_id " +
+        "WHERE a.created_at >= NOW() - $1::interval GROUP BY a.question_id,q.question->>'prompt' " +
+        "ORDER BY attempts DESC LIMIT 10",
+        [interval]
+      ),
+      pool.query(
+        "SELECT selected_avatar AS avatar, COUNT(*)::int AS players FROM humanity_players " +
+        "WHERE COALESCE(account_status,'active')='active' GROUP BY selected_avatar ORDER BY players DESC"
+      ),
+      pool.query(
+        "SELECT p.username,p.level,p.xp,p.selected_avatar, " +
+        "(COALESCE(d.games,0)+COALESCE(m.games,0)+COALESCE(r.games,0))::int AS games " +
+        "FROM humanity_players p " +
+        "LEFT JOIN (SELECT player_id,COUNT(*) AS games FROM humanity_daily_runs WHERE player_id IS NOT NULL AND started_at >= NOW() - $1::interval GROUP BY player_id) d ON d.player_id=p.id " +
+        "LEFT JOIN (SELECT player_id,COUNT(*) AS games FROM humanity_party_match_players mp JOIN humanity_party_matches pm ON pm.id=mp.match_id WHERE player_id IS NOT NULL AND pm.finished_at >= NOW() - $1::interval GROUP BY player_id) m ON m.player_id=p.id " +
+        "LEFT JOIN (SELECT player_id,COUNT(*) AS games FROM humanity_practice_runs WHERE player_id IS NOT NULL AND created_at >= NOW() - $1::interval GROUP BY player_id) r ON r.player_id=p.id " +
+        "WHERE COALESCE(p.account_status,'active')='active' ORDER BY games DESC,p.xp DESC LIMIT 10",
+        [interval]
+      ),
+      pool.query(
+        "SELECT occurred_at,kind,label,detail FROM (" +
+        "SELECT created_at AS occurred_at,'signup'::text AS kind,username AS label,'New account registered'::text AS detail FROM humanity_players WHERE created_at >= NOW() - $1::interval " +
+        "UNION ALL " +
+        "SELECT started_at,'atlas'::text,COALESCE(p.username,'Guest explorer'),'Atlas Daily run started' FROM humanity_daily_runs r LEFT JOIN humanity_players p ON p.id=r.player_id WHERE r.started_at >= NOW() - $1::interval " +
+        "UNION ALL " +
+        "SELECT finished_at,'globe-rush'::text,COALESCE(p.username,'Guest room'),'Globe Rush · '||mode||' / '||variant FROM humanity_party_matches m LEFT JOIN humanity_players p ON p.id=m.winner_player_id WHERE m.finished_at >= NOW() - $1::interval " +
+        "UNION ALL " +
+        "SELECT COALESCE(finished_at,created_at),'practice'::text,COALESCE(p.username,'Guest explorer'),'Practice Lab · '||pack_id FROM humanity_practice_runs r LEFT JOIN humanity_players p ON p.id=r.player_id WHERE COALESCE(finished_at,created_at) >= NOW() - $1::interval " +
+        "UNION ALL " +
+        "SELECT created_at,'page-view'::text,page,'Page viewed with analytics consent' FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name='page_view' " +
+        ") feed ORDER BY occurred_at DESC LIMIT 40",
+        [interval]
+      )
+    ]);
+
+    const s = summary.rows[0] || {};
+    sendJSON(response, 200, {
+      ok: true,
+      range: rangeKey,
+      retentionDays: 365,
+      summary: s,
+      timeline: timeline.rows,
+      popularPages: pages.rows,
+      partyModes: partyModes.rows,
+      practicePacks: practicePacks.rows,
+      topQuestions: topQuestions.rows,
+      avatars: avatars.rows,
+      topPlayers: topPlayers.rows,
+      activity: activity.rows
+    });
+  }
+
   async function listUsers(response, url) {
     const q = String(url.searchParams.get('q') || '').trim().slice(0, 100);
     const role = String(url.searchParams.get('role') || '').toLowerCase();
@@ -368,6 +482,10 @@ function createAdminController(deps) {
     }
     if (request.method === 'GET' && url.pathname === '/api/admin/overview') {
       await overview(response);
+      return true;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/admin/analytics') {
+      await analytics(response, url);
       return true;
     }
     if (request.method === 'GET' && url.pathname === '/api/admin/users') {

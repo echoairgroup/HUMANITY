@@ -222,3 +222,21 @@ CREATE TABLE IF NOT EXISTS humanity_admin_audit (
 );
 CREATE INDEX IF NOT EXISTS humanity_admin_audit_created_idx
   ON humanity_admin_audit(created_at DESC);
+
+
+-- Optional, first-party analytics. Visitors are represented only by a server-side
+-- hash of a random browser token; no IP address, account ID or user-agent is stored.
+CREATE TABLE IF NOT EXISTS humanity_analytics_events (
+  id BIGSERIAL PRIMARY KEY,
+  visitor_hash TEXT NOT NULL,
+  event_name TEXT NOT NULL,
+  page TEXT NOT NULL,
+  event_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS humanity_analytics_events_created_idx
+  ON humanity_analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS humanity_analytics_events_page_idx
+  ON humanity_analytics_events(event_name, page, created_at DESC);
+CREATE INDEX IF NOT EXISTS humanity_analytics_events_visitor_idx
+  ON humanity_analytics_events(visitor_hash, created_at DESC);
