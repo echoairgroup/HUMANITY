@@ -201,9 +201,10 @@
       ['ACTIVE SESSIONS',s.active_sessions,'Valid sign-in sessions'],
       ['PENDING ANSWERS',s.pending_answers,'Waiting for moderation']
     ];
-    $('#admin-insight-kpis').innerHTML = values.map(item =>
-      '<article class="admin-stat-card"><span>' + item[0] + '</span><b>' + compact(item[1]) + '</b><small>' + item[2] + '</small></article>'
-    ).join('');
+    $('#admin-insight-kpis').innerHTML = values.map(item => {
+      const display = typeof item[1] === 'string' ? item[1] : compact(item[1]);
+      return '<article class="admin-stat-card"><span>' + item[0] + '</span><b>' + display + '</b><small>' + item[2] + '</small></article>';
+    }).join('');
     $('#admin-live-players').textContent = live ? compact(live.players) : '—';
     $('#admin-live-rooms').textContent = live ? compact(live.rooms) : '—';
     $('#admin-live-sessions').textContent = compact(s.active_sessions);
