@@ -82,7 +82,7 @@ function createAdminController(deps) {
     const rangeKey = ranges[url.searchParams.get('range')] ? url.searchParams.get('range') : '30d';
     const interval = ranges[rangeKey];
 
-    const [summary, timeline, pages, partyModes, practicePacks, topQuestions, avatars, topPlayers, activity] = await Promise.all([
+    const [summary, timeline, pages, partyModes, practicePacks, categories, countries, engineRuns, adminActions, topQuestions, avatars, topPlayers, activity] = await Promise.all([
       pool.query(
         "SELECT " +
         "(SELECT COUNT(*)::int FROM humanity_players) AS total_players, " +
@@ -100,7 +100,13 @@ function createAdminController(deps) {
         "(SELECT COUNT(*)::int FROM humanity_friendships WHERE created_at >= NOW() - $1::interval) AS friendship_requests, " +
         "(SELECT COUNT(*)::int FROM humanity_answer_review_queue WHERE status='pending') AS pending_answers, " +
         "(SELECT COUNT(*)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change')) AS page_views, " +
-        "(SELECT COUNT(DISTINCT visitor_hash)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change')) AS unique_visitors",
+        "(SELECT COUNT(DISTINCT visitor_hash)::int FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change')) AS unique_visitors, " +
+        "(SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status='completed') / NULLIF(COUNT(*),0),1) FROM humanity_daily_runs WHERE started_at >= NOW() - $1::interval) AS daily_completion_pct, " +
+        "(SELECT COALESCE(ROUND(AVG(COALESCE(final_score,provisional_score)))::int,0) FROM humanity_daily_runs WHERE completed_at >= NOW() - $1::interval AND status='completed') AS average_daily_score, " +
+        "(SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (completed_at-started_at))))::int,0) FROM humanity_daily_runs WHERE completed_at >= NOW() - $1::interval AND status='completed') AS average_daily_seconds, " +
+        "(SELECT COUNT(*) FILTER (WHERE hint_used=TRUE)::int FROM humanity_daily_runs WHERE started_at >= NOW() - $1::interval) AS hints_used, " +
+        "(SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE is_correct=TRUE) / NULLIF(COUNT(*),0),1) FROM humanity_daily_run_answers WHERE created_at >= NOW() - $1::interval) AS answer_accuracy_pct, " +
+        "(SELECT COALESCE(SUM(mp.xp_earned),0)::int FROM humanity_party_match_players mp JOIN humanity_party_matches pm ON pm.id=mp.match_id WHERE pm.finished_at >= NOW() - $1::interval) AS party_xp_earned",
         [interval]
       ),
       pool.query(
@@ -133,6 +139,25 @@ function createAdminController(deps) {
         "SELECT pack_id, COUNT(*)::int AS sessions, COUNT(*) FILTER (WHERE status='completed')::int AS completed, " +
         "COALESCE(ROUND(AVG(score))::int,0) AS avg_score, COALESCE(SUM(questions_played),0)::int AS questions " +
         "FROM humanity_practice_runs WHERE created_at >= NOW() - $1::interval GROUP BY pack_id ORDER BY sessions DESC LIMIT 10",
+        [interval]
+      ),
+      pool.query(
+        "SELECT category_label, COUNT(*)::int AS matches, COALESCE(ROUND(AVG(player_count))::int,0) AS avg_players " +
+        "FROM humanity_party_matches WHERE finished_at >= NOW() - $1::interval GROUP BY category_label ORDER BY matches DESC LIMIT 10",
+        [interval]
+      ),
+      pool.query(
+        "SELECT COALESCE(country_code,'unknown') AS country, COUNT(*)::int AS players " +
+        "FROM humanity_players WHERE COALESCE(account_status,'active')='active' GROUP BY country_code ORDER BY players DESC LIMIT 10"
+      ),
+      pool.query(
+        "SELECT run_type,status,COUNT(*)::int AS runs, COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (finished_at-started_at))))::int,0) AS avg_seconds " +
+        "FROM humanity_engine_runs WHERE started_at >= NOW() - $1::interval GROUP BY run_type,status ORDER BY runs DESC LIMIT 12",
+        [interval]
+      ),
+      pool.query(
+        "SELECT action,COUNT(*)::int AS actions FROM humanity_admin_audit " +
+        "WHERE created_at >= NOW() - $1::interval GROUP BY action ORDER BY actions DESC LIMIT 10",
         [interval]
       ),
       pool.query(
@@ -184,6 +209,10 @@ function createAdminController(deps) {
       popularPages: pages.rows,
       partyModes: partyModes.rows,
       practicePacks: practicePacks.rows,
+      categories: categories.rows,
+      countries: countries.rows,
+      engineRuns: engineRuns.rows,
+      adminActions: adminActions.rows,
       topQuestions: topQuestions.rows,
       avatars: avatars.rows,
       topPlayers: topPlayers.rows,

@@ -180,14 +180,22 @@
   function renderAnalytics(data, live) {
     const s = data.summary || {};
     const values = [
+      ['TOTAL PLAYERS',s.total_players,'All registered accounts'],
+      ['ACTIVE ACCOUNTS',s.active_players,'Accounts not suspended'],
       ['UNIQUE VISITORS',s.unique_visitors,'Optional analytics consent'],
       ['PAGE VIEWS',s.page_views,'Consented page loads'],
       ['NEW ACCOUNTS',s.new_players,'Registrations in selected period'],
       ['DAILY RUNS STARTED',s.daily_started,'Atlas Daily attempts'],
       ['DAILY RUNS COMPLETED',s.daily_completed,'Completed official runs'],
       ['ANSWER ATTEMPTS',s.answer_attempts,'Submitted answer attempts'],
+      ['ANSWER ACCURACY',s.answer_accuracy_pct == null ? '—' : Number(s.answer_accuracy_pct).toFixed(1) + '%','Accepted Atlas Daily answers'],
+      ['ATLAS COMPLETION',s.daily_completion_pct == null ? '—' : Number(s.daily_completion_pct).toFixed(1) + '%','Runs completed in selected period'],
+      ['AVERAGE ATLAS SCORE',s.average_daily_score,'Completed official runs'],
+      ['AVERAGE ATLAS TIME',Math.floor(Number(s.average_daily_seconds || 0)/60) + 'm ' + (Number(s.average_daily_seconds || 0)%60) + 's','Average time to finish'],
+      ['HINTS USED',s.hints_used,'Atlas Daily hint uses'],
       ['GLOBE RUSH MATCHES',s.party_matches,'Finished multiplayer matches'],
       ['MATCH PLAYER SLOTS',s.match_player_slots,'Total seats in recorded matches'],
+      ['GLOBE RUSH XP AWARDED',s.party_xp_earned,'XP earned across match players'],
       ['PRACTICE SESSIONS',s.practice_started,'Sessions created'],
       ['PRACTICE COMPLETED',s.practice_completed,'Finished practice sessions'],
       ['ACTIVE SESSIONS',s.active_sessions,'Valid sign-in sessions'],
@@ -209,6 +217,10 @@
     renderTimeline(data.timeline || []);
     insightList('#admin-popular-pages', data.popularPages || [], row => String(row.page || 'Unknown page').toUpperCase(), row => row.views, 'No opt-in page views for this period yet.');
     insightList('#admin-party-insights', data.partyModes || [], row => String(row.mode || 'Mode') + ' · ' + String(row.variant || 'classic'), row => row.matches, 'No Globe Rush matches in this period yet.');
+    insightList('#admin-category-insights', data.categories || [], row => String(row.category_label || 'Category'), row => row.matches, 'No Globe Rush categories in this period yet.');
+    insightList('#admin-country-insights', data.countries || [], row => String(row.country || 'Unknown').toUpperCase(), row => row.players, 'No country data is available yet.');
+    insightList('#admin-engine-insights', data.engineRuns || [], row => String(row.run_type || 'Engine') + ' · ' + String(row.status || 'unknown'), row => row.runs, 'No background engine runs recorded in this period.');
+    insightList('#admin-admin-action-insights', data.adminActions || [], row => String(row.action || 'Admin action').replace(/[-_]/g,' '), row => row.actions, 'No admin actions recorded in this period.');
     insightList('#admin-question-insights', data.topQuestions || [], row => String(row.prompt || row.question_id || 'Question').slice(0,72), row => row.attempts, 'No Atlas Daily answers in this period yet.');
     insightList('#admin-practice-insights', data.practicePacks || [], row => String(row.pack_id || 'Practice pack').replace(/[-_]/g,' '), row => row.sessions, 'No Practice Lab sessions in this period yet.');
     insightList('#admin-avatar-insights', data.avatars || [], row => String(row.avatar || 'mercury').toUpperCase(), row => row.players, 'No player avatar data available yet.');
