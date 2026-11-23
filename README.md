@@ -38,7 +38,7 @@ All globe illustrations use actual country polygon geometry from Natural Earth r
 - Seven questions are assembled deterministically for that date: six geography questions and one wider culture/world question.
 - Each question has a server-enforced 25-second answer window.
 - Players can try as many answers as they like while the timer is active. Only an answer already in the approved answer set is accepted.
-- One official attempt is allowed per account or persistent guest ID per UTC day. The run is not resumable.
+- One official attempt is allowed per account or persistent guest ID per UTC day. An interrupted run resumes at its saved question with its remaining timer, used hint and recorded answers intact; a completed run stays locked until the next UTC day. Past editions remain practice-only in the World Archive.
 - One optional hint returns three approved example answers.
 - The approved answer set is shown after each question.
 - Scores are provisional during the UTC day. At rollover, the API uses the actual answer frequencies to finalise Discovery Points.

@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const engine = require('./geography-engine');
 const partyRules = require('./party-server');
 const practiceEngine = require('./practice-engine');
+const dailyRunState = require('./daily-run-state');
 
 test('daily generation creates seven questions with a geography-first mix', () => {
   const challenge = engine.generateDailyChallenge('2026-11-20');
@@ -178,6 +179,35 @@ test('Atlas Daily rotates through distinct question families and exposes visual 
   }
   assert.equal(engine.matchAnswer(engine.getQuestion('landlocked-capitals'), 'Zagreb'), null);
   assert.equal(engine.getQuestion('flag-colours-blue-white-red').visual.kind, 'flag-colours');
+});
+
+
+test('Atlas Daily resumes interrupted runs but keeps completed official attempts locked', () => {
+  assert.equal(dailyRunState.classifyDailyRun(null), 'start');
+  assert.equal(dailyRunState.classifyDailyRun({ status: 'in_progress' }), 'resume');
+  assert.equal(dailyRunState.classifyDailyRun({ status: 'completed' }), 'locked');
+  assert.equal(dailyRunState.classifyDailyRun({ status: 'unknown' }), 'locked');
+});
+
+test('resuming an active Atlas question preserves its remaining time', () => {
+  const run = { status: 'in_progress', question_started_at: new Date(1000), awaiting_next: false };
+  assert.equal(dailyRunState.remainingSeconds(run, 15000, 25), 11);
+  assert.equal(dailyRunState.remainingSeconds(run, 26000, 25), 0);
+  assert.equal(dailyRunState.remainingSeconds(run, 0, 25), 25);
+});
+
+test('resuming from a paused result screen starts the next question with a fresh timer', () => {
+  const run = { status: 'in_progress', question_started_at: new Date(1000), awaiting_next: true };
+  assert.equal(dailyRunState.remainingSeconds(run, 45000, 25), 25);
+});
+
+test('daily resume persists paused-next-question state and restores the saved answer recap', () => {
+  const backend = fs.readFileSync(path.join(__dirname, 'game-server.js'), 'utf8');
+  const schema = fs.readFileSync(path.join(__dirname, 'schema-geography.sql'), 'utf8');
+  assert.match(backend, /awaiting_next = \\$6/);
+  assert.match(backend, /awaiting_next = FALSE/);
+  assert.match(backend, /FROM humanity_daily_run_answers WHERE run_id = \\$1 ORDER BY question_slot/);
+  assert.match(schema, /ADD COLUMN IF NOT EXISTS awaiting_next BOOLEAN NOT NULL DEFAULT FALSE/);
 });
 
 test('Globe Rush variants are normalised and Survival pressure increases by round', () => {

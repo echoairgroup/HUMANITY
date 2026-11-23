@@ -35,6 +35,7 @@
     reconnectAttempts: 0, reconnectTimer: null, isLeavingRoom: false, profileStats: null,
     wsHeartbeatTimer: null, wsHeartbeatSocket: null,
     result: null, currentRanking: 'daily', authMode: 'login', practice: null, unlimited: null,
+    dailyResumeAvailable: false,
     dailyHistory: [], lastPracticeLabel: '', ascentPoints: 0, ascentMaxPoints: 700,
     suggestionTimer: null, suggestionSequence: 0, pendingSuggestion: null,
     dailyAdvanceTimer: null,
@@ -572,19 +573,41 @@
       state.practice = null;
       state.unlimited = null;
       state.dailyHistory = [];
+      state.dailyResumeAvailable = false;
+      state.provisionalScore = 0;
       setAscentVisible(false);
       $('#attempt-label').textContent = 'ONE OFFICIAL RUN';
       $('#edition-label').textContent = "TODAY'S EDITION";
       $('#daily-return-today').hidden = true;
       const result = await api('/daily/current');
       state.daily = result;
+      state.dailyHistory = Array.isArray(result.history) ? result.history : [];
+      state.provisionalScore = Number(result.played && result.played.provisional_score) || 0;
       $('#edition-date').textContent = fmtDate(result.date);
-      if (result.played) {
+
+      const canResume = Boolean(result.played && result.played.status === 'in_progress');
+      state.dailyResumeAvailable = canResume;
+      const resumeNote = $('#daily-resume-note');
+      if (resumeNote) {
+        resumeNote.hidden = !canResume;
+        resumeNote.textContent = canResume
+          ? 'Your official run is saved at question ' + (Math.min(6, Math.max(0, Number(result.played.current_question) || 0) + 1)) + ' of 7. Continue with the remaining time.'
+          : '';
+      }
+
+      if (result.played && !canResume) {
         setDailySection('daily-locked');
         $('#locked-summary').textContent = result.played.status === 'completed'
           ? 'You completed today’s official run. ' + (result.played.final_score == null ? 'Your score is saved while Discovery Points are finalised at 00:00 UTC.' : 'Your final Discovery Score is ' + number.format(result.played.final_score) + ' points.')
-          : 'Your official attempt has already started. Atlas Daily is one uninterrupted run, so it cannot be restarted.';
-      } else setDailySection('daily-idle');
+          : 'This official attempt is no longer available.';
+      } else {
+        setDailySection('daily-idle');
+        $('#daily-panel-title').textContent = canResume ? 'Pick up where you left off.' : 'Ready to explore?';
+        $('#daily-start').innerHTML = canResume
+          ? 'Resume today’s Atlas <span aria-hidden="true">↗</span>'
+          : 'Start today’s Atlas <span aria-hidden="true">↗</span>';
+        $('#attempt-label').textContent = canResume ? 'OFFICIAL RUN IN PROGRESS' : 'ONE OFFICIAL RUN';
+      }
       if (state.player) $('#streak-number').textContent = number.format(state.player.dailyStreak || 0) + ' days';
       await Promise.all([loadDailyMiniRanking(), loadArchive()]);
     } catch (error) {
@@ -605,30 +628,41 @@
     playSound('launch');
     const button = $('#daily-start');
     button.disabled = true;
-    button.textContent = 'Preparing today’s Atlas…';
+    button.textContent = state.dailyResumeAvailable ? 'Resuming your Atlas…' : 'Preparing today’s Atlas…';
     try {
       const result = await api('/daily/start', { method: 'POST', body: { guestId: state.guestId } });
       state.practice = null;
       state.unlimited = null;
-      state.dailyHistory = [];
+      state.dailyHistory = Array.isArray(state.dailyHistory) ? state.dailyHistory : [];
       state.runId = result.runId;
-      state.provisionalScore = 0;
+      state.provisionalScore = Number(result.provisionalScore) || 0;
       state.ascentMaxPoints = Number(result.maxPossibleScore) || 700;
       resetAscent();
+      if (state.provisionalScore > 0) updateAscentProgress(state.provisionalScore);
       setAscentVisible(true);
-      $('#attempt-label').textContent = 'OFFICIAL RUN · 7 QUESTIONS';
+      $('#attempt-label').textContent = result.resumed ? 'OFFICIAL RUN · RESUMED' : 'OFFICIAL RUN · 7 QUESTIONS';
       $('#daily-return-today').hidden = true;
+      state.dailyResumeAvailable = false;
       updateQuestion(result.question, result.index);
+      state.hintUsed = Boolean(result.hintUsed);
+      $('#daily-hint').disabled = state.hintUsed;
+      $('#hint-counter').textContent = state.hintUsed ? '0 / 1' : '1 / 1';
       setDailySection('daily-play');
-      startDailyTimer(result.seconds || 25);
+      startDailyTimer(result.seconds);
     } catch (error) {
       if (error.status === 409) {
-        setDailySection('daily-locked');
-        $('#locked-summary').textContent = 'Your official attempt has already started. It cannot be restarted or played again today.';
-      } else toast(error.message);
+        await loadDaily();
+        toast(error.payload && error.payload.completed
+          ? 'Today’s official Atlas is already complete.'
+          : 'Your saved Atlas attempt has changed. The latest status has been loaded.');
+      } else {
+        toast(error.message);
+      }
     } finally {
       button.disabled = false;
-      button.innerHTML = 'Start today’s Atlas <span aria-hidden="true">↗</span>';
+      button.innerHTML = state.dailyResumeAvailable
+        ? 'Resume today’s Atlas <span aria-hidden="true">↗</span>'
+        : 'Start today’s Atlas <span aria-hidden="true">↗</span>';
     }
   }
   function renderDailyQuestionVisual(question) {
@@ -706,8 +740,13 @@
   function startDailyTimer(seconds) {
     stopDailyTimer();
     state.dailySoundMarks = [];
-    state.secondsLeft = seconds || 25;
+    const requestedSeconds = Number(seconds);
+    state.secondsLeft = Number.isFinite(requestedSeconds) ? Math.max(0, Math.ceil(requestedSeconds)) : 25;
     renderDailyClock();
+    if (state.secondsLeft <= 0) {
+      skipDailyQuestion();
+      return;
+    }
     state.timer = setInterval(() => {
       state.secondsLeft -= 1;
       if ([10, 5, 3, 2, 1].includes(state.secondsLeft) && !state.dailySoundMarks.includes(state.secondsLeft)) {

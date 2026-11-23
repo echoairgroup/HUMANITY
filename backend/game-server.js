@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { promisify } = require('node:util');
 const { Pool } = require('pg');
 const engine = require('./geography-engine');
+const dailyRunState = require('./daily-run-state');
 const practiceEngine = require('./practice-engine');
 const { createPartyServer } = require('./party-server');
 const { createAdminController } = require('./admin');
@@ -898,34 +899,85 @@ async function dailyStart(request, response) {
     sendError(response, 400, 'A guest ID or account is required to start your daily attempt.', 'identity_required');
     return;
   }
+
   const challenge = await currentChallenge();
-  const existing = await pool.query(
-    'SELECT id, status, current_question, provisional_score, final_score FROM humanity_daily_runs WHERE challenge_id = $1 AND identity_key = $2 LIMIT 1',
+  const selectRun = () => pool.query(
+    'SELECT id, status, current_question, provisional_score, final_score, hint_used, awaiting_next, question_started_at ' +
+    'FROM humanity_daily_runs WHERE challenge_id = $1 AND identity_key = $2 LIMIT 1',
     [challenge.id, identity.key]
   );
-  if (existing.rows[0]) {
+  let run = (await selectRun()).rows[0] || null;
+  let created = false;
+
+  if (!run) {
+    const inserted = await pool.query(
+      'INSERT INTO humanity_daily_runs (id, challenge_id, identity_key, player_id, guest_id) ' +
+      'VALUES ($1,$2,$3,$4,$5) ON CONFLICT (challenge_id, identity_key) DO NOTHING ' +
+      'RETURNING id, status, current_question, provisional_score, final_score, hint_used, awaiting_next, question_started_at',
+      [crypto.randomUUID(), challenge.id, identity.key, identity.playerId, identity.guestId]
+    );
+    if (inserted.rows[0]) {
+      run = inserted.rows[0];
+      created = true;
+    } else {
+      run = (await selectRun()).rows[0] || null;
+    }
+  }
+
+  if (!run) {
+    sendError(response, 503, 'Your Atlas attempt could not be loaded. Please try again.', 'daily_run_unavailable');
+    return;
+  }
+
+  const action = created ? 'start' : dailyRunState.classifyDailyRun(run);
+  if (action === 'locked') {
     sendJSON(response, 409, {
       ok: false,
       alreadyPlayed: true,
-      error: 'Your official Atlas Daily attempt for today has already started.',
-      run: existing.rows[0]
+      completed: run.status === 'completed',
+      error: run.status === 'completed'
+        ? 'Your official Atlas Daily attempt for today is already complete.'
+        : 'Your official Atlas Daily attempt is no longer available.',
+      run
     });
     return;
   }
-  const runId = crypto.randomUUID();
-  await pool.query(
-    'INSERT INTO humanity_daily_runs (id, challenge_id, identity_key, player_id, guest_id) VALUES ($1,$2,$3,$4,$5)',
-    [runId, challenge.id, identity.key, identity.playerId, identity.guestId]
-  );
-  const question = challenge.payload.questions[0];
-  sendJSON(response, 201, {
+
+  const index = Number(run.current_question);
+  const question = challenge.payload.questions[index];
+  if (!Number.isInteger(index) || index < 0 || !question) {
+    sendError(response, 409, 'The saved Atlas attempt is inconsistent and cannot be resumed.', 'daily_run_inconsistent');
+    return;
+  }
+
+  // A submitted answer pauses the clock on the result screen. On reload,
+  // activate the next question and its full timer when the player resumes.
+  const wasAwaitingNext = Boolean(run.awaiting_next);
+  if (!created && wasAwaitingNext) {
+    const activated = await pool.query(
+      'UPDATE humanity_daily_runs SET question_started_at = NOW(), awaiting_next = FALSE ' +
+      'WHERE id = $1 AND status = $2 ' +
+      'RETURNING id, status, current_question, provisional_score, final_score, hint_used, awaiting_next, question_started_at',
+      [run.id, 'in_progress']
+    );
+    if (activated.rows[0]) run = activated.rows[0];
+  }
+
+  const seconds = created || wasAwaitingNext
+    ? DAILY_SECONDS
+    : dailyRunState.remainingSeconds(run, Date.now(), DAILY_SECONDS);
+
+  sendJSON(response, created ? 201 : 200, {
     ok: true,
-    runId,
-    date: utcDate(),
-    index: 0,
-    question: publicDailyQuestion(question, 0),
+    runId: run.id,
+    date: isoDate(challenge.challenge_date),
+    index,
+    question: publicDailyQuestion(question, index),
     maxPossibleScore: maximumDailyScore(challenge.payload),
-    seconds: DAILY_SECONDS
+    provisionalScore: Number(run.provisional_score || 0),
+    hintUsed: Boolean(run.hint_used),
+    resumed: action === 'resume',
+    seconds
   });
 }
 
@@ -984,8 +1036,8 @@ async function dailyGuess(request, response, skip) {
     const nextIndex = index + 1;
     const complete = nextIndex >= challenge.payload.questions.length;
     await pool.query(
-      'UPDATE humanity_daily_runs SET current_question = $2, provisional_score = provisional_score + $3, status = $4, completed_at = CASE WHEN $4 = $5 THEN NOW() ELSE completed_at END WHERE id = $1',
-      [run.id, nextIndex, match.points, complete ? 'completed' : 'in_progress', 'completed']
+      'UPDATE humanity_daily_runs SET current_question = $2, question_started_at = NOW(), awaiting_next = $6, provisional_score = provisional_score + $3, status = $4, completed_at = CASE WHEN $4 = $5 THEN NOW() ELSE completed_at END WHERE id = $1',
+      [run.id, nextIndex, match.points, complete ? 'completed' : 'in_progress', 'completed', !complete]
     );
     if (complete && identity.playerId) await updateDailyStreak(identity.playerId, isoDate(challenge.challenge_date));
     const usage = await pool.query(
@@ -1016,8 +1068,8 @@ async function dailyGuess(request, response, skip) {
   const nextIndex = index + 1;
   const complete = nextIndex >= challenge.payload.questions.length;
   await pool.query(
-    'UPDATE humanity_daily_runs SET current_question = $2, status = $3, completed_at = CASE WHEN $3 = $4 THEN NOW() ELSE completed_at END WHERE id = $1',
-    [run.id, nextIndex, complete ? 'completed' : 'in_progress', 'completed']
+    'UPDATE humanity_daily_runs SET current_question = $2, question_started_at = NOW(), awaiting_next = $5, status = $3, completed_at = CASE WHEN $3 = $4 THEN NOW() ELSE completed_at END WHERE id = $1',
+    [run.id, nextIndex, complete ? 'completed' : 'in_progress', 'completed', !complete]
   );
   if (complete && identity.playerId) await updateDailyStreak(identity.playerId, isoDate(challenge.challenge_date));
   sendJSON(response, 200, {
@@ -1299,12 +1351,41 @@ async function handleAPI(request, response, url, party) {
     const challenge = await currentChallenge();
     const identity = await getIdentity(request, {});
     let played = null;
+    let history = [];
     if (identity) {
       const previous = await pool.query(
-        'SELECT status, provisional_score, final_score, completed_at FROM humanity_daily_runs WHERE challenge_id = $1 AND identity_key = $2 LIMIT 1',
+        'SELECT id, status, current_question, provisional_score, final_score, completed_at, hint_used, awaiting_next, question_started_at ' +
+        'FROM humanity_daily_runs WHERE challenge_id = $1 AND identity_key = $2 LIMIT 1',
         [challenge.id, identity.key]
       );
       played = previous.rows[0] || null;
+      if (played) {
+        const answers = await pool.query(
+          'SELECT question_slot, question_id, answer_text, is_correct, provisional_points ' +
+          'FROM humanity_daily_run_answers WHERE run_id = $1 ORDER BY question_slot',
+          [played.id]
+        );
+        history = answers.rows.map(row => {
+          const question = challenge.payload.questions[Number(row.question_slot)] ||
+            challenge.payload.questions.find(item => item.id === row.question_id);
+          if (!question) return null;
+          const accepted = Boolean(row.is_correct);
+          const matched = accepted
+            ? question.answers.find(item => engine.normaliseAnswer(item.name) === engine.normaliseAnswer(row.answer_text))
+            : null;
+          const rarity = matched ? Math.max(0, Math.min(engine.LEVEL_NAMES.length - 1, Number(matched.rarity) || 0)) : null;
+          return {
+            question: question.prompt,
+            category: question.category,
+            answer: accepted ? String((matched && matched.name) || row.answer_text || '') : '',
+            accepted,
+            level: matched ? engine.LEVEL_NAMES[rarity] : '',
+            points: Number(row.provisional_points || 0),
+            rarity,
+            reveal: answerReveal(question)
+          };
+        }).filter(Boolean);
+      }
     }
     sendJSON(response, 200, {
       ok: true,
@@ -1312,7 +1393,8 @@ async function handleAPI(request, response, url, party) {
       finalised: Boolean(challenge.finalised_at),
       questionCount: challenge.payload.questions.length,
       questions: challenge.payload.questions.map(publicDailyQuestion),
-      played
+      played,
+      history
     });
     return true;
   }
@@ -1346,7 +1428,7 @@ async function handleAPI(request, response, url, party) {
       sendError(response, 409, 'That question is no longer active.', 'question_out_of_sync');
       return true;
     }
-    await pool.query('UPDATE humanity_daily_runs SET question_started_at = NOW() WHERE id = $1', [run.id]);
+    await pool.query('UPDATE humanity_daily_runs SET question_started_at = NOW(), awaiting_next = FALSE WHERE id = $1', [run.id]);
     sendJSON(response, 200, {
       ok: true,
       index: Number(run.current_question),

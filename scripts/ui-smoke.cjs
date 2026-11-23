@@ -324,6 +324,145 @@ async function checkTwoPlayerRoomAndLiveGame(browser, hostPage, pageErrors) {
   }
 }
 
+
+async function checkAtlasResumeAndCompletedLock(browser, pageErrors) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 950 },
+    serviceWorkers: 'block'
+  });
+  let dailyStatus = 'in_progress';
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem('humanity-guest-id', 'ci-resume-flow-guest');
+    });
+    const page = await context.newPage();
+    page.on('pageerror', error => pageErrors.push('resume-flow: ' + error.message));
+    await page.route('**/api/daily/current', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true, date: today, finalised: false, questionCount: 7, questions: [],
+        played: dailyStatus === 'in_progress'
+          ? { id: 'ci-resume-run', status: 'in_progress', current_question: 2, provisional_score: 45,
+              final_score: null, hint_used: true, awaiting_next: false, question_started_at: new Date().toISOString() }
+          : { id: 'ci-resume-run', status: 'completed', current_question: 7, provisional_score: 120,
+              final_score: null, hint_used: true, awaiting_next: false, completed_at: new Date().toISOString() },
+        history: [{
+          question: 'Name a country in Europe.', category: 'European countries', answer: 'France',
+          accepted: true, level: 'Known', points: 20, rarity: 1,
+          reveal: [{ answer: 'France', level: 'Known', points: 20, rarity: 1 }]
+        }]
+      })
+    }));
+    await page.route('**/api/daily/start', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true, runId: 'ci-resume-run', date: today, index: 2,
+        question: {
+          id: 'ci-resume-question', category: 'European countries',
+          prompt: 'Name a country in Europe.', note: 'Every approved answer counts.',
+          type: 'geography', visual: null, hints: ['France'], answerCount: 10
+        },
+        maxPossibleScore: 700, provisionalScore: 45, hintUsed: true, resumed: true, seconds: 19
+      })
+    }));
+
+    const response = await page.goto(SITE_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    assert.ok(response && response.ok(), 'Resume test should load the published HUMANITY site.');
+    await page.locator('#daily-resume-note:not([hidden])').waitFor({ state: 'visible', timeout: 20000 });
+    assert.match(await page.locator('#daily-start').textContent(), /Resume/i);
+    await page.locator('#daily-start').click();
+    await page.locator('#daily-play:not([hidden])').waitFor({ state: 'visible', timeout: 10000 });
+    assert.equal((await page.locator('#question-number').textContent()).trim(), '03',
+      'Resuming should return to the saved question, not question one.');
+    assert.equal((await page.locator('#hint-counter').textContent()).trim(), '0 / 1',
+      'A hint already used in the official run must remain used after a reload.');
+    assert.equal(await page.locator('#daily-hint').isDisabled(), true,
+      'A resumed official run must not grant an extra hint.');
+    console.log('PASS: Interrupted Atlas Daily resumes at the saved question with hint state intact.');
+
+    dailyStatus = 'completed';
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#daily-locked:not([hidden])').waitFor({ state: 'visible', timeout: 20000 });
+    assert.match(await page.locator('#locked-summary').textContent(), /completed today’s official run/i);
+    assert.equal(await page.locator('#daily-resume-note').isVisible(), false,
+      'A completed official attempt must not show the resume prompt.');
+    assert.equal(await page.locator('#open-archive-from-lock').isVisible(), true,
+      'The World Archive remains available after the official attempt is completed.');
+    console.log('PASS: Completed Atlas Daily remains locked while the World Archive stays accessible.');
+  } finally {
+    await context.close();
+  }
+}
+
+async function checkAdminResponsiveLayout(browser, pageErrors) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 950 },
+    serviceWorkers: 'block'
+  });
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem('humanity-session-token', 'ci-admin-layout-session');
+    });
+    const page = await context.newPage();
+    page.on('pageerror', error => pageErrors.push('admin: ' + error.message));
+    const json = payload => ({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(payload)
+    });
+    await page.route('**/api/auth/me', route => route.fulfill(json({
+      ok: true, player: { id: 'ci-admin', username: 'Release QA', role: 'admin' }
+    })));
+    await page.route('**/api/admin/overview', route => route.fulfill(json({
+      ok: true, stats: {
+        players: 42, activePlayers: 40, suspendedPlayers: 2, newPlayers7d: 5,
+        dailyEditions: 20, pendingAnswers: 3, finishedMatches: 18, admins: 1, moderators: 2
+      }
+    })));
+    await page.route('**/api/health', route => route.fulfill(json({
+      ok: true, service: 'Online', database: true, uptimeSeconds: 4200, activeRooms: 2
+    })));
+    await page.route('**/api/admin/review-queue', route => route.fulfill(json({ ok: true, entries: [] })));
+    await page.route('**/api/admin/users*', route => route.fulfill(json({ ok: true, players: [], total: 0 })));
+    await page.route('**/api/admin/audit*', route => route.fulfill(json({ ok: true, entries: [] })));
+
+    const response = await page.goto(new URL('admin.html', SITE_URL).toString(), {
+      waitUntil: 'domcontentloaded', timeout: 60000
+    });
+    assert.ok(response && response.ok(), 'Admin page should load successfully.');
+    await page.locator('#admin-dashboard:not([hidden])').waitFor({ state: 'visible', timeout: 15000 });
+
+    for (const width of [320, 375, 430, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 950 });
+      await sleep(100);
+      const metrics = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        main: document.querySelector('.admin-main')?.getBoundingClientRect(),
+        footer: document.querySelector('.admin-footer')?.getBoundingClientRect()
+      }));
+      assert.ok(metrics.documentWidth <= width + 1,
+        'Admin page must not create horizontal overflow at ' + width + 'px.');
+      assert.ok(metrics.main && metrics.footer && metrics.footer.top >= metrics.main.bottom - 1,
+        'Admin footer must remain below the main content at ' + width + 'px.');
+    }
+
+    await page.locator('[data-admin-tab="players"]').click();
+    await page.locator('#admin-view-players:not([hidden])').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('[data-admin-tab="answers"]').click();
+    await page.locator('#admin-view-answers:not([hidden])').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('[data-admin-tab="audit"]').click();
+    await page.locator('#admin-view-audit:not([hidden])').waitFor({ state: 'visible', timeout: 10000 });
+    assert.deepEqual(pageErrors.filter(message => message.startsWith('admin:')), [],
+      'Admin page should not throw uncaught JavaScript errors.');
+    console.log('PASS: Admin dashboard, all tabs and six responsive viewport widths.');
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   await waitForStableApi();
 
@@ -389,6 +528,9 @@ async function main() {
       await sleep(100);
       await checkLayout(page, '#view-daily', width);
     }
+
+    await checkAtlasResumeAndCompletedLock(browser, pageErrors);
+    await checkAdminResponsiveLayout(browser, pageErrors);
 
     assert.deepEqual(pageErrors, [], 'The page should not throw uncaught JavaScript errors.');
     console.log('PASS: No uncaught browser JavaScript errors.');

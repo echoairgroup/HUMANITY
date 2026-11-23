@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS humanity_daily_runs (
   guest_id TEXT,
   current_question INTEGER NOT NULL DEFAULT 0,
   question_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  awaiting_next BOOLEAN NOT NULL DEFAULT FALSE,
   hint_used BOOLEAN NOT NULL DEFAULT FALSE,
   status TEXT NOT NULL DEFAULT 'in_progress',
   provisional_score INTEGER NOT NULL DEFAULT 0,
@@ -60,6 +61,8 @@ CREATE TABLE IF NOT EXISTS humanity_daily_runs (
   completed_at TIMESTAMPTZ,
   UNIQUE (challenge_id, identity_key)
 );
+ALTER TABLE humanity_daily_runs ADD COLUMN IF NOT EXISTS awaiting_next BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE INDEX IF NOT EXISTS humanity_daily_runs_score_idx
   ON humanity_daily_runs(challenge_id, COALESCE(final_score, provisional_score) DESC);
 CREATE INDEX IF NOT EXISTS humanity_daily_runs_player_idx ON humanity_daily_runs(player_id);

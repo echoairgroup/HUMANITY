@@ -16,6 +16,7 @@ on:
       - 'admin.css'
       - 'admin.js'
       - 'app.js'
+      - 'sw.js'
       - 'scripts/ui-smoke.cjs'
       - '.github/workflows/ui-smoke.yml'
   workflow_dispatch:
@@ -48,15 +49,23 @@ jobs:
                 branch: 'main',
                 per_page: 100
               });
-              const pages = data.workflow_runs.find(run =>
+              const pagesRuns = data.workflow_runs.filter(run =>
                 run.head_sha === expectedSha && run.name === 'pages build and deployment'
               );
-              if (pages && pages.status === 'completed') {
-                if (pages.conclusion !== 'success') {
-                  core.setFailed('GitHub Pages did not publish this commit successfully.');
-                  return;
-                }
+              const successfulPagesRun = pagesRuns.find(run =>
+                run.status === 'completed' && run.conclusion === 'success'
+              );
+              if (successfulPagesRun) {
                 core.info('GitHub Pages published commit ' + expectedSha + '.');
+                return;
+              }
+              const failedPagesRun = pagesRuns.find(run =>
+                run.status === 'completed' &&
+                run.conclusion !== 'cancelled' &&
+                run.conclusion !== 'success'
+              );
+              if (failedPagesRun) {
+                core.setFailed('GitHub Pages failed to publish this commit: ' + failedPagesRun.conclusion);
                 return;
               }
               await new Promise(resolve => setTimeout(resolve, 5000));
