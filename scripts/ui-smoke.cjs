@@ -364,17 +364,30 @@ async function checkAtlasResumeAndCompletedLock(browser, pageErrors) {
         reveal: [{ answer: 'Germany', level: 'Known', points: 20, rarity: 1 }]
       })
     }));
-    await page.route('**/api/daily/next', route => route.fulfill({
+    let nextQuestionsServed = 0;
+    await page.route('**/api/daily/next', route => {
+      const nextIndex = nextQuestionsServed++ === 0 ? 3 : 4;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true, index: nextIndex,
+          question: {
+            id: 'ci-resume-next-question-' + nextIndex, category: 'European countries',
+            prompt: nextIndex === 3 ? 'Name another country in Europe.' : 'Name one more country in Europe.',
+            note: 'Every approved answer counts.',
+            type: 'geography', visual: null, hints: ['Spain'], answerCount: 10
+          },
+          hintUsed: true, seconds: 25
+        })
+      });
+    });
+    await page.route('**/api/daily/skip', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        ok: true, index: 3,
-        question: {
-          id: 'ci-resume-next-question', category: 'European countries',
-          prompt: 'Name another country in Europe.', note: 'Every approved answer counts.',
-          type: 'geography', visual: null, hints: ['Spain'], answerCount: 10
-        },
-        hintUsed: true, seconds: 25
+        ok: true, accepted: false, skipped: true, completed: false, nextIndex: 4,
+        reveal: [{ answer: 'Spain', level: 'Known', points: 20, rarity: 1 }]
       })
     }));
     await page.route('**/api/daily/start', route => route.fulfill({
@@ -411,6 +424,16 @@ async function checkAtlasResumeAndCompletedLock(browser, pageErrors) {
     assert.equal(await page.locator('#daily-hint').isDisabled(), true,
       'The one-hint-per-run limit must remain in place after advancing to another question.');
     assert.equal((await page.locator('#hint-counter').textContent()).trim(), '0 / 1');
+
+    // An unanswered question can be skipped, then advanced with Continue without losing the saved run.
+    await page.locator('#unlimited-skip').click();
+    await page.locator('#daily-answer-reaction:visible').waitFor({ state: 'visible', timeout: 10000 });
+    assert.match(await page.locator('#daily-reaction-level').textContent(), /TIME UP/i);
+    await page.locator('#daily-next').click();
+    await page.waitForFunction(() => document.querySelector('#question-number')?.textContent.trim() === '05');
+    assert.equal(await page.locator('#daily-hint').isDisabled(), true,
+      'Skipping an unanswered question must not reset the one-hint-per-run limit.');
+    console.log('PASS: An unanswered Atlas Daily question can be skipped and continued to the next question.');
     console.log('PASS: Interrupted Atlas Daily resumes at the saved question and preserves the one-hint-per-run limit.');
 
     dailyStatus = 'completed';
