@@ -1107,6 +1107,9 @@
         body: { guestId: state.guestId, runId: state.runId, index }
       });
       updateQuestion(result.question, result.index);
+      state.hintUsed = Boolean(result.hintUsed);
+      $('#daily-hint').disabled = state.hintUsed;
+      $('#hint-counter').textContent = state.hintUsed ? '0 / 1' : '1 / 1';
       setDailySection('daily-play');
       startDailyTimer(result.seconds || 25);
       $('#daily-answer').focus();

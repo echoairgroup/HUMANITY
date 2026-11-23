@@ -355,6 +355,28 @@ async function checkAtlasResumeAndCompletedLock(browser, pageErrors) {
         }]
       })
     }));
+    await page.route('**/api/daily/answer', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true, accepted: true, answer: 'Germany', level: 'Known', rarity: 1,
+        provisionalPoints: 20, sameAnswerCount: 1, completed: false, nextIndex: 3,
+        reveal: [{ answer: 'Germany', level: 'Known', points: 20, rarity: 1 }]
+      })
+    }));
+    await page.route('**/api/daily/next', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true, index: 3,
+        question: {
+          id: 'ci-resume-next-question', category: 'European countries',
+          prompt: 'Name another country in Europe.', note: 'Every approved answer counts.',
+          type: 'geography', visual: null, hints: ['Spain'], answerCount: 10
+        },
+        hintUsed: true, seconds: 25
+      })
+    }));
     await page.route('**/api/daily/start', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -381,7 +403,15 @@ async function checkAtlasResumeAndCompletedLock(browser, pageErrors) {
       'A hint already used in the official run must remain used after a reload.');
     assert.equal(await page.locator('#daily-hint').isDisabled(), true,
       'A resumed official run must not grant an extra hint.');
-    console.log('PASS: Interrupted Atlas Daily resumes at the saved question with hint state intact.');
+    await page.locator('#daily-answer').fill('Germany');
+    await page.locator('#daily-submit').click();
+    await page.locator('#daily-answer-reaction:visible').waitFor({ state: 'visible', timeout: 10000 });
+    await page.locator('#daily-next').click();
+    await page.waitForFunction(() => document.querySelector('#question-number')?.textContent.trim() === '04');
+    assert.equal(await page.locator('#daily-hint').isDisabled(), true,
+      'The one-hint-per-run limit must remain in place after advancing to another question.');
+    assert.equal((await page.locator('#hint-counter').textContent()).trim(), '0 / 1');
+    console.log('PASS: Interrupted Atlas Daily resumes at the saved question and preserves the one-hint-per-run limit.');
 
     dailyStatus = 'completed';
     await page.reload({ waitUntil: 'domcontentloaded' });

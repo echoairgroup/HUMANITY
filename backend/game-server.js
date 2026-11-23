@@ -1433,6 +1433,7 @@ async function handleAPI(request, response, url, party) {
       ok: true,
       index: Number(run.current_question),
       question: publicDailyQuestion(question, Number(run.current_question)),
+      hintUsed: Boolean(run.hint_used),
       seconds: DAILY_SECONDS
     });
     return true;
