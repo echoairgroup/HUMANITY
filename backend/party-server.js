@@ -200,31 +200,6 @@ function findPartyAnswerSuggestion(category, rawAnswer, usedAnswers) {
     ? winners[0].answer : null;
 }
 
-const PARTY_WIKIDATA_TYPES = {
-  'europe-countries': ['country in europe', 'european country'],
-  'africa-countries': ['country in africa', 'african country'],
-  'asia-countries': ['country in asia', 'asian country'],
-  'south-america-countries': ['country in south america', 'south american country'],
-  'north-america-countries': ['country in north america', 'north american country'],
-  'oceania-countries': ['country in oceania', 'oceanian country'],
-  'world-rivers': ['river'],
-  mountains: ['mountain', 'mountain range', 'volcano', 'peak'],
-  islands: ['island'],
-  lakes: ['lake'],
-  seas: ['sea', 'ocean'],
-  deserts: ['desert'],
-  'capital-cities': ['capital'],
-  'island-countries': ['island country', 'island nation'],
-  'euro-countries': ['eurozone member', 'member of the euro area', 'uses the euro', 'currency is the euro'],
-  'major-cities': ['major city', 'large city', 'metropolis', 'largest city', 'capital city'],
-  'world-landmarks': ['landmark', 'monument', 'bridge', 'tower', 'statue', 'heritage site'],
-  'world-heritage-sites': ['world heritage site', 'unesco world heritage site'],
-  'national-parks': ['national park'],
-  languages: ['language'],
-  'popular-dishes': ['dish', 'cuisine', 'traditional food'],
-  'popular-snacks': ['snack', 'food'],
-  'olympic-sports': ['olympic sport', 'sport at the olympic games', 'sport contested at the olympic games']
-};
 const PARTY_WIKIDATA_CACHE = new Map();
 
 function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) {
@@ -296,7 +271,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
 
   async function verifyPartyAnswer(question, rawAnswer) {
     const questionId = partyQuestionKey(question);
-    const expected = PARTY_WIKIDATA_TYPES[questionId];
+    const expected = engine.wikidataExpectedTypes(question);
     const answerText = String(rawAnswer || '').trim().slice(0, 80);
     const answerKey = engine.normaliseAnswer(answerText);
     if (!expected || answerKey.length < 2 || answerKey.length > 80) return null;
@@ -311,7 +286,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
           search: answerText,
           language: 'en',
           format: 'json',
-          limit: '8'
+          limit: '10'
         });
         const response = await fetch('https://www.wikidata.org/w/api.php?' + searchParams.toString(), {
           headers: { Accept: 'application/json', 'User-Agent': 'HUMANITY-Geography-Engine/1.0' },
@@ -319,13 +294,32 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         });
         if (!response.ok) return null;
         const payload = await response.json();
-        const candidate = (payload.search || []).find(item => {
+        const findCandidate = payload => (payload.search || []).find(item => {
           const matchedText = item.match && item.match.text ? item.match.text : '';
           const exactAlias = engine.normaliseAnswer(item.label) === answerKey ||
             engine.normaliseAnswer(matchedText) === answerKey;
           const description = String(item.description || '').toLowerCase();
-          return exactAlias && expected.some(term => description.includes(term));
+          const hasExpectedType = expected.terms.some(term => description.includes(term));
+          const hasExpectedRegion = !expected.regions || !expected.regions.length ||
+            expected.regions.some(region => description.includes(region));
+          return exactAlias && hasExpectedType && hasExpectedRegion;
         });
+
+        let candidate = findCandidate(payload);
+        if (!candidate) {
+          const dutchParams = new URLSearchParams({
+            action: 'wbsearchentities',
+            search: answerText,
+            language: 'nl',
+            format: 'json',
+            limit: '10'
+          });
+          const dutchResponse = await fetch('https://www.wikidata.org/w/api.php?' + dutchParams.toString(), {
+            headers: { Accept: 'application/json', 'User-Agent': 'HUMANITY-Geography-Engine/1.0' },
+            signal: AbortSignal.timeout(3500)
+          });
+          if (dutchResponse.ok) candidate = findCandidate(await dutchResponse.json());
+        }
         if (!candidate) return null;
 
         const aliases = new Map();
