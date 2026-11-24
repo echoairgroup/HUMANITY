@@ -40,6 +40,27 @@ test('Atlas Daily uses fresh regional questions across a rolling seven-edition w
   }
 });
 
+test('Wikidata answer verification recognises all regional and open-ended question families', () => {
+  const cases = [
+    [{ id: 'european-rivers' }, ['river']],
+    [{ id: 'asian-mountains' }, ['mountain', 'mountain range', 'peak', 'volcano']],
+    [{ id: 'african-landmarks' }, ['landmark', 'monument', 'historic building', 'heritage site', 'memorial', 'tower', 'statue']],
+    [{ id: 'north-america-countries' }, ['country', 'sovereign state']],
+    [{ id: 'southeast-asia-countries' }, ['country', 'sovereign state']],
+    [{ id: 'popular-snacks' }, ['snack', 'food', 'pastry', 'confectionery', 'dessert', 'street food']],
+    [{ id: 'rush-world-waterfalls-v3', topicId: 'world-waterfalls' }, ['waterfall']],
+    [{ id: 'rush-olympic-sports-v2', topicId: 'olympic-sports' }, ['olympic sport', 'sport at the olympic games', 'sport contested at the olympic games']]
+  ];
+  for (const [question, expectedTerms] of cases) {
+    const profile = engine.wikidataExpectedTypes(question);
+    assert.ok(profile, 'expected a Wikidata profile for ' + question.id);
+    assert.deepEqual(profile.terms, expectedTerms);
+  }
+  assert.deepEqual(engine.wikidataExpectedTypes({ id: 'north-america-countries' }).regions, ['north america']);
+  assert.deepEqual(engine.wikidataExpectedTypes({ id: 'southeast-asia-countries' }).regions, ['southeast asia']);
+  assert.equal(engine.wikidataExpectedTypes({ id: 'flag-colours-blue-white-red' }), null);
+});
+
 test('popular snack question accepts Kroket and approved local aliases', () => {
   const question = engine.getQuestion('popular-snacks');
   assert.ok(question);
