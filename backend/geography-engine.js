@@ -1014,6 +1014,12 @@ function listPartyQuestionBank() {
 
 const QUESTION_BY_ID = new Map(Q.map(item => [item.id, item]));
 
+const DAILY_QUESTION_BANK = [...new Map(
+  Q.concat(PARTY_EXTRA_QUESTIONS)
+    .filter(item => item && item.id && Array.isArray(item.answers) && item.answers.length)
+    .map(item => [item.id, item])
+).values()];
+
 function hashSeed(value) {
   return crypto.createHash('sha256').update(String(value)).digest().readUInt32BE(0);
 }
@@ -1037,26 +1043,78 @@ function classifyDailyQuestion(item) {
 }
 
 function generateDailyChallenge(date, excludedQuestionIds = []) {
-  const excluded = new Set(Array.isArray(excludedQuestionIds) ? excludedQuestionIds : []);
+  const excluded = new Set(
+    Array.isArray(excludedQuestionIds) ? excludedQuestionIds.map(String) : []
+  );
+  const available = DAILY_QUESTION_BANK.filter(item => !excluded.has(item.id));
   const selected = [];
-  const pools = ['flags', 'countries', 'cities', 'nature', 'landmarks', 'geography', 'culture'];
+  const selectedIds = new Set();
+
+  const selectFrom = (poolName, pool) => {
+    const fresh = pool.filter(item => !selectedIds.has(item.id));
+    if (!fresh.length) return false;
+    const choice = seededShuffle(
+      fresh,
+      'HUMANITY-' + poolName.toUpperCase() + '-' + date
+    )[0];
+    selected.push(choice);
+    selectedIds.add(choice.id);
+    return true;
+  };
+
+  // Keep one culture question whenever a fresh culture topic is available.
+  const culturePool = available.filter(item => classifyDailyQuestion(item) === 'culture');
+  const hasCultureQuestion = selectFrom('culture', culturePool);
+
+  // Spread the geography questions across the established topic families.
+  const pools = ['flags', 'countries', 'cities', 'nature', 'landmarks'];
   for (const poolName of pools) {
-    let pool = Q.filter(item => {
+    const pool = available.filter(item => {
       const type = classifyDailyQuestion(item);
       return (type === 'currency' ? 'countries' : type) === poolName;
     });
-    let fresh = pool.filter(item => !excluded.has(item.id) && !selected.some(chosen => chosen.id === item.id));
-    if (!fresh.length) fresh = pool.filter(item => !selected.some(chosen => chosen.id === item.id));
-    if (!fresh.length && poolName !== 'culture') {
-      pool = Q.filter(item => item.domain === 'geography');
-      fresh = pool.filter(item => !excluded.has(item.id) && !selected.some(chosen => chosen.id === item.id));
-    }
-    if (!fresh.length) {
-      pool = Q.filter(item => !selected.some(chosen => chosen.id === item.id));
-      fresh = pool;
-    }
-    if (fresh.length) selected.push(seededShuffle(fresh, 'HUMANITY-' + poolName.toUpperCase() + '-' + date)[0]);
+    selectFrom(poolName, pool);
   }
+
+  // Fill the remaining geography slots from the wider regional question bank.
+  const targetGeographyCount = hasCultureQuestion ? 6 : 7;
+  const geographyPool = seededShuffle(
+    available.filter(item => item.domain === 'geography' && !selectedIds.has(item.id)),
+    'HUMANITY-GEOGRAPHY-' + date
+  );
+
+  for (const item of geographyPool) {
+    if (selected.length >= 7) break;
+    const geographyCount = selected.reduce(
+      (count, current) => count + (current.domain === 'geography' ? 1 : 0),
+      0
+    );
+    if (geographyCount >= targetGeographyCount) break;
+    selected.push(item);
+    selectedIds.add(item.id);
+  }
+
+  // A category may be temporarily exhausted by the seven-edition cooldown.
+  // Fill from any remaining unused topic instead of repeating a recent question.
+  if (selected.length < 7) {
+    const remaining = seededShuffle(
+      available.filter(item => !selectedIds.has(item.id)),
+      'HUMANITY-REMAINING-' + date
+    );
+    for (const item of remaining) {
+      if (selected.length >= 7) break;
+      selected.push(item);
+      selectedIds.add(item.id);
+    }
+  }
+
+  if (selected.length !== 7) {
+    throw new Error(
+      'Atlas Daily needs seven unused questions for ' + date +
+      ', but only ' + selected.length + ' are available. Expand the daily question bank.'
+    );
+  }
+
   const ordered = seededShuffle(selected, 'HUMANITY-ORDER-' + date);
 
   return {
@@ -1077,11 +1135,13 @@ function generateDailyChallenge(date, excludedQuestionIds = []) {
         .sort((a, b) => a.rarity - b.rarity)
         .slice(0, 3)
         .map(entry => entry.name),
-      answers: item.answers
+      answers: item.answers.map(entry => ({
+        ...entry,
+        aliases: Array.isArray(entry.aliases) ? [...entry.aliases] : []
+      }))
     }))
   };
 }
-
 function publicQuestion(question, index) {
   return {
     id: question.id,
