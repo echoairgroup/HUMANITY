@@ -555,32 +555,7 @@ async function updateDailyStreak(userId, date) {
 const WIKIDATA_VERIFICATION_CACHE = new Map();
 
 async function maybeVerifyWithWikidata(question, answerText) {
-  const expected = {
-    'europe-countries': ['country in europe', 'european country'],
-    'africa-countries': ['country in africa', 'african country'],
-    'asia-countries': ['country in asia', 'asian country'],
-    'south-america-countries': ['country in south america', 'south american country'],
-    'north-america-countries': ['country in north america', 'north american country'],
-    'oceania-countries': ['country in oceania', 'oceanian country'],
-    'world-rivers': ['river'],
-    mountains: ['mountain', 'volcano', 'peak', 'mountain range'],
-    islands: ['island'],
-    lakes: ['lake'],
-    seas: ['sea', 'ocean'],
-    deserts: ['desert'],
-    'capital-cities': ['capital'],
-    'island-countries': ['island country', 'island nation'],
-    'euro-countries': ['eurozone member', 'member of the euro area', 'uses the euro', 'currency is the euro'],
-    'major-cities': ['major city', 'large city', 'metropolis', 'largest city', 'capital city'],
-    'landlocked-capitals': ['capital'],
-    'world-landmarks': ['landmark', 'monument', 'tower', 'bridge', 'heritage site', 'statue'],
-    'world-heritage-sites': ['world heritage site', 'unesco world heritage site'],
-    'national-parks': ['national park'],
-    languages: ['language'],
-    'popular-dishes': ['dish', 'cuisine', 'traditional food'],
-    'popular-snacks': ['snack', 'food'],
-    'olympic-sports': ['olympic sport', 'sport at the olympic games', 'sport contested at the olympic games']
-  }[question.id];
+  const expected = engine.wikidataExpectedTypes(question);
   if (!expected) return null;
 
   const cleanAnswer = String(answerText || '').trim().slice(0, 80);
@@ -594,30 +569,45 @@ async function maybeVerifyWithWikidata(question, answerText) {
 
   const verification = (async () => {
     try {
-      const params = new URLSearchParams({
-        action: 'wbsearchentities',
-        search: cleanAnswer,
-        language: 'en',
-        format: 'json',
-        limit: '5'
-      });
-      const response = await fetch('https://www.wikidata.org/w/api.php?' + params.toString(), {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'HUMANITY-Geography-Engine/1.0 (contact: support@humanity.example)'
-        },
-        signal: AbortSignal.timeout(3000)
-      });
-      if (!response.ok) return null;
-
-      const payload = await response.json();
-      const candidate = (payload.search || []).find(item => {
+      const findCandidate = payload => (payload.search || []).find(item => {
         const matchedText = item.match && item.match.text ? item.match.text : '';
         const exactAlias = engine.normaliseAnswer(item.label) === answerKey ||
           engine.normaliseAnswer(matchedText) === answerKey;
-        return exactAlias &&
-          expected.some(term => String(item.description || '').toLowerCase().includes(term));
+        const description = String(item.description || '').toLowerCase();
+        const hasExpectedType = expected.terms.some(term => description.includes(term));
+        const hasExpectedRegion = !expected.regions || !expected.regions.length ||
+          expected.regions.some(region => description.includes(region));
+        return exactAlias && hasExpectedType && hasExpectedRegion;
       });
+
+      async function searchEntities(language) {
+        const params = new URLSearchParams({
+          action: 'wbsearchentities',
+          search: cleanAnswer,
+          language,
+          format: 'json',
+          limit: '10'
+        });
+        const response = await fetch('https://www.wikidata.org/w/api.php?' + params.toString(), {
+          headers: {
+            Accept: 'application/json',
+            'User-Agent': 'HUMANITY-Geography-Engine/1.0'
+          },
+          signal: AbortSignal.timeout(3500)
+        });
+        if (!response.ok) return null;
+        return response.json();
+      }
+
+      // Search both English and Dutch labels. Wikidata aliases are multilingual,
+      // but search language still affects which matching entities are returned.
+      const englishPayload = await searchEntities('en');
+      let candidate = englishPayload ? findCandidate(englishPayload) : null;
+      if (!candidate) {
+        const dutchPayload = await searchEntities('nl');
+        candidate = dutchPayload ? findCandidate(dutchPayload) : null;
+      }
+      if (!candidate) return null;
       if (!candidate) return null;
 
       const aliases = new Map();
