@@ -213,13 +213,26 @@ async function loadApprovedAnswers(questionIds) {
 }
 
 async function buildChallenge(date) {
-  const previousDate = new Date(Date.parse(date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
-  const previousEdition = await pool.query(
-    'SELECT payload FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1',
-    [previousDate]
+  const repeatWindowStart = new Date(
+    Date.parse(date + 'T00:00:00Z') - 7 * 86400000
+  ).toISOString().slice(0, 10);
+  const recentEditions = await pool.query(
+    'SELECT payload FROM humanity_daily_challenges ' +
+    'WHERE challenge_date >= $1 AND challenge_date < $2 ' +
+    'ORDER BY challenge_date DESC',
+    [repeatWindowStart, date]
   );
-  const previousQuestionIds = (previousEdition.rows[0]?.payload?.questions || []).map(item => item.id);
-  const generated = engine.generateDailyChallenge(date, previousQuestionIds);
+  const recentQuestionIds = new Set();
+  for (const edition of recentEditions.rows) {
+    const questions = edition.payload && Array.isArray(edition.payload.questions)
+      ? edition.payload.questions
+      : [];
+    for (const question of questions) {
+      if (question && question.id) recentQuestionIds.add(String(question.id));
+    }
+  }
+
+  const generated = engine.generateDailyChallenge(date, [...recentQuestionIds]);
   const approved = await loadApprovedAnswers(generated.questions.map(item => item.id));
   for (const extra of approved) {
     const question = generated.questions.find(item => item.id === extra.question_id);
@@ -235,7 +248,6 @@ async function buildChallenge(date) {
   }
   return generated;
 }
-
 async function ensureChallenge(date) {
   const id = 'atlas-' + date;
   const existing = await pool.query(
