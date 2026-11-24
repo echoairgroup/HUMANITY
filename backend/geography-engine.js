@@ -1270,6 +1270,73 @@ function pointsForUsage(entry, answerCount, totalAnswers) {
   return POINTS_BY_LEVEL[finalLevel];
 }
 
+
+const WIKIDATA_EXACT_PROFILES = {
+  'euro-countries': { terms: ['eurozone member', 'member of the euro area', 'uses the euro', 'currency is the euro'] },
+  'island-countries': { terms: ['island country', 'island nation'] },
+  'popular-dishes': { terms: ['dish', 'food', 'cuisine', 'traditional food', 'meal', 'pastry'] },
+  'popular-snacks': { terms: ['snack', 'food', 'pastry', 'confectionery', 'dessert', 'street food'] },
+  'olympic-sports': { terms: ['olympic sport', 'sport at the olympic games', 'sport contested at the olympic games'] },
+  'world-heritage-sites': { terms: ['world heritage site', 'unesco world heritage site', 'heritage site'] },
+  'national-parks': { terms: ['national park', 'protected area'] },
+  'world-landmarks': { terms: ['landmark', 'monument', 'tower', 'bridge', 'heritage site', 'statue', 'historic building', 'memorial'] }
+};
+
+const WIKIDATA_COUNTRY_REGIONS = {
+  'europe-countries': ['europe'],
+  'africa-countries': ['africa'],
+  'asia-countries': ['asia'],
+  'south-america-countries': ['south america'],
+  'north-america-countries': ['north america'],
+  'central-america-countries': ['central america'],
+  'caribbean-countries': ['caribbean'],
+  'oceania-countries': ['oceania'],
+  'southeast-asia-countries': ['southeast asia'],
+  'east-asia-countries': ['east asia'],
+  'northern-europe-countries': ['northern europe', 'northern europe'],
+  'southern-europe-countries': ['southern europe'],
+  'western-europe-countries': ['western europe'],
+  'middle-east-countries': ['middle east'],
+  'southern-africa-countries': ['southern africa'],
+  'west-africa-countries': ['west africa'],
+  'east-africa-countries': ['east africa']
+};
+
+function wikidataExpectedTypes(question) {
+  const id = String(question && (question.topicId || question.id) || '')
+    .toLowerCase().replace(/^rush-/, '').replace(/-v\\d+$/, '');
+  if (!id) return null;
+  if (WIKIDATA_EXACT_PROFILES[id]) return WIKIDATA_EXACT_PROFILES[id];
+
+  if (id.endsWith('-countries') || id === 'countries') {
+    const regions = WIKIDATA_COUNTRY_REGIONS[id] || [];
+    return { terms: ['country', 'sovereign state'], regions };
+  }
+  if (id.includes('capital')) return { terms: ['capital', 'capital city'] };
+  if (id.includes('major-cit') || id.endsWith('-cities')) {
+    return { terms: ['city', 'urban settlement', 'metropolis'] };
+  }
+  if (id.includes('river')) return { terms: ['river'] };
+  if (id.includes('mountain')) return { terms: ['mountain', 'mountain range', 'peak', 'volcano'] };
+  if (id.includes('volcano')) return { terms: ['volcano'] };
+  if (id.includes('island')) return { terms: ['island'] };
+  if (id.includes('lake')) return { terms: ['lake'] };
+  if (id.includes('sea') || id.includes('ocean')) return { terms: ['sea', 'ocean'] };
+  if (id.includes('desert')) return { terms: ['desert'] };
+  if (id.includes('waterfall')) return { terms: ['waterfall'] };
+  if (id.includes('bridge')) return { terms: ['bridge'] };
+  if (id.includes('landmark') || id.includes('heritage')) {
+    return { terms: ['landmark', 'monument', 'historic building', 'heritage site', 'memorial', 'tower', 'statue'] };
+  }
+  if (id.includes('park')) return { terms: ['national park', 'protected area'] };
+  if (id.includes('language')) return { terms: ['language'] };
+  if (id.includes('dish') || id.includes('snack') || id.includes('food')) {
+    return { terms: ['food', 'dish', 'cuisine', 'meal', 'pastry', 'snack', 'dessert', 'confectionery'] };
+  }
+  if (id.includes('sport')) return { terms: ['sport', 'sports discipline'] };
+  return null;
+}
+
 function getQuestion(id) {
   return QUESTION_BY_ID.get(id) || PARTY_QUESTIONS.find(item => item.id === id) || null;
 }
@@ -1345,5 +1412,6 @@ module.exports = {
   getPartyQuestion,
   listQuestionBank,
   listPartyQuestionBank,
+  wikidataExpectedTypes,
   partyQuestionCount: PARTY_QUESTIONS.length
 };
