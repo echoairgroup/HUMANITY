@@ -22,6 +22,24 @@ test('daily challenge is deterministic for a UTC date', () => {
   assert.deepEqual(first.questions.map(question => question.id), second.questions.map(question => question.id));
 });
 
+test('Atlas Daily uses fresh regional questions across a rolling seven-edition window', () => {
+  const editions = [];
+
+  for (let day = 0; day < 16; day += 1) {
+    const date = new Date(Date.UTC(2026, 10, day + 1)).toISOString().slice(0, 10);
+    const recentIds = new Set(editions.slice(-7).flat());
+    const challenge = engine.generateDailyChallenge(date, [...recentIds]);
+    const ids = challenge.questions.map(question => question.id);
+
+    assert.equal(ids.length, 7, 'every UTC edition must contain seven questions');
+    assert.equal(new Set(ids).size, 7, 'a daily edition must not repeat a question');
+    assert.ok(
+      ids.every(id => !recentIds.has(id)),
+      'an edition must not reuse questions from the previous seven editions'
+    );
+  }
+});
+
 test('popular snack question accepts Kroket and approved local aliases', () => {
   const question = engine.getQuestion('popular-snacks');
   assert.ok(question);
