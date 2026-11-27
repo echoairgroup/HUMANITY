@@ -158,46 +158,18 @@ function categoryRotationReason(wrongAnswers, acceptedTurns, settings = DEFAULT_
   return null;
 }
 
-function answerEditDistance(left, right) {
-  const a = String(left || '');
-  const b = String(right || '');
-  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    let diagonal = previous[0];
-    previous[0] = i;
-    for (let j = 1; j <= b.length; j += 1) {
-      const above = previous[j];
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      previous[j] = Math.min(previous[j] + 1, previous[j - 1] + 1, diagonal + cost);
-      diagonal = above;
-    }
-  }
-  return previous[b.length];
-}
-
 function findPartyAnswerSuggestion(category, rawAnswer, usedAnswers) {
   const target = engine.normaliseAnswer(rawAnswer);
-  if (!category || !target || target.length < 4 || target.length > 80) return null;
-  if (engine.matchAnswer(category, rawAnswer)) return null;
+  if (!category || target.length < 3 || target.length > 80) return null;
+
+  const exact = engine.matchAnswer(category, rawAnswer);
   const used = new Set((usedAnswers || []).map(item => engine.normaliseAnswer(item.name || item)));
-  const threshold = target.length >= 8 ? 2 : 1;
-  const matches = [];
-  for (const entry of category.answers || []) {
-    if (used.has(engine.normaliseAnswer(entry.name))) continue;
-    let best = Infinity;
-    for (const label of [entry.name].concat(entry.aliases || [])) {
-      const candidate = engine.normaliseAnswer(label);
-      const distance = candidate.startsWith(target) ? 0 : answerEditDistance(target, candidate);
-      best = Math.min(best, distance);
-    }
-    if (best <= threshold) matches.push({ answer: entry.name, distance: best });
-  }
-  if (!matches.length) return null;
-  const minimum = Math.min(...matches.map(item => item.distance));
-  const winners = [...new Map(matches.filter(item => item.distance === minimum)
-    .map(item => [engine.normaliseAnswer(item.answer), item])).values()];
-  return winners.length === 1 && engine.normaliseAnswer(winners[0].answer) !== target
-    ? winners[0].answer : null;
+  if (exact && used.has(exact.key)) return null;
+
+  const available = (category.answers || []).filter(entry =>
+    !used.has(engine.normaliseAnswer(entry.name))
+  );
+  return engine.findAnswerCorrection({ ...category, answers: available }, rawAnswer);
 }
 
 const PARTY_WIKIDATA_CACHE = new Map();
@@ -1147,6 +1119,17 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
         return;
       }
       if (!resolved) {
+        const correction = findPartyAnswerSuggestion(room.category, message.answer, room.usedAnswers);
+        if (correction) {
+          safeSend(socket, {
+            type: 'answer_suggestion',
+            requestId: Number(message.requestId) || 0,
+            categoryId: room.category.id,
+            typed: String(message.answer || '').trim().slice(0, 80),
+            suggestion: correction
+          });
+          return;
+        }
         player.invalidAnswers += 1;
         room.wrongAnswersThisCategory += 1;
         await queueUnknownAnswer(room.category, message.answer);
