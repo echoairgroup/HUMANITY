@@ -534,3 +534,47 @@ test('frontend event bindings and critical game panels exist in the HTML', () =>
     assert.ok(html.includes('id="' + id + '"') || html.includes("id='" + id + "'"), id + ' must exist');
   }
 });
+
+test('Atlas Daily timer and submission state prevent timeout races', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.ok(frontend.includes('state.dailyDeadlineAt - Date.now()'));
+  assert.ok(frontend.includes('if (state.dailySubmitting) state.dailyExpiryPending = true;'));
+  assert.ok(frontend.includes('state.pendingNextIndex !== null || state.dailySubmitting'));
+  assert.ok(frontend.includes("document.addEventListener('visibilitychange'"));
+});
+
+test('planet collection unlocks from Atlas Daily streak in the API, client and Globe Rush', () => {
+  const backend = fs.readFileSync(path.join(__dirname, 'game-server.js'), 'utf8');
+  const party = fs.readFileSync(path.join(__dirname, 'party-server.js'), 'utf8');
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.ok(backend.includes('Number(user.daily_streak || 0) < minimumStreak'));
+  assert.ok(party.includes('account.daily_streak ?? account.dailyStreak ?? 0'));
+  assert.ok(frontend.includes('state.player && state.player.dailyStreak || 0'));
+  assert.ok(frontend.includes('consecutive Atlas Daily days'));
+});
+
+test('explorer profiles expose additional achievements and answer mastery totals', () => {
+  const backend = fs.readFileSync(path.join(__dirname, 'game-server.js'), 'utf8');
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  for (const achievement of ['three-day-orbit', 'perfect-flight', 'cartographer', 'answer-scholar', 'globe-regular', 'practice-master']) {
+    assert.ok(backend.includes("id:'" + achievement + "'"), achievement);
+  }
+  assert.ok(backend.includes('correctAnswers:correctAnswerCount'));
+  assert.ok(backend.includes('uniqueAnswers:uniqueAnswerCount'));
+  assert.ok(frontend.includes('ACCEPTED ATLAS ANSWERS'));
+  assert.ok(frontend.includes('UNIQUE ATLAS ANSWERS'));
+});
+
+test('admin insights surface answer-bank coverage, reported misses and difficult questions', () => {
+  const backend = fs.readFileSync(path.join(__dirname, 'admin.js'), 'utf8');
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'admin.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  assert.ok(backend.includes('answerQuality: {'));
+  assert.ok(backend.includes('topMissing: topMissingAnswers.rows'));
+  assert.ok(backend.includes('hardQuestions: hardQuestions.rows'));
+  for (const id of ['admin-answer-bank-insights', 'admin-answer-review-insights', 'admin-missing-answer-insights', 'admin-hard-question-insights']) {
+    assert.ok(html.includes('id="' + id + '"'), id);
+    assert.ok(frontend.includes("'" + '#' + id + "'"), id + ' renderer');
+  }
+});
+

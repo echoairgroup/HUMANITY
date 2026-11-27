@@ -82,7 +82,7 @@ function createAdminController(deps) {
     const rangeKey = ranges[url.searchParams.get('range')] ? url.searchParams.get('range') : '30d';
     const interval = ranges[rangeKey];
 
-    const [summary, timeline, pages, partyModes, practicePacks, categories, countries, engineRuns, adminActions, topQuestions, avatars, topPlayers, activity] = await Promise.all([
+    const [summary, timeline, pages, partyModes, practicePacks, categories, countries, engineRuns, adminActions, topQuestions, avatars, topPlayers, activity, answerBank, answerReview, topMissingAnswers, hardQuestions] = await Promise.all([
       pool.query(
         "SELECT " +
         "(SELECT COUNT(*)::int FROM humanity_players) AS total_players, " +
@@ -196,6 +196,35 @@ function createAdminController(deps) {
         "SELECT created_at,'page-view'::text,page,'Page viewed with analytics consent' FROM humanity_analytics_events WHERE created_at >= NOW() - $1::interval AND event_name IN ('page_view','view_change') " +
         ") feed ORDER BY occurred_at DESC LIMIT 40",
         [interval]
+      ),
+      pool.query(
+        "SELECT COUNT(*)::int AS canonical_answers, COUNT(DISTINCT question_id)::int AS question_sets, " +
+        "COALESCE(SUM(jsonb_array_length(COALESCE(aliases,'[]'::jsonb))),0)::int AS alias_count, " +
+        "COUNT(*) FILTER (WHERE source_url IS NOT NULL)::int AS sourced_answers " +
+        "FROM humanity_approved_answers"
+      ),
+      pool.query(
+        "SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending_items, " +
+        "COALESCE(SUM(occurrences) FILTER (WHERE status='pending'),0)::int AS pending_reports, " +
+        "COUNT(*) FILTER (WHERE status='approved_by_admin' AND updated_at >= NOW() - $1::interval)::int AS approved_in_period, " +
+        "COUNT(*) FILTER (WHERE status='rejected' AND updated_at >= NOW() - $1::interval)::int AS rejected_in_period " +
+        "FROM humanity_answer_review_queue",
+        [interval]
+      ),
+      pool.query(
+        "SELECT question_id,question_prompt,answer_text,occurrences FROM humanity_answer_review_queue " +
+        "WHERE status='pending' ORDER BY occurrences DESC,updated_at DESC LIMIT 12"
+      ),
+      pool.query(
+        "SELECT a.question_id,COALESCE(q.question->>'prompt',MAX(a.question_id)) AS prompt, " +
+        "COUNT(*)::int AS attempts,COUNT(*) FILTER (WHERE a.is_correct=TRUE)::int AS accepted, " +
+        "COUNT(*) FILTER (WHERE a.is_correct=FALSE)::int AS rejected, " +
+        "ROUND(100.0*COUNT(*) FILTER (WHERE a.is_correct=TRUE)/NULLIF(COUNT(*),0),1) AS acceptance_pct " +
+        "FROM humanity_daily_run_answers a JOIN humanity_daily_challenges c ON c.id=a.challenge_id " +
+        "LEFT JOIN LATERAL jsonb_array_elements(c.payload->'questions') AS q(question) ON q.question->>'id'=a.question_id " +
+        "WHERE a.created_at >= NOW() - $1::interval GROUP BY a.question_id,q.question->>'prompt' " +
+        "HAVING COUNT(*) >= 5 ORDER BY acceptance_pct ASC,attempts DESC LIMIT 10",
+        [interval]
       )
     ]);
 
@@ -214,6 +243,12 @@ function createAdminController(deps) {
       engineRuns: engineRuns.rows,
       adminActions: adminActions.rows,
       topQuestions: topQuestions.rows,
+      answerQuality: {
+        bank: answerBank.rows[0] || {},
+        review: answerReview.rows[0] || {},
+        topMissing: topMissingAnswers.rows,
+        hardQuestions: hardQuestions.rows
+      },
       avatars: avatars.rows,
       topPlayers: topPlayers.rows,
       activity: activity.rows

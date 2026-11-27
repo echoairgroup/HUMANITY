@@ -1688,8 +1688,8 @@ async function handleAPI(request, response, url, party) {
       return true;
     }
     const minimumStreak = PLANET_AVATAR_STREAKS[avatarKey];
-    if (Number(user.party_streak_days || 0) < minimumStreak && !(await isAdmin(user))) {
-      sendError(response, 403, 'Reach the required Globe Rush streak to unlock this planet.', 'avatar_locked');
+    if (Number(user.daily_streak || 0) < minimumStreak && !(await isAdmin(user))) {
+      sendError(response, 403, 'Reach the required Atlas Daily streak to unlock this planet.', 'avatar_locked');
       return true;
     }
     const updated = await pool.query(
@@ -1703,11 +1703,11 @@ async function handleAPI(request, response, url, party) {
   if (request.method === 'GET' && url.pathname === '/api/profile/me') {
     const user = await requireUser(request, response);
     if (!user) return true;
-    const [daily,party,friends,answerStats,partyWins,practiceGames,playtime,teamRushWins,survivalGames,recentActivity]=await Promise.all([
+    const [daily,party,friends,answerStats,partyWins,practiceGames,playtime,teamRushWins,survivalGames,perfectDailies,recentActivity]=await Promise.all([
       pool.query('SELECT COUNT(*)::int AS count, COALESCE(MAX(final_score),MAX(provisional_score),0)::int AS best FROM humanity_daily_runs WHERE player_id = $1 AND status = $2',[user.id,'completed']),
       pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1',[user.id]),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_friendships WHERE (requester_id=$1 OR addressee_id=$1) AND status='accepted'",[user.id]),
-      pool.query('SELECT COUNT(*) FILTER (WHERE a.provisional_points>=80)::int AS rare, COUNT(*) FILTER (WHERE a.provisional_points>=100)::int AS exceptional FROM humanity_daily_run_answers a JOIN humanity_daily_runs r ON r.id=a.run_id WHERE r.player_id=$1 AND a.is_correct=TRUE',[user.id]),
+      pool.query('SELECT COUNT(*) FILTER (WHERE a.provisional_points>=80)::int AS rare, COUNT(*) FILTER (WHERE a.provisional_points>=100)::int AS exceptional, COUNT(*) FILTER (WHERE a.is_correct=TRUE)::int AS correct_answers, COUNT(DISTINCT (a.question_id || \':\' || a.answer_key)) FILTER (WHERE a.is_correct=TRUE)::int AS unique_answers FROM humanity_daily_run_answers a JOIN humanity_daily_runs r ON r.id=a.run_id WHERE r.player_id=$1',[user.id]),
       pool.query('SELECT COUNT(*)::int AS count FROM humanity_party_match_players WHERE player_id=$1 AND (won=TRUE OR rank=1)',[user.id]),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_practice_runs WHERE player_id=$1 AND status='completed'",[user.id]),
       pool.query(
@@ -1719,6 +1719,13 @@ async function handleAPI(request, response, url, party) {
       ),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND p.won=TRUE AND m.variant='team-rush'",[user.id]),
       pool.query("SELECT COUNT(*)::int AS count FROM humanity_party_match_players p JOIN humanity_party_matches m ON m.id=p.match_id WHERE p.player_id=$1 AND m.variant='survival'",[user.id]),
+      pool.query(
+        "SELECT COUNT(*)::int AS count FROM ("+
+        "SELECT a.run_id FROM humanity_daily_run_answers a JOIN humanity_daily_runs r ON r.id=a.run_id "+
+        "WHERE r.player_id=$1 AND r.status='completed' GROUP BY a.run_id "+
+        "HAVING COUNT(*) FILTER (WHERE a.is_correct=TRUE)=7) completed_perfect_dailies",
+        [user.id]
+      ),
       pool.query(
         "SELECT kind, occurred_at, score, variant, game_mode, result, player_rank FROM ("+
         "SELECT 'atlas-daily'::text AS kind, c.challenge_date::timestamp AT TIME ZONE 'UTC' AS occurred_at, "+
@@ -1741,27 +1748,40 @@ async function handleAPI(request, response, url, party) {
     const partyWinsCount=Number(partyWins.rows[0].count||0),practiceCount=Number(practiceGames.rows[0].count||0);
     const totalPlaySeconds=Number(playtime.rows[0].seconds||0);
     const teamWins=Number(teamRushWins.rows[0].count||0),survivalMatches=Number(survivalGames.rows[0].count||0);
+    const correctAnswerCount=Number(answerStats.rows[0].correct_answers||0);
+    const uniqueAnswerCount=Number(answerStats.rows[0].unique_answers||0);
+    const perfectDailyCount=Number(perfectDailies.rows[0].count||0);
     const bestStreak=Number(user.best_streak||0);
     const achievements=[
       {id:'first-flight',title:'First Flight',description:'Complete your first Atlas Daily.',unlocked:dailyGames>=1,progress:Math.min(dailyGames,1),target:1},
       {id:'atlas-regular',title:'Atlas Regular',description:'Complete ten official Daily editions.',unlocked:dailyGames>=10,progress:Math.min(dailyGames,10),target:10},
       {id:'atlas-veteran',title:'Atlas Veteran',description:'Complete 30 official Daily editions.',unlocked:dailyGames>=30,progress:Math.min(dailyGames,30),target:30},
+      {id:'three-day-orbit',title:'Three Days in Orbit',description:'Build a three-day Atlas Daily streak.',unlocked:bestStreak>=3,progress:Math.min(bestStreak,3),target:3},
       {id:'week-in-orbit',title:'Week in Orbit',description:'Build a seven-day Atlas streak.',unlocked:bestStreak>=7,progress:Math.min(bestStreak,7),target:7},
+      {id:'fortnight-orbit',title:'Two Weeks in Orbit',description:'Build a 14-day Atlas Daily streak.',unlocked:bestStreak>=14,progress:Math.min(bestStreak,14),target:14},
+      {id:'month-in-orbit',title:'Month in Orbit',description:'Build a 30-day Atlas Daily streak.',unlocked:bestStreak>=30,progress:Math.min(bestStreak,30),target:30},
       {id:'rare-collector',title:'Rare Collector',description:'Find five Remarkable or Exceptional answers.',unlocked:rareAnswers>=5,progress:Math.min(rareAnswers,5),target:5},
       {id:'exceptional-explorer',title:'Exceptional Explorer',description:'Discover a 100-point answer.',unlocked:exceptionalAnswers>=1,progress:Math.min(exceptionalAnswers,1),target:1},
+      {id:'perfect-flight',title:'Perfect Flight',description:'Answer all seven questions in one Atlas Daily.',unlocked:perfectDailyCount>=1,progress:Math.min(perfectDailyCount,1),target:1},
+      {id:'cartographer',title:'Cartographer',description:'Discover 25 different accepted Atlas answers.',unlocked:uniqueAnswerCount>=25,progress:Math.min(uniqueAnswerCount,25),target:25},
+      {id:'answer-scholar',title:'Answer Scholar',description:'Submit 100 accepted Atlas answers.',unlocked:correctAnswerCount>=100,progress:Math.min(correctAnswerCount,100),target:100},
       {id:'orb-champion',title:'Orb Champion',description:'Win a Globe Rush match.',unlocked:partyWinsCount>=1,progress:Math.min(partyWinsCount,1),target:1},
       {id:'globe-veteran',title:'Globe Veteran',description:'Play 25 Globe Rush matches.',unlocked:partyGames>=25,progress:Math.min(partyGames,25),target:25},
+      {id:'globe-regular',title:'Orbit Regular',description:'Play 50 Globe Rush matches.',unlocked:partyGames>=50,progress:Math.min(partyGames,50),target:50},
+      {id:'five-time-champion',title:'Five-Time Champion',description:'Win five Globe Rush matches.',unlocked:partyWinsCount>=5,progress:Math.min(partyWinsCount,5),target:5},
       {id:'team-player',title:'Team Player',description:'Win five Team Rush matches.',unlocked:teamWins>=5,progress:Math.min(teamWins,5),target:5},
       {id:'last-in-orbit',title:'Last in Orbit',description:'Complete ten Survival matches.',unlocked:survivalMatches>=10,progress:Math.min(survivalMatches,10),target:10},
       {id:'social-explorer',title:'Social Explorer',description:'Connect with another explorer.',unlocked:friendCount>=1,progress:Math.min(friendCount,1),target:1},
       {id:'endless-voyager',title:'Endless Voyager',description:'Finish ten Practice Lab sessions.',unlocked:practiceCount>=10,progress:Math.min(practiceCount,10),target:10},
+      {id:'practice-master',title:'Practice Master',description:'Finish 25 Practice Lab sessions.',unlocked:practiceCount>=25,progress:Math.min(practiceCount,25),target:25},
       {id:'time-explorer',title:'Time Explorer',description:'Spend one hour exploring HUMANITY.',unlocked:totalPlaySeconds>=3600,progress:Math.min(totalPlaySeconds,3600),target:3600}
     ];
     sendJSON(response,200,{
       ok:true,player:publicUser(user,await isAdmin(user)),
       stats:{
         dailyGames,bestDailyScore:Number(daily.rows[0].best||0),partyGames,friends:friendCount,
-        rareAnswers,exceptionalAnswers,partyWins:partyWinsCount,practiceGames:practiceCount,
+        rareAnswers,exceptionalAnswers,correctAnswers:correctAnswerCount,uniqueAnswers:uniqueAnswerCount,
+        perfectDailies:perfectDailyCount,partyWins:partyWinsCount,practiceGames:practiceCount,
         teamRushWins:teamWins,survivalGames:survivalMatches,totalPlaySeconds,
         bestStreak,currentStreak:Number(user.daily_streak||0)
       },

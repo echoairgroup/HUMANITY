@@ -179,6 +179,9 @@
 
   function renderAnalytics(data, live) {
     const s = data.summary || {};
+    const answerQuality = data.answerQuality || {};
+    const bank = answerQuality.bank || {};
+    const review = answerQuality.review || {};
     const values = [
       ['TOTAL PLAYERS',s.total_players,'All registered accounts'],
       ['ACTIVE ACCOUNTS',s.active_players,'Accounts not suspended'],
@@ -199,7 +202,10 @@
       ['PRACTICE SESSIONS',s.practice_started,'Sessions created'],
       ['PRACTICE COMPLETED',s.practice_completed,'Finished practice sessions'],
       ['ACTIVE SESSIONS',s.active_sessions,'Valid sign-in sessions'],
-      ['PENDING ANSWERS',s.pending_answers,'Waiting for moderation']
+      ['PENDING ANSWERS',s.pending_answers,'Waiting for moderation'],
+      ['APPROVED ANSWERS',bank.canonical_answers,'Curated canonical entries'],
+      ['APPROVED ALIASES',bank.alias_count,'Alternative names and spellings'],
+      ['MISSING ANSWER REPORTS',review.pending_reports,'Reports awaiting verification']
     ];
     $('#admin-insight-kpis').innerHTML = values.map(item => {
       const display = typeof item[1] === 'string' ? item[1] : compact(item[1]);
@@ -223,6 +229,24 @@
     insightList('#admin-engine-insights', data.engineRuns || [], row => String(row.run_type || 'Engine') + ' · ' + String(row.status || 'unknown'), row => row.runs, 'No background engine runs recorded in this period.');
     insightList('#admin-admin-action-insights', data.adminActions || [], row => String(row.action || 'Admin action').replace(/[-_]/g,' '), row => row.actions, 'No admin actions recorded in this period.');
     insightList('#admin-question-insights', data.topQuestions || [], row => String(row.prompt || row.question_id || 'Question').slice(0,72), row => row.attempts, 'No Atlas Daily answers in this period yet.');
+    insightList('#admin-answer-bank-insights', [
+      {label:'Canonical answers',value:bank.canonical_answers},
+      {label:'Question sets covered',value:bank.question_sets},
+      {label:'Approved aliases',value:bank.alias_count},
+      {label:'Source-linked entries',value:bank.sourced_answers}
+    ], row => row.label, row => row.value, 'No approved answers are stored yet.');
+    insightList('#admin-answer-review-insights', [
+      {label:'Pending answer entries',value:review.pending_items},
+      {label:'Total pending reports',value:review.pending_reports},
+      {label:'Approved in selected period',value:review.approved_in_period},
+      {label:'Rejected in selected period',value:review.rejected_in_period}
+    ], row => row.label, row => row.value, 'No answer-review activity is available yet.');
+    insightList('#admin-missing-answer-insights', answerQuality.topMissing || [],
+      row => String(row.answer_text || 'Unknown answer') + ' · ' + String(row.question_prompt || row.question_id || 'Question'),
+      row => row.occurrences, 'No unapproved answer reports are waiting for review.');
+    insightList('#admin-hard-question-insights', answerQuality.hardQuestions || [],
+      row => String(row.prompt || row.question_id || 'Question').slice(0,60) + ' · ' + Number(row.acceptance_pct || 0).toFixed(1) + '% accepted',
+      row => row.rejected, 'No questions have enough answer attempts to assess yet.');
     insightList('#admin-practice-insights', data.practicePacks || [], row => String(row.pack_id || 'Practice pack').replace(/[-_]/g,' '), row => row.sessions, 'No Practice Lab sessions in this period yet.');
     insightList('#admin-avatar-insights', data.avatars || [], row => String(row.avatar || 'mercury').toUpperCase(), row => row.players, 'No player avatar data available yet.');
     insightList('#admin-top-players', data.topPlayers || [], row => String(row.username || 'Explorer') + ' · L' + Number(row.level || 1), row => row.games, 'No player gameplay in this period yet.');
@@ -362,7 +386,7 @@
     const name = escapeHTML(player.username || 'Explorer');
     const role = escapeHTML(player.role || 'member');
     const status = escapeHTML(player.status || 'active');
-    const lockNote = player.avatarLocked ? 'Avatar assignment is locked until an administrator unlocks it.' : 'Players may use avatars once their Globe Rush streak unlocks them.';
+    const lockNote = player.avatarLocked ? 'Avatar assignment is locked until an administrator unlocks it.' : 'Players may use avatars once their Atlas Daily streak unlocks them.';
     const roleField = isOwner
       ? '<label class="admin-form-field"><span>ACCOUNT ROLE</span><select name="role"><option value="member"' + (player.role === 'member' ? ' selected' : '') + '>Member</option><option value="moderator"' + (player.role === 'moderator' ? ' selected' : '') + '>Moderator</option><option value="admin"' + (player.role === 'admin' ? ' selected' : '') + '>Admin</option></select></label>'
       : '<div class="admin-form-field"><span>ACCOUNT ROLE</span><input value="' + role.toUpperCase() + '" disabled></div>';
