@@ -3,4 +3,4 @@ Allow: /
 Disallow: /backend/
 Disallow: /HUMANITY/backend/
 
-Sitemap: https://humanity.jo3.org/sitemap.xml
+Sitemap: https://echoairgroup.github.io/HUMANITY/sitemap.xml
