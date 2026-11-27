@@ -4,3 +4,4 @@ Disallow: /backend/
 Disallow: /HUMANITY/backend/
 
 Sitemap: https://echoairgroup.github.io/HUMANITY/sitemap.xml
+Sitemap: https://echoairgroup.github.io/HUMANITY/sitemap.txt
