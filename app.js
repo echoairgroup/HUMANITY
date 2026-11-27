@@ -489,49 +489,6 @@
     input.focus();
     return true;
   }
-  function editDistance(left, right) {
-    const a = String(left || '');
-    const b = String(right || '');
-    const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
-    for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
-    for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
-    for (let i = 1; i <= a.length; i += 1) {
-      for (let j = 1; j <= b.length; j += 1) {
-        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
-        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-          matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
-        }
-      }
-    }
-    return matrix[a.length][b.length];
-  }
-  function localDailySuggestion(rawAnswer) {
-    const target = norm(rawAnswer);
-    if (!target || target.length < 3) return null;
-    const answers = (state.question && state.question.answers) || [];
-    const matches = [];
-    answers.forEach(entry => {
-      const canonical = entry.answer || entry.name;
-      if (!canonical) return;
-      const labels = [canonical].concat(entry.aliases || []);
-      if (labels.some(label => norm(label) === target)) return;
-      let best = Infinity;
-      labels.forEach(label => {
-        const candidate = norm(label);
-        if (!candidate) return;
-        if (candidate.length > target.length && candidate.startsWith(target)) best = 0;
-        else best = Math.min(best, editDistance(target, candidate));
-      });
-      const threshold = Math.max(...labels.map(label => norm(label).length)) >= 10 ? 2 : 1;
-      if (best <= threshold) matches.push({ answer: canonical, distance: best });
-    });
-    if (!matches.length) return null;
-    const minimum = Math.min(...matches.map(item => item.distance));
-    const winners = [...new Map(matches.filter(item => item.distance === minimum)
-      .map(item => [norm(item.answer), item])).values()];
-    return winners.length === 1 ? winners[0].answer : null;
-  }
   function showDailySuggestion(typed, answer) {
     if (!typed || !answer) return false;
     const panel = $('#daily-suggestion');
@@ -555,8 +512,13 @@
     state.suggestionTimer = setTimeout(async () => {
       let answer = null;
       try {
-        if (state.practice) answer = localDailySuggestion(typed);
-        else if (state.unlimited) {
+        if (state.practice) {
+          const result = await api('/daily/archive/suggest', {
+            method: 'POST',
+            body: { date: state.practice.date, questionId: state.question.id, answer: typed }
+          });
+          answer = result.suggestion && result.suggestion.answer;
+        } else if (state.unlimited) {
           const result = await api('/practice/suggest', {
             method: 'POST',
             body: { guestId: state.guestId, runId: state.runId, index: state.unlimited.questionsPlayed, answer: typed }
@@ -858,28 +820,27 @@
     $('#daily-feedback').classList.remove('success');
     try {
       if (state.practice) {
-        const entry = (state.question.answers || []).find(item =>
-          [item.answer].concat(item.aliases || []).some(alias => norm(alias) === norm(answer))
-        );
-        if (!entry) {
-          const correction = localDailySuggestion(answer);
-          if (correction) {
-            showDailySuggestion(answer, correction);
-            $('#daily-feedback').textContent = 'Did you mean “' + correction + '”? Select it or press Enter to insert it, then submit again.';
+        const result = await api('/daily/archive/answer', {
+          method: 'POST',
+          body: { date: state.practice.date, questionId: state.question.id, answer }
+        });
+        if (!result.accepted) {
+          if (result.suggestion && result.suggestion.answer) {
+            showDailySuggestion(answer, result.suggestion.answer);
+            $('#daily-feedback').textContent = result.message || 'Select the suggested answer, then submit again.';
             input.focus();
             return;
           }
-          $('#daily-feedback').textContent = 'That answer is not in this edition’s approved set. Try another.';
+          $('#daily-feedback').textContent = result.message || 'That answer is not in this edition’s approved set. Try another.';
           playSound('miss');
           input.select();
           return;
         }
         stopDailyTimer();
-        state.provisionalScore += Number(entry.points || 0);
+        state.provisionalScore += Number(result.points || 0);
         state.pendingNextIndex = state.questionIndex + 1;
-        const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
-        showDailyResult(true, entry.answer, entry.level, entry.points, reveal, 1, entry.rarity);
-        playSound('answer', { rarity: entry.rarity });
+        showDailyResult(true, result.answer, result.level, result.points, result.reveal || [], 1, result.rarity);
+        playSound('answer', { rarity: result.rarity });
         return;
       }
       const result = await api('/daily/answer', {
