@@ -578,3 +578,10 @@ test('admin insights surface answer-bank coverage, reported misses and difficult
   }
 });
 
+test('Globe Rush focuses the answer field when the Orb passes to the player', () => {
+  const frontend = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.ok(frontend.includes("if (holding && (!previousMe || !previousMe.isHolder))"));
+  assert.ok(frontend.includes("const answerField = $('#rush-answer');"));
+  assert.ok(frontend.includes("answerField.focus({ preventScroll: true })"));
+});
+
