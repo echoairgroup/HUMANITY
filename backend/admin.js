@@ -489,7 +489,7 @@ function createAdminController(deps) {
         if (!aliasKey || aliasKey.length < 2 || seenAliases.has(aliasKey)) continue;
         seenAliases.add(aliasKey);
         aliases.push(alias);
-        if (aliases.length >= 8) break;
+        if (aliases.length >= 100) break;
       }
       await pool.query(
         'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7) ON CONFLICT (question_id, answer_key) DO UPDATE SET answer_text=EXCLUDED.answer_text, aliases=EXCLUDED.aliases, rarity=EXCLUDED.rarity, source_url=EXCLUDED.source_url, approved_by=EXCLUDED.approved_by, approved_at=NOW()',
