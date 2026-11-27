@@ -1211,7 +1211,7 @@ async function practiceSuggest(request,response) {
 async function archiveQuestion(body) {
   const date = String(body.date || '');
   const questionId = String(body.questionId || '');
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || date >= utcDate() || !questionId) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= utcDate() || !questionId) return null;
   const result = await pool.query('SELECT payload FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1',[date]);
   const questions = result.rows[0] && result.rows[0].payload && result.rows[0].payload.questions;
   return Array.isArray(questions) ? questions.find(question => question && String(question.id) === questionId) || null : null;
