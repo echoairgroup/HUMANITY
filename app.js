@@ -29,7 +29,8 @@
     token: localStorage.getItem('humanity-session-token') || '',
     player: null, guestId: getGuestId(), daily: null, runId: null,
     questionIndex: 0, question: null, pendingNextIndex: null,
-    provisionalScore: 0, timer: null, secondsLeft: 25, hintUsed: false,
+    provisionalScore: 0, timer: null, secondsLeft: 25, dailyDeadlineAt: 0,
+    dailySubmitting: false, dailyExpiryPending: false, hintUsed: false,
     ws: null, wsPending: null, room: null, roomCode: null, playerId: null,
     resumeToken: sessionStorage.getItem('humanity-room-resume-token') || '',
     reconnectAttempts: 0, reconnectTimer: null, isLeavingRoom: false, profileStats: null,
@@ -715,6 +716,7 @@
     clearDailyReaction();
     state.question = question;
     state.questionIndex = index;
+    state.dailyExpiryPending = false;
     state.pendingNextIndex = null;
     $('#question-number').textContent = String(index + 1).padStart(2, '0');
     $('.question-count .muted').textContent = state.unlimited ? ' / ∞' : ' / 07';
@@ -753,40 +755,61 @@
     } else {
       $('#daily-clock small').textContent = 'SEC';
     }
+    requestAnimationFrame(() => {
+      const answerInput = $('#daily-answer');
+      if (answerInput && !answerInput.disabled && !$('#daily-play').hidden) {
+        answerInput.focus({ preventScroll: true });
+      }
+    });
   }
-  function stopDailyTimer() { clearInterval(state.timer); state.timer = null; }
+  function stopDailyTimer() {
+    clearInterval(state.timer);
+    state.timer = null;
+    state.dailyDeadlineAt = 0;
+  }
   function renderDailyClock() {
     $('#daily-clock .clock-face').textContent = String(Math.max(0, state.secondsLeft));
     $('#daily-clock').classList.toggle('urgent', state.secondsLeft <= 7);
     $('#daily-clock').setAttribute('aria-label', state.secondsLeft + ' seconds remaining');
+  }
+  function refreshDailyTimer() {
+    if (!state.dailyDeadlineAt) return;
+    const remaining = Math.max(0, Math.ceil((state.dailyDeadlineAt - Date.now()) / 1000));
+    if (remaining !== state.secondsLeft) {
+      state.secondsLeft = remaining;
+      if ([10, 5, 3, 2, 1].includes(remaining) && !state.dailySoundMarks.includes(remaining)) {
+        state.dailySoundMarks.push(remaining);
+        playSound(remaining <= 3 ? 'critical' : 'countdown');
+      }
+      renderDailyClock();
+    }
+    if (remaining <= 0) {
+      stopDailyTimer();
+      if (state.dailySubmitting) state.dailyExpiryPending = true;
+      else skipDailyQuestion();
+    }
   }
   function startDailyTimer(seconds) {
     stopDailyTimer();
     state.dailySoundMarks = [];
     const requestedSeconds = Number(seconds);
     state.secondsLeft = Number.isFinite(requestedSeconds) ? Math.max(0, Math.ceil(requestedSeconds)) : 25;
+    state.dailyDeadlineAt = Date.now() + state.secondsLeft * 1000;
     renderDailyClock();
     if (state.secondsLeft <= 0) {
-      skipDailyQuestion();
+      refreshDailyTimer();
       return;
     }
-    state.timer = setInterval(() => {
-      state.secondsLeft -= 1;
-      if ([10, 5, 3, 2, 1].includes(state.secondsLeft) && !state.dailySoundMarks.includes(state.secondsLeft)) {
-        state.dailySoundMarks.push(state.secondsLeft);
-        playSound(state.secondsLeft <= 3 ? 'critical' : 'countdown');
-      }
-      renderDailyClock();
-      if (state.secondsLeft <= 0) { stopDailyTimer(); skipDailyQuestion(); }
-    }, 1000);
+    state.timer = setInterval(refreshDailyTimer, 200);
   }
   async function submitDailyAnswer(event) {
     event.preventDefault();
-    if (!state.runId || !state.question || state.pendingNextIndex !== null) return;
+    if (!state.runId || !state.question || state.pendingNextIndex !== null || state.dailySubmitting) return;
     if (useDailySuggestion()) return;
     const input = $('#daily-answer');
     const answer = input.value.trim();
     if (!answer) return;
+    state.dailySubmitting = true;
     if (state.unlimited) {
       $('#daily-submit').disabled=true;
       $('#daily-feedback').textContent='Checking the curated answer set…';
@@ -812,7 +835,14 @@
         playSound('answer', { rarity: result.rarity });
       } catch(error) {
         $('#daily-feedback').textContent=error.message;
-      } finally { $('#daily-submit').disabled=state.pendingNextIndex!==null; }
+      } finally {
+        state.dailySubmitting = false;
+        $('#daily-submit').disabled = state.pendingNextIndex !== null;
+        if (state.dailyExpiryPending) {
+          state.dailyExpiryPending = false;
+          if (state.pendingNextIndex === null) skipDailyQuestion();
+        }
+      }
       return;
     }
     $('#daily-submit').disabled = true;
@@ -873,10 +903,18 @@
     } catch (error) {
       $('#daily-feedback').textContent = error.message;
       if (error.status === 409) { stopDailyTimer(); toast('This question has already been completed.'); }
-    } finally { $('#daily-submit').disabled = state.pendingNextIndex !== null; }
+    } finally {
+      state.dailySubmitting = false;
+      $('#daily-submit').disabled = state.pendingNextIndex !== null;
+      if (state.dailyExpiryPending) {
+        state.dailyExpiryPending = false;
+        if (state.pendingNextIndex === null) skipDailyQuestion();
+      }
+    }
   }
   async function skipDailyQuestion() {
-    if (!state.runId || !state.question || state.pendingNextIndex !== null) return;
+    if (!state.runId || !state.question || state.pendingNextIndex !== null || state.dailySubmitting) return;
+    state.dailySubmitting = true;
     $('#daily-submit').disabled = true;
     try {
       if (state.unlimited) {
@@ -905,7 +943,10 @@
       showDailyResult(false, '', '', 0, result.reveal || []);
       playSound('skip');
     } catch (error) { toast(error.message); }
-    finally { $('#daily-submit').disabled = state.pendingNextIndex !== null; }
+    finally {
+      state.dailySubmitting = false;
+      $('#daily-submit').disabled = state.pendingNextIndex !== null;
+    }
   }
   function showDailyResult(accepted, answer, level, points, reveal, sameAnswerCount, rarity) {
     const panel = $('#daily-answer-reaction');
@@ -1439,11 +1480,11 @@
   function renderProfileAvatarCollection() {
     const root = $('#profile-avatar-collection');
     if (!root) return;
-    const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
+    const streak = Math.max(0, Number(state.player && state.player.dailyStreak || 0));
     const selected = selectedPlanetAvatar();
     const adminAssigned = Boolean(state.player && state.player.avatarLocked);
     root.innerHTML = '<div class="profile-avatar-heading"><span class="micro-label">PLANET COLLECTION</span>' +
-      '<strong>Choose your orbit avatar</strong><small>' + streak + ' consecutive Globe Rush days · unlock more planets as your streak grows</small></div>' +
+      '<strong>Choose your orbit avatar</strong><small>' + streak + ' consecutive Atlas Daily days · unlock more planets as your streak grows</small></div>' +
       (adminAssigned ? '<p class="profile-avatar-admin-note">Your planet avatar was assigned by a HUMANITY administrator and is currently locked.</p>' : '') +
       '<div class="profile-avatar-grid">' + PLANET_AVATARS.map(planet => {
         const streakLocked = streak < planet.streak;
@@ -2177,7 +2218,7 @@
   }
   function selectedPlanetAvatar() {
     const player = state.player;
-    const streak = Math.max(0, Number(player && player.partyStreak || 0));
+    const streak = Math.max(0, Number(player && player.dailyStreak || 0));
     const preferred = player && player.selectedAvatar
       ? String(player.selectedAvatar)
       : (localStorage.getItem('humanity-globe-avatar') || 'mercury');
@@ -2189,10 +2230,10 @@
   function renderPlanetAvatarOptions() {
     const root = $('#planet-avatar-options');
     if (!root) return;
-    const streak = Math.max(0, Number(state.player && state.player.partyStreak || 0));
+    const streak = Math.max(0, Number(state.player && state.player.dailyStreak || 0));
     const selected = selectedPlanetAvatar();
     const adminAssigned = Boolean(state.player && state.player.avatarLocked);
-    $('#planet-avatar-streak').textContent = streak + ' DAY GLOBE RUSH STREAK';
+    $('#planet-avatar-streak').textContent = streak + ' DAY ATLAS DAILY STREAK';
     root.innerHTML = (adminAssigned ? '<p class="profile-avatar-admin-note">Avatar assigned by HUMANITY administration.</p>' : '') +
       PLANET_AVATARS.map(planet => {
         const streakLocked = streak < planet.streak;
@@ -2359,6 +2400,9 @@
     }, true);
     $$('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
     window.addEventListener('resize', () => requestAnimationFrame(updateNavigationIndicator), { passive: true });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && state.dailyDeadlineAt) refreshDailyTimer();
+    });
     $('#daily-start').addEventListener('click', startDaily);
     $$('[data-open-practice]').forEach(button=>button.addEventListener('click',()=>{
       openModal('practice-modal');loadPracticePacks();
