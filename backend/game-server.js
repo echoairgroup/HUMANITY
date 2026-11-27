@@ -233,19 +233,9 @@ async function buildChallenge(date) {
   }
 
   const generated = engine.generateDailyChallenge(date, [...recentQuestionIds]);
-  const approved = await loadApprovedAnswers(generated.questions.map(item => item.id));
-  for (const extra of approved) {
-    const question = generated.questions.find(item => item.id === extra.question_id);
-    if (!question) continue;
-    const nameKey = engine.normaliseAnswer(extra.answer_text);
-    if (question.answers.some(item => engine.normaliseAnswer(item.name) === nameKey)) continue;
-    question.answers.push({
-      name: extra.answer_text,
-      aliases: Array.isArray(extra.aliases) ? extra.aliases : [],
-      rarity: Number(extra.rarity || 1),
-      source: extra.source_url || 'HUMANITY approved answer'
-    });
-  }
+  // Merge DB-approved answers and aliases into the generated edition. This merges
+  // aliases into their canonical entry instead of creating duplicate answers.
+  await addApprovedAnswers(generated.questions);
   return generated;
 }
 async function ensureChallenge(date) {
@@ -449,6 +439,14 @@ async function practiceGuess(request,response,skip) {
   }
   let match=null;
   if(!skip){
+    await addApprovedAnswers([question]);
+    const correction=engine.findAnswerCorrection(question,body.answer);
+    if(correction){
+      sendJSON(response,200,{ok:true,accepted:false,
+        suggestion:{answer:correction},
+        message:'Did you mean “'+correction+'”? Select the suggestion or press Enter to insert it, then submit again.'});
+      return;
+    }
     match=await resolveApprovedMatch(question,body.answer);
     if(!match){
       await recordUnapproved(question,body.answer);
@@ -626,7 +624,7 @@ async function maybeVerifyWithWikidata(question, answerText) {
           action: 'wbgetentities',
           ids: candidate.id,
           props: 'labels|aliases',
-          languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi',
+          languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi|sv|pl|tr|uk|fa|ko|el|cs|da|no|fi|ro|hu|th|id|ms|he|bn|ta|vi|ca|hr|sk|sl|bg|sr|sw|ur|ne|si|et|lv|lt|is|ga|af|az|ka|hy',
           format: 'json'
         });
         const aliasResponse = await fetch('https://www.wikidata.org/w/api.php?' + aliasParams.toString(), {
@@ -1019,6 +1017,17 @@ async function dailyGuess(request, response, skip) {
     skip = true;
   }
   if (!skip) {
+    await addApprovedAnswers([question]);
+    const correction = engine.findAnswerCorrection(question, body.answer);
+    if (correction) {
+      sendJSON(response, 200, {
+        ok: true,
+        accepted: false,
+        suggestion: { answer: correction },
+        message: 'Did you mean “' + correction + '”? Select the suggestion or press Enter to insert it, then submit again.'
+      });
+      return;
+    }
     const match = await resolveApprovedMatch(question, body.answer);
     if (!match) {
       await recordUnapproved(question, body.answer);
@@ -1089,51 +1098,8 @@ async function dailyGuess(request, response, skip) {
 }
 
 
-function suggestionEditDistance(left, right) {
-  const a = String(left || '');
-  const b = String(right || '');
-  const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
-  for (let i = 1; i <= a.length; i += 1) {
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost
-      );
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
-      }
-    }
-  }
-  return matrix[a.length][b.length];
-}
-
 function findDailyAnswerSuggestion(question, rawAnswer) {
-  const target = engine.normaliseAnswer(rawAnswer);
-  if (!target || target.length < 4 || engine.matchAnswer(question, rawAnswer)) return null;
-  const threshold = target.length >= 8 ? 2 : 1;
-  const matches = [];
-  for (const entry of question.answers || []) {
-    const names = [entry.name].concat(entry.aliases || []);
-    let best = Infinity;
-    for (const name of names) {
-      const candidate = engine.normaliseAnswer(name);
-      if (candidate === target) return null;
-      const prefix = target.length >= 4 && candidate.length > target.length && candidate.startsWith(target);
-      const distance = prefix ? 0 : suggestionEditDistance(target, candidate);
-      best = Math.min(best, distance);
-    }
-    if (best <= threshold) matches.push({ answer: entry.name, distance: best });
-  }
-  if (!matches.length) return null;
-  const minimum = Math.min(...matches.map(item => item.distance));
-  const winners = [...new Map(
-    matches.filter(item => item.distance === minimum).map(item => [engine.normaliseAnswer(item.answer), item])
-  ).values()];
-  return winners.length === 1 ? winners[0].answer : null;
+  return engine.findAnswerCorrection(question, rawAnswer);
 }
 
 async function dailySuggest(request, response) {
@@ -1157,8 +1123,30 @@ async function dailySuggest(request, response) {
     sendJSON(response, 200, { ok: true, suggestion: null });
     return;
   }
+  await addApprovedAnswers([question]);
   const answer = findDailyAnswerSuggestion(question, body.answer);
   sendJSON(response, 200, { ok: true, suggestion: answer ? { answer } : null });
+}
+
+async function practiceSuggest(request,response) {
+  const body=await readJSON(request);
+  const identity=await getIdentity(request,body);
+  if(!identity){sendError(response,400,'A guest ID or account is required.','identity_required');return;}
+  const result=await pool.query(
+    'SELECT * FROM humanity_practice_runs WHERE id=$1 AND identity_key=$2 LIMIT 1',
+    [String(body.runId||''),identity.key]
+  );
+  const run=result.rows[0];
+  if(!run||run.status!=='active'){sendError(response,404,'This practice session is no longer active.','practice_unavailable');return;}
+  const played=Number(run.questions_played||0);
+  const slot=Number(run.current_question||0);
+  const question=(run.payload&&run.payload.questions||[])[slot];
+  if(!question||Number(body.index)!==played){
+    sendJSON(response,200,{ok:true,suggestion:null});return;
+  }
+  await addApprovedAnswers([question]);
+  const answer=engine.findAnswerCorrection(question,body.answer);
+  sendJSON(response,200,{ok:true,suggestion:answer?{answer}:null});
 }
 
 async function dailyHint(request, response) {
@@ -1315,6 +1303,9 @@ async function handleAPI(request, response, url, party) {
   }
   if (request.method === 'POST' && url.pathname === '/api/practice/answer') {
     await practiceGuess(request,response,false);return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/practice/suggest') {
+    await practiceSuggest(request,response);return true;
   }
   if (request.method === 'POST' && url.pathname === '/api/practice/skip') {
     await practiceGuess(request,response,true);return true;
