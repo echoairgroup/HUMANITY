@@ -492,7 +492,12 @@ function createAdminController(deps) {
         if (aliases.length >= 100) break;
       }
       await pool.query(
-        'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7) ON CONFLICT (question_id, answer_key) DO UPDATE SET answer_text=EXCLUDED.answer_text, aliases=EXCLUDED.aliases, rarity=EXCLUDED.rarity, source_url=EXCLUDED.source_url, approved_by=EXCLUDED.approved_by, approved_at=NOW()',
+        'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7) ON CONFLICT (question_id, answer_key) DO UPDATE SET ' +
+        'answer_text=EXCLUDED.answer_text, aliases=(SELECT COALESCE(jsonb_agg(to_jsonb(alias_value)), \'[]\'::jsonb) FROM (' +
+        'SELECT DISTINCT value AS alias_value FROM jsonb_array_elements_text(COALESCE(humanity_approved_answers.aliases, \'[]\'::jsonb) || EXCLUDED.aliases) ' +
+        'AS expanded(value) WHERE value <> EXCLUDED.answer_text LIMIT 100) merged_aliases), ' +
+        'rarity=EXCLUDED.rarity, source_url=COALESCE(EXCLUDED.source_url, humanity_approved_answers.source_url), ' +
+        'approved_by=EXCLUDED.approved_by, approved_at=NOW()',
         [item.question_id, item.answer_key, item.answer_text, JSON.stringify(aliases), rarity, item.source_url || null, actor.username]
       );
     }
