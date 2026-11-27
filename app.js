@@ -1474,6 +1474,9 @@
       '<div><span>GLOBE RUSH WINS</span><b>' + number.format(stats.partyWins || 0) + '</b></div>' +
       '<div><span>TEAM RUSH WINS</span><b>' + number.format(stats.teamRushWins || 0) + '</b></div>' +
       '<div><span>SURVIVAL GAMES</span><b>' + number.format(stats.survivalGames || 0) + '</b></div>' +
+      '<div><span>ACCEPTED ATLAS ANSWERS</span><b>' + number.format(stats.correctAnswers || 0) + '</b></div>' +
+      '<div><span>UNIQUE ATLAS ANSWERS</span><b>' + number.format(stats.uniqueAnswers || 0) + '</b></div>' +
+      '<div><span>PERFECT ATLAS DAILIES</span><b>' + number.format(stats.perfectDailies || 0) + '</b></div>' +
       '<div class="profile-level-progress"><span>NEXT LEVEL · ' + number.format(500 - levelProgress) + ' XP TO GO</span>' +
       '<i><b style="width:' + pct.toFixed(1) + '%"></b></i></div>';
   }
