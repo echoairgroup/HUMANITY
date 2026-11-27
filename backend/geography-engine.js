@@ -1217,43 +1217,56 @@ function matchAnswer(question, rawAnswer) {
     [...item.forms].some(form => targetForms.has(form))
   );
   if (exactMatches.length === 1) return buildMatch(exactMatches[0].entry);
-  if (exactMatches.length > 1) return null;
+  return null;
+}
 
-  // Krillion-style autocorrection: compare every accepted name/alias, then
-  // accept only a single unambiguous canonical answer. Short names stay exact.
-  let bestDistance = Infinity;
-  let bestAllowance = 0;
-  let bestEntries = [];
-  for (const item of entryForms) {
-    let entryDistance = Infinity;
-    let entryAllowance = 0;
-    for (const inputForm of targetForms) {
-      if (inputForm.length < 5) continue;
-      for (const acceptedForm of item.forms) {
-        const longest = Math.max(inputForm.length, acceptedForm.length);
-        if (longest < 6) continue;
-        const allowance = longest >= 12 ? 2 : 1;
-        const distance = boundedDamerauDistance(inputForm, acceptedForm, allowance);
-        if (distance < entryDistance) {
-          entryDistance = distance;
-          entryAllowance = allowance;
+function findAnswerCorrection(question, rawAnswer) {
+  const target = normaliseAnswer(rawAnswer);
+  if (!target || target.length < 3 || target.length > 80) return null;
+  if (matchAnswer(question, rawAnswer)) return null;
+
+  const entries = Array.isArray(question && question.answers) ? question.answers : [];
+  const inputForms = [...answerVariants(target, question)].filter(form => form.length >= 3);
+  const candidates = [];
+
+  for (const entry of entries) {
+    const labels = [entry.name].concat(Array.isArray(entry.aliases) ? entry.aliases : []);
+    const acceptedForms = new Set(labels.flatMap(label => [...answerVariants(label, question)]));
+    let bestDistance = Infinity;
+
+    for (const inputForm of inputForms) {
+      for (const acceptedForm of acceptedForms) {
+        if (acceptedForm.length < 4) continue;
+
+        // A three-character prefix is useful for fast typing ("con" → "Congo"),
+        // but only a unique result is ever shown to the player.
+        if (acceptedForm.length > inputForm.length && acceptedForm.startsWith(inputForm)) {
+          bestDistance = 0;
+          break;
         }
-        if (entryDistance === 0) break;
+
+        const longest = Math.max(inputForm.length, acceptedForm.length);
+        const allowance = longest >= 10 ? 2 : 1;
+        const distance = boundedDamerauDistance(inputForm, acceptedForm, allowance);
+        if (distance < bestDistance) bestDistance = distance;
+        if (bestDistance === 0) break;
       }
-      if (entryDistance === 0) break;
+      if (bestDistance === 0) break;
     }
 
-    if (entryDistance < bestDistance) {
-      bestDistance = entryDistance;
-      bestAllowance = entryAllowance;
-      bestEntries = [item.entry];
-    } else if (entryDistance === bestDistance && entryDistance !== Infinity) {
-      bestEntries.push(item.entry);
+    if (Number.isFinite(bestDistance) && bestDistance <= (Math.max(
+      ...[entry.name].concat(entry.aliases || []).map(label => normaliseAnswer(label).length)
+    ) >= 10 ? 2 : 1)) {
+      candidates.push({ entry, distance: bestDistance });
     }
   }
 
-  if (bestEntries.length !== 1 || bestDistance === Infinity) return null;
-  return bestDistance <= bestAllowance ? buildMatch(bestEntries[0]) : null;
+  if (!candidates.length) return null;
+  const best = Math.min(...candidates.map(item => item.distance));
+  const winners = [...new Map(candidates
+    .filter(item => item.distance === best)
+    .map(item => [normaliseAnswer(item.entry.name), item.entry])).values()];
+  return winners.length === 1 ? winners[0].name : null;
 }
 function pointsForUsage(entry, answerCount, totalAnswers) {
   if (!entry) return 0;
@@ -1407,6 +1420,7 @@ module.exports = {
   generateDailyChallenge,
   publicQuestion,
   matchAnswer,
+  findAnswerCorrection,
   pointsForUsage,
   getQuestion,
   getPartyQuestion,

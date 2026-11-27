@@ -507,7 +507,7 @@
           '<span class="admin-occurrences">×' + number.format(Number(item.occurrences || 1)) + ' suggestions</span></strong>' +
           '<span class="admin-queue-question">' + escapeHTML(item.question_prompt) + '</span>' + source +
           '<div class="admin-review-controls"><label>DISCOVERY RARITY<select data-review-rarity>' + options + '</select></label>' +
-          '<label>ALTERNATIVE NAMES / ALIASES<input data-review-aliases maxlength="240" placeholder="Comma-separated names, translations or local spellings"></label></div></div>' +
+          '<label>ALTERNATIVE NAMES / ALIASES<input data-review-aliases maxlength="5000" placeholder="Comma-separated names, translations or local spellings"></label></div></div>' +
           '<div class="admin-queue-actions"><button class="approve" type="button" data-review-action="approve" data-review-id="' + Number(item.id) + '">Approve</button>' +
           '<button type="button" data-review-action="reject" data-review-id="' + Number(item.id) + '">Reject</button></div></article>';
       }).join('');

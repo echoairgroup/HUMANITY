@@ -87,11 +87,13 @@ test('unapproved answers are not accepted', () => {
   assert.equal(engine.matchAnswer(snacks, 'invented snack name'), null);
 });
 
-test('Krillion-style autocorrection accepts a small typo but rejects unrelated answers', () => {
+test('answer corrections preview small typos without scoring them as exact answers', () => {
   const snacks = engine.getQuestion('popular-snacks');
-  assert.equal(engine.matchAnswer(snacks, 'Kroekt').name, 'Kroket');
-  assert.equal(engine.matchAnswer(snacks, 'Krokett').name, 'Kroket');
-  assert.equal(engine.matchAnswer(snacks, 'zzzzzzzz'), null);
+  assert.equal(engine.matchAnswer(snacks, 'Kroket').name, 'Kroket');
+  assert.equal(engine.matchAnswer(snacks, 'Kroekt'), null);
+  assert.equal(engine.findAnswerCorrection(snacks, 'Kroekt'), 'Kroket');
+  assert.equal(engine.findAnswerCorrection(snacks, 'Krokett'), 'Kroket');
+  assert.equal(engine.findAnswerCorrection(snacks, 'zzzzzzzz'), null);
 });
 
 test('Krillion-style matching ignores articles, accents, punctuation and common plurals', () => {
@@ -165,15 +167,21 @@ test('Globe Rush uses the complete multilingual North America and Oceania countr
   assert.equal(engine.matchAnswer(oceaniaAnswers, 'Aotearoa').name, 'New Zealand');
 });
 
-test('Krillion-style autocorrection checks aliases and handles one missing or mistyped letter', () => {
+test('answer correction searches every accepted alias and handles common typing errors', () => {
   const rivers = engine.getQuestion('world-rivers');
-  assert.equal(engine.matchAnswer(rivers, 'Amazn River').name, 'Amazon River');
-  assert.equal(engine.matchAnswer(rivers, 'Amazon Rvier').name, 'Amazon River');
-  assert.equal(engine.matchAnswer(rivers, 'Amazzon River').name, 'Amazon River');
-  assert.equal(engine.matchAnswer(rivers, 'zzzzzzzz'), null);
+  assert.equal(engine.findAnswerCorrection(rivers, 'Amazn River'), 'Amazon River');
+  assert.equal(engine.findAnswerCorrection(rivers, 'Amazon Rvier'), 'Amazon River');
+  assert.equal(engine.findAnswerCorrection(rivers, 'Amazzon River'), 'Amazon River');
+  assert.equal(engine.findAnswerCorrection(rivers, 'zzzzzzzz'), null);
 });
 
-test('autocorrection rejects a typo that is equally close to two valid answers', () => {
+test('three-character prefixes can suggest a unique full answer without accepting it', () => {
+  const rivers = engine.getQuestion('world-rivers');
+  assert.equal(engine.findAnswerCorrection(rivers, 'con'), 'Congo River');
+  assert.equal(engine.matchAnswer(rivers, 'con'), null);
+});
+
+test('answer correction rejects a typo that is equally close to two valid answers', () => {
   const ambiguous = {
     id: 'ambiguous-typo-test',
     category: 'Names',

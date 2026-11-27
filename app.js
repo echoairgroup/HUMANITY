@@ -471,7 +471,7 @@
     const input = $('#rush-answer');
     const typed = input.value.trim();
     clearPartySuggestion();
-    if (!state.room || state.room.phase !== 'playing' || typed.length < 4) return;
+    if (!state.room || state.room.phase !== 'playing' || typed.length < 3) return;
     const sequence = state.partySuggestionSequence;
     const categoryId = state.room.category && state.room.category.id;
     if (!categoryId) return;
@@ -489,44 +489,14 @@
     input.focus();
     return true;
   }
-  function editDistance(left, right) {
-    const a = String(left || '');
-    const b = String(right || '');
-    const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
-    for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
-    for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
-    for (let i = 1; i <= a.length; i += 1) {
-      for (let j = 1; j <= b.length; j += 1) {
-        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
-        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-          matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
-        }
-      }
-    }
-    return matrix[a.length][b.length];
-  }
-  function localDailySuggestion(rawAnswer) {
-    const target = norm(rawAnswer);
-    if (!target || target.length < 4) return null;
-    const answers = (state.question && state.question.answers) || [];
-    const matches = [];
-    const threshold = target.length >= 8 ? 2 : 1;
-    answers.forEach(entry => {
-      const labels = [entry.answer].concat(entry.aliases || []);
-      let best = Infinity;
-      labels.forEach(label => {
-        const candidate = norm(label);
-        if (candidate.length > target.length && candidate.startsWith(target)) best = Math.min(best, 0);
-        else best = Math.min(best, editDistance(target, candidate));
-      });
-      if (best <= threshold) matches.push({ answer: entry.answer, distance: best });
-    });
-    if (!matches.length) return null;
-    const minimum = Math.min(...matches.map(item => item.distance));
-    const winners = [...new Map(matches.filter(item => item.distance === minimum)
-      .map(item => [norm(item.answer), item])).values()];
-    return winners.length === 1 && norm(winners[0].answer) !== target ? winners[0].answer : null;
+  function showDailySuggestion(typed, answer) {
+    if (!typed || !answer) return false;
+    const panel = $('#daily-suggestion');
+    state.pendingSuggestion = { input: typed, answer };
+    panel.innerHTML = '<span class="suggestion-copy">DID YOU MEAN?</span><button class="suggestion-choice" type="button" data-use-daily-suggestion>' +
+      esc(answer) + '<span>PRESS ENTER TO USE</span></button>';
+    panel.hidden = false;
+    return true;
   }
   async function scheduleDailySuggestion() {
     clearTimeout(state.suggestionTimer);
@@ -538,12 +508,23 @@
     panel.hidden = true;
     panel.innerHTML = '';
     const sequence = ++state.suggestionSequence;
-    if (!state.runId || !state.question || state.pendingNextIndex !== null || typed.length < 4) return;
+    if (!state.runId || !state.question || state.pendingNextIndex !== null || typed.length < 3) return;
     state.suggestionTimer = setTimeout(async () => {
       let answer = null;
       try {
-        if (state.practice) answer = localDailySuggestion(typed);
-        else {
+        if (state.practice) {
+          const result = await api('/daily/archive/suggest', {
+            method: 'POST',
+            body: { date: state.practice.date, questionId: state.question.id, answer: typed }
+          });
+          answer = result.suggestion && result.suggestion.answer;
+        } else if (state.unlimited) {
+          const result = await api('/practice/suggest', {
+            method: 'POST',
+            body: { guestId: state.guestId, runId: state.runId, index: state.unlimited.questionsPlayed, answer: typed }
+          });
+          answer = result.suggestion && result.suggestion.answer;
+        } else {
           const result = await api('/daily/suggest', {
             method: 'POST',
             body: { guestId: state.guestId, runId: state.runId, index: state.questionIndex, answer: typed }
@@ -554,11 +535,8 @@
         answer = null;
       }
       if (sequence !== state.suggestionSequence || input.value.trim() !== typed || !answer) return;
-      state.pendingSuggestion = { input: typed, answer };
-      panel.innerHTML = '<span class="suggestion-copy">DID YOU MEAN?</span><button class="suggestion-choice" type="button" data-use-daily-suggestion>' +
-        esc(answer) + '<span>PRESS ENTER TO USE</span></button>';
-      panel.hidden = false;
-    }, 260);
+      showDailySuggestion(typed, answer);
+    }, 220);
   }
   function useDailySuggestion() {
     const suggestion = state.pendingSuggestion;
@@ -817,6 +795,12 @@
           method:'POST',body:{guestId:state.guestId,runId:state.runId,index:state.unlimited.questionsPlayed,answer}
         });
         if(!result.accepted) {
+          if (result.suggestion && result.suggestion.answer) {
+            showDailySuggestion(answer, result.suggestion.answer);
+            $('#daily-feedback').textContent = result.message || 'Select the suggested answer, then submit again.';
+            input.focus();
+            return;
+          }
           $('#daily-feedback').textContent=result.message||'That answer is not approved yet. Try another.';
           playSound('miss');input.select();return;
         }
@@ -836,21 +820,27 @@
     $('#daily-feedback').classList.remove('success');
     try {
       if (state.practice) {
-        const entry = (state.question.answers || []).find(item =>
-          [item.answer].concat(item.aliases || []).some(alias => norm(alias) === norm(answer))
-        );
-        if (!entry) {
-          $('#daily-feedback').textContent = 'That answer is not in this edition’s approved set. Try another.';
+        const result = await api('/daily/archive/answer', {
+          method: 'POST',
+          body: { date: state.practice.date, questionId: state.question.id, answer }
+        });
+        if (!result.accepted) {
+          if (result.suggestion && result.suggestion.answer) {
+            showDailySuggestion(answer, result.suggestion.answer);
+            $('#daily-feedback').textContent = result.message || 'Select the suggested answer, then submit again.';
+            input.focus();
+            return;
+          }
+          $('#daily-feedback').textContent = result.message || 'That answer is not in this edition’s approved set. Try another.';
           playSound('miss');
           input.select();
           return;
         }
         stopDailyTimer();
-        state.provisionalScore += Number(entry.points || 0);
+        state.provisionalScore += Number(result.points || 0);
         state.pendingNextIndex = state.questionIndex + 1;
-        const reveal = (state.question.answers || []).map(item => ({ answer: item.answer, points: item.points, level: item.level, rarity: item.rarity }));
-        showDailyResult(true, entry.answer, entry.level, entry.points, reveal, 1, entry.rarity);
-        playSound('answer', { rarity: entry.rarity });
+        showDailyResult(true, result.answer, result.level, result.points, result.reveal || [], 1, result.rarity);
+        playSound('answer', { rarity: result.rarity });
         return;
       }
       const result = await api('/daily/answer', {
@@ -864,6 +854,12 @@
         return;
       }
       if (!result.accepted) {
+        if (result.suggestion && result.suggestion.answer) {
+          showDailySuggestion(answer, result.suggestion.answer);
+          $('#daily-feedback').textContent = result.message || 'Select the suggested answer, then submit again.';
+          input.focus();
+          return;
+        }
         $('#daily-feedback').textContent = result.message || 'That answer is not in today’s approved answer set. Try another.';
         playSound('miss');
         input.select();
@@ -1709,6 +1705,11 @@
         panel.innerHTML = '<span class="suggestion-copy">DID YOU MEAN?</span><button class="suggestion-choice" type="button" data-use-rush-suggestion>' +
           esc(message.suggestion) + '<span>PRESS ENTER TO USE</span></button>';
         panel.hidden = false;
+        if (message.submitted) {
+          $('#rush-submit').disabled = false;
+          $('#rush-feedback').textContent = 'Did you mean “' + message.suggestion + '”? Press Enter to insert it, then submit again.';
+          $('#rush-feedback').classList.remove('success');
+        }
       }
     } else if (message.type === 'answer_accepted') {
       $('#rush-feedback').textContent = message.nickname + ' named ' + message.answer + ' · ' + message.level +
@@ -2635,7 +2636,7 @@
         $('#rush-feedback').classList.remove('success');
         return;
       }
-      sendSocket({ type: 'submit_answer', answer });
+      sendSocket({ type: 'submit_answer', answer, requestId: state.partySuggestionSequence });
       $('#rush-submit').disabled = true;
       $('#rush-feedback').textContent = 'Checking your answer…';
       $('#rush-feedback').classList.remove('success');

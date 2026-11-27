@@ -212,6 +212,71 @@ async function loadApprovedAnswers(questionIds) {
   return result.rows;
 }
 
+async function syncSeedAnswerBankToDatabase() {
+  const questionSets = new Map();
+  const addQuestion = question => {
+    if (!question || !Array.isArray(question.answers)) return;
+    const questionId = String(question.topicId || question.id || '');
+    if (!questionId) return;
+    if (!questionSets.has(questionId)) questionSets.set(questionId, new Map());
+    const bank = questionSets.get(questionId);
+    for (const entry of question.answers) {
+      const answerText = String(entry && entry.name || '').trim().slice(0, 80);
+      const answerKey = engine.normaliseAnswer(answerText);
+      if (!answerKey) continue;
+      const aliases = new Map();
+      for (const aliasValue of Array.isArray(entry.aliases) ? entry.aliases : []) {
+        const alias = String(aliasValue || '').trim().slice(0, 80);
+        const key = engine.normaliseAnswer(alias);
+        if (key && key !== answerKey) aliases.set(key, alias);
+      }
+      const existing = bank.get(answerKey);
+      if (existing) {
+        for (const [key, alias] of aliases) existing.aliases.set(key, alias);
+      } else {
+        bank.set(answerKey, {
+          questionId, answerKey, answerText, aliases,
+          rarity: Math.max(0, Math.min(5, Number(entry.rarity) || 0))
+        });
+      }
+    }
+  };
+
+  for (const item of engine.listQuestionBank()) addQuestion(engine.getQuestion(item.id));
+  for (const item of engine.listPartyQuestionBank()) addQuestion(engine.getQuestion(item.id));
+
+  const rows = [];
+  for (const bank of questionSets.values()) {
+    for (const entry of bank.values()) rows.push({ ...entry, aliases: [...entry.aliases.values()].slice(0, 100) });
+  }
+
+  const batchSize = 200;
+  for (let offset = 0; offset < rows.length; offset += batchSize) {
+    const batch = rows.slice(offset, offset + batchSize);
+    const values = [];
+    const tuples = batch.map((entry, index) => {
+      const base = index * 6;
+      values.push(entry.questionId, entry.answerKey, entry.answerText,
+        JSON.stringify(entry.aliases), entry.rarity, 'HUMANITY curated seed bank');
+      return '($' + (base + 1) + ',$' + (base + 2) + ',$' + (base + 3) +
+        ',$' + (base + 4) + '::jsonb,$' + (base + 5) + ',$' + (base + 6) + ')';
+    });
+    await pool.query(
+      'INSERT INTO humanity_approved_answers ' +
+      '(question_id, answer_key, answer_text, aliases, rarity, approved_by) VALUES ' + tuples.join(',') +
+      ' ON CONFLICT (question_id, answer_key) DO UPDATE SET aliases = (' +
+      "SELECT COALESCE(jsonb_agg(to_jsonb(alias_value)), '[]'::jsonb) FROM (" +
+      'SELECT DISTINCT value AS alias_value FROM jsonb_array_elements_text(' +
+      "COALESCE(humanity_approved_answers.aliases, '[]'::jsonb) || EXCLUDED.aliases" +
+      ') AS expanded(value) WHERE value <> EXCLUDED.answer_text LIMIT 100) merged_aliases) ' +
+      "WHERE NOT (COALESCE(humanity_approved_answers.aliases, '[]'::jsonb) @> EXCLUDED.aliases)",
+      values
+    );
+  }
+  console.log('HUMANITY answer bank synced: ' + rows.length + ' canonical answers across ' + questionSets.size + ' question sets.');
+  return { answers: rows.length, questionSets: questionSets.size };
+}
+
 async function buildChallenge(date) {
   const repeatWindowStart = new Date(
     Date.parse(date + 'T00:00:00Z') - 7 * 86400000
@@ -233,19 +298,7 @@ async function buildChallenge(date) {
   }
 
   const generated = engine.generateDailyChallenge(date, [...recentQuestionIds]);
-  const approved = await loadApprovedAnswers(generated.questions.map(item => item.id));
-  for (const extra of approved) {
-    const question = generated.questions.find(item => item.id === extra.question_id);
-    if (!question) continue;
-    const nameKey = engine.normaliseAnswer(extra.answer_text);
-    if (question.answers.some(item => engine.normaliseAnswer(item.name) === nameKey)) continue;
-    question.answers.push({
-      name: extra.answer_text,
-      aliases: Array.isArray(extra.aliases) ? extra.aliases : [],
-      rarity: Number(extra.rarity || 1),
-      source: extra.source_url || 'HUMANITY approved answer'
-    });
-  }
+  await addApprovedAnswers(generated.questions);
   return generated;
 }
 async function ensureChallenge(date) {
@@ -449,6 +502,13 @@ async function practiceGuess(request,response,skip) {
   }
   let match=null;
   if(!skip){
+    await addApprovedAnswers([question]);
+    const correction=engine.findAnswerCorrection(question,body.answer);
+    if(correction){
+      sendJSON(response,200,{ok:true,accepted:false,suggestion:{answer:correction},
+        message:'Did you mean “'+correction+'”? Select the suggestion or press Enter to insert it, then submit again.'});
+      return;
+    }
     match=await resolveApprovedMatch(question,body.answer);
     if(!match){
       await recordUnapproved(question,body.answer);
@@ -626,7 +686,7 @@ async function maybeVerifyWithWikidata(question, answerText) {
           action: 'wbgetentities',
           ids: candidate.id,
           props: 'labels|aliases',
-          languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi',
+          languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi|sv|pl|tr|uk|fa|ko|el|cs|da|no|fi|ro|hu|th|id|ms|he|bn|ta|vi|ca|hr|sk|sl|bg|sr|sw|ur|ne|si|et|lv|lt|is|ga|af|az|ka|hy',
           format: 'json'
         });
         const aliasResponse = await fetch('https://www.wikidata.org/w/api.php?' + aliasParams.toString(), {
@@ -650,7 +710,12 @@ async function maybeVerifyWithWikidata(question, answerText) {
       await pool.query(
         'INSERT INTO humanity_approved_answers (question_id, answer_key, answer_text, aliases, rarity, source_url, approved_by) ' +
         'VALUES ($1,$2,$3,$4::jsonb,2,$5,$6) ON CONFLICT (question_id, answer_key) DO UPDATE SET ' +
-        'aliases = EXCLUDED.aliases, source_url = EXCLUDED.source_url, approved_by = EXCLUDED.approved_by',
+        'aliases = (SELECT COALESCE(jsonb_agg(to_jsonb(alias_value)), \'[]\'::jsonb) FROM (' +
+        'SELECT DISTINCT value AS alias_value FROM jsonb_array_elements_text(' +
+        'COALESCE(humanity_approved_answers.aliases, \'[]\'::jsonb) || EXCLUDED.aliases) AS expanded(value) ' +
+        'WHERE value <> EXCLUDED.answer_text LIMIT 100) merged_aliases), ' +
+        'source_url = COALESCE(EXCLUDED.source_url, humanity_approved_answers.source_url), ' +
+        'approved_by = EXCLUDED.approved_by',
         [question.id, key, candidate.label, JSON.stringify(approvedAliases), candidate.concepturi || null, 'automatic Wikidata type match']
       );
       await pool.query(
@@ -1019,6 +1084,13 @@ async function dailyGuess(request, response, skip) {
     skip = true;
   }
   if (!skip) {
+    await addApprovedAnswers([question]);
+    const correction = engine.findAnswerCorrection(question, body.answer);
+    if (correction) {
+      sendJSON(response, 200, { ok: true, accepted: false, suggestion: { answer: correction },
+        message: 'Did you mean “' + correction + '”? Select the suggestion or press Enter to insert it, then submit again.' });
+      return;
+    }
     const match = await resolveApprovedMatch(question, body.answer);
     if (!match) {
       await recordUnapproved(question, body.answer);
@@ -1089,51 +1161,8 @@ async function dailyGuess(request, response, skip) {
 }
 
 
-function suggestionEditDistance(left, right) {
-  const a = String(left || '');
-  const b = String(right || '');
-  const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
-  for (let i = 1; i <= a.length; i += 1) {
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost
-      );
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
-      }
-    }
-  }
-  return matrix[a.length][b.length];
-}
-
 function findDailyAnswerSuggestion(question, rawAnswer) {
-  const target = engine.normaliseAnswer(rawAnswer);
-  if (!target || target.length < 4 || engine.matchAnswer(question, rawAnswer)) return null;
-  const threshold = target.length >= 8 ? 2 : 1;
-  const matches = [];
-  for (const entry of question.answers || []) {
-    const names = [entry.name].concat(entry.aliases || []);
-    let best = Infinity;
-    for (const name of names) {
-      const candidate = engine.normaliseAnswer(name);
-      if (candidate === target) return null;
-      const prefix = target.length >= 4 && candidate.length > target.length && candidate.startsWith(target);
-      const distance = prefix ? 0 : suggestionEditDistance(target, candidate);
-      best = Math.min(best, distance);
-    }
-    if (best <= threshold) matches.push({ answer: entry.name, distance: best });
-  }
-  if (!matches.length) return null;
-  const minimum = Math.min(...matches.map(item => item.distance));
-  const winners = [...new Map(
-    matches.filter(item => item.distance === minimum).map(item => [engine.normaliseAnswer(item.answer), item])
-  ).values()];
-  return winners.length === 1 ? winners[0].answer : null;
+  return engine.findAnswerCorrection(question, rawAnswer);
 }
 
 async function dailySuggest(request, response) {
@@ -1157,8 +1186,58 @@ async function dailySuggest(request, response) {
     sendJSON(response, 200, { ok: true, suggestion: null });
     return;
   }
+  await addApprovedAnswers([question]);
   const answer = findDailyAnswerSuggestion(question, body.answer);
   sendJSON(response, 200, { ok: true, suggestion: answer ? { answer } : null });
+}
+
+async function practiceSuggest(request,response) {
+  const body=await readJSON(request);
+  const identity=await getIdentity(request,body);
+  if(!identity){sendError(response,400,'A guest ID or account is required.','identity_required');return;}
+  const result=await pool.query('SELECT * FROM humanity_practice_runs WHERE id=$1 AND identity_key=$2 LIMIT 1',
+    [String(body.runId||''),identity.key]);
+  const run=result.rows[0];
+  if(!run||run.status!=='active'){sendError(response,404,'This practice session is no longer active.','practice_unavailable');return;}
+  const played=Number(run.questions_played||0);
+  const slot=Number(run.current_question||0);
+  const question=(run.payload&&run.payload.questions||[])[slot];
+  if(!question||Number(body.index)!==played){sendJSON(response,200,{ok:true,suggestion:null});return;}
+  await addApprovedAnswers([question]);
+  const answer=engine.findAnswerCorrection(question,body.answer);
+  sendJSON(response,200,{ok:true,suggestion:answer?{answer}:null});
+}
+
+async function archiveQuestion(body) {
+  const date = String(body.date || '');
+  const questionId = String(body.questionId || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= utcDate() || !questionId) return null;
+  const result = await pool.query('SELECT payload FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1',[date]);
+  const questions = result.rows[0] && result.rows[0].payload && result.rows[0].payload.questions;
+  return Array.isArray(questions) ? questions.find(question => question && String(question.id) === questionId) || null : null;
+}
+
+async function archiveSuggest(request,response) {
+  const body=await readJSON(request);
+  const question=await archiveQuestion(body);
+  if(!question){sendJSON(response,200,{ok:true,suggestion:null});return;}
+  await addApprovedAnswers([question]);
+  const answer=engine.findAnswerCorrection(question,body.answer);
+  sendJSON(response,200,{ok:true,suggestion:answer?{answer}:null});
+}
+
+async function archiveGuess(request,response) {
+  const body=await readJSON(request);
+  const question=await archiveQuestion(body);
+  if(!question){sendError(response,404,'That archived Atlas question could not be found.','archive_question_missing');return;}
+  await addApprovedAnswers([question]);
+  const correction=engine.findAnswerCorrection(question,body.answer);
+  if(correction){sendJSON(response,200,{ok:true,accepted:false,suggestion:{answer:correction},
+    message:'Did you mean “'+correction+'”? Select the suggestion or press Enter to insert it, then submit again.'});return;}
+  const match=await resolveApprovedMatch(question,body.answer);
+  if(!match){await recordUnapproved(question,body.answer);sendJSON(response,200,{ok:true,accepted:false,
+    message:'That answer is not in this edition’s approved answer set yet. It has been sent for review.'});return;}
+  sendJSON(response,200,{ok:true,accepted:true,answer:match.name,level:match.level,rarity:match.rarity,points:match.points,reveal:answerReveal(question)});
 }
 
 async function dailyHint(request, response) {
@@ -1316,6 +1395,9 @@ async function handleAPI(request, response, url, party) {
   if (request.method === 'POST' && url.pathname === '/api/practice/answer') {
     await practiceGuess(request,response,false);return true;
   }
+  if (request.method === 'POST' && url.pathname === '/api/practice/suggest') {
+    await practiceSuggest(request,response);return true;
+  }
   if (request.method === 'POST' && url.pathname === '/api/practice/skip') {
     await practiceGuess(request,response,true);return true;
   }
@@ -1457,6 +1539,12 @@ async function handleAPI(request, response, url, party) {
   if (request.method === 'POST' && url.pathname === '/api/daily/hint') {
     await dailyHint(request, response);
     return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/daily/archive/suggest') {
+    await archiveSuggest(request, response);return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/daily/archive/answer') {
+    await archiveGuess(request, response);return true;
   }
   const archiveDate = url.pathname.match(/^\/api\/daily\/archive\/(\d{4}-\d{2}-\d{2})$/);
   if (request.method === 'GET' && archiveDate) {
@@ -1778,6 +1866,7 @@ const party = createPartyServer({
 async function start() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema-geography.sql'), 'utf8');
   await pool.query(schema);
+  await syncSeedAnswerBankToDatabase();
   await pool.query('DELETE FROM humanity_sessions WHERE expires_at < NOW()');
   await pool.query("DELETE FROM humanity_analytics_events WHERE created_at < NOW() - INTERVAL '365 days'");
   await currentChallenge();
