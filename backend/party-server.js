@@ -308,7 +308,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
             action: 'wbgetentities',
             ids: candidate.id,
             props: 'labels|aliases',
-            languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi',
+            languages: 'en|nl|fr|de|es|pt|it|ru|zh|ja|ar|hi|sv|pl|tr|uk|fa|ko|el|cs|da|no|fi|ro|hu|th|id|ms|he|bn|ta|vi|ca|hr|sk|sl|bg|sr|sw|ur|ne|si|et|lv|lt|is|ga|af|az|ka|hy',
             format: 'json'
           });
           const aliasResponse = await fetch('https://www.wikidata.org/w/api.php?' + aliasParams.toString(), {
@@ -1126,7 +1126,8 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
             requestId: Number(message.requestId) || 0,
             categoryId: room.category.id,
             typed: String(message.answer || '').trim().slice(0, 80),
-            suggestion: correction
+            suggestion: correction,
+            submitted: true
           });
           return;
         }
