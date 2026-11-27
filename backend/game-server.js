@@ -1149,6 +1149,71 @@ async function practiceSuggest(request,response) {
   sendJSON(response,200,{ok:true,suggestion:answer?{answer}:null});
 }
 
+async function archiveQuestion(body) {
+  const date = String(body.date || '');
+  const questionId = String(body.questionId || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= utcDate() || !questionId) return null;
+  const result = await pool.query(
+    'SELECT payload FROM humanity_daily_challenges WHERE challenge_date = $1 LIMIT 1',
+    [date]
+  );
+  const questions = result.rows[0] && result.rows[0].payload && result.rows[0].payload.questions;
+  return Array.isArray(questions)
+    ? questions.find(question => question && String(question.id) === questionId) || null
+    : null;
+}
+
+async function archiveSuggest(request, response) {
+  const body = await readJSON(request);
+  const question = await archiveQuestion(body);
+  if (!question) {
+    sendJSON(response, 200, { ok: true, suggestion: null });
+    return;
+  }
+  await addApprovedAnswers([question]);
+  const answer = engine.findAnswerCorrection(question, body.answer);
+  sendJSON(response, 200, { ok: true, suggestion: answer ? { answer } : null });
+}
+
+async function archiveGuess(request, response) {
+  const body = await readJSON(request);
+  const question = await archiveQuestion(body);
+  if (!question) {
+    sendError(response, 404, 'That archived Atlas question could not be found.', 'archive_question_missing');
+    return;
+  }
+  await addApprovedAnswers([question]);
+  const correction = engine.findAnswerCorrection(question, body.answer);
+  if (correction) {
+    sendJSON(response, 200, {
+      ok: true,
+      accepted: false,
+      suggestion: { answer: correction },
+      message: 'Did you mean “' + correction + '”? Select the suggestion or press Enter to insert it, then submit again.'
+    });
+    return;
+  }
+  const match = await resolveApprovedMatch(question, body.answer);
+  if (!match) {
+    await recordUnapproved(question, body.answer);
+    sendJSON(response, 200, {
+      ok: true,
+      accepted: false,
+      message: 'That answer is not in this edition’s approved answer set yet. It has been sent for review.'
+    });
+    return;
+  }
+  sendJSON(response, 200, {
+    ok: true,
+    accepted: true,
+    answer: match.name,
+    level: match.level,
+    rarity: match.rarity,
+    points: match.points,
+    reveal: answerReveal(question)
+  });
+}
+
 async function dailyHint(request, response) {
   const body = await readJSON(request);
   const identity = await getIdentity(request, body);
@@ -1447,6 +1512,14 @@ async function handleAPI(request, response, url, party) {
 
   if (request.method === 'POST' && url.pathname === '/api/daily/hint') {
     await dailyHint(request, response);
+    return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/daily/archive/suggest') {
+    await archiveSuggest(request, response);
+    return true;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/daily/archive/answer') {
+    await archiveGuess(request, response);
     return true;
   }
   const archiveDate = url.pathname.match(/^\/api\/daily\/archive\/(\d{4}-\d{2}-\d{2})$/);
