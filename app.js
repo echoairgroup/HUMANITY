@@ -2062,6 +2062,10 @@
         : 'READY FOR YOUR TURN';
       if (holding && (!previousMe || !previousMe.isHolder)) {
         playSound('your-turn');
+        window.requestAnimationFrame(() => {
+          const answerField = $('#rush-answer');
+          if (answerField && !answerField.disabled) answerField.focus({ preventScroll: true });
+        });
         if ($('#rush-answer').value.trim()) {
           $('#rush-feedback').textContent = 'Your draft is ready — press Enter to pass the Orb.';
           $('#rush-feedback').classList.remove('success');
