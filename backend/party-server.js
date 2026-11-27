@@ -773,7 +773,7 @@ function createPartyServer({ server, pool, allowedOrigins, authenticateToken }) 
       sendError(socket, 'Choose a display name between 2 and 18 characters.', 'invalid_name');
       return null;
     }
-    const streakDays = account ? Math.max(0, Number(account.party_streak_days || 0)) : 0;
+    const streakDays = account ? Math.max(0, Number(account.daily_streak ?? account.dailyStreak ?? 0)) : 0;
     const requestedAvatar = account
       ? String(account.selected_avatar || message.avatarKey || 'mercury')
       : String(message.avatarKey || 'mercury');
